@@ -1,0 +1,391 @@
+"use client";
+
+import type { Entity, RuntimeEvent } from "@visual-system/schema";
+import { useState } from "react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  ArrowUpRight,
+  Braces,
+  ChevronDown,
+  FileCode2,
+  TimerReset,
+} from "lucide-react";
+import { Badge } from "./primitives/badge";
+import { cn } from "./lib/cn";
+import { EntityIcon } from "./entity-icon";
+
+export interface InspectorProps {
+  entity: Entity | undefined;
+  currentEvent: RuntimeEvent | undefined;
+  connectedEntities: readonly Entity[];
+  isLive: boolean;
+  rawEvent?: unknown;
+  diagnostics?: ReadonlyArray<{
+    severity: "info" | "warning" | "error";
+    code: string;
+    message: string;
+    line?: number;
+    file?: string;
+    stage?: string;
+  }>;
+  runLabel?: string;
+  repositoryFiles?:
+    | ReadonlyArray<{
+        path: string;
+        role: string;
+        imports: string[];
+        exports: string[];
+      }>
+    | undefined;
+  runtimeActivity?:
+    | {
+        observed: boolean;
+        eventCount: number;
+        files: string[];
+        lastTimestamp?: number;
+        operations: { read: number; edit: number; create: number; delete: number; other: number };
+        hasError: boolean;
+      }
+    | undefined;
+  onSelectEntity?: ((entityId: string) => void) | undefined;
+  onViewEvents?: (() => void) | undefined;
+}
+
+interface ArchitectureDetails {
+  category: string;
+  confidence: number;
+  confidenceLabel: string;
+  technologies: string[];
+  sourceFiles: string[];
+  fileCount: number;
+  dependencies: string[];
+  evidence: Array<{ kind: string; file: string; line?: number; description: string }>;
+}
+
+function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-slate-600">
+        {label}
+      </dt>
+      <dd className="mt-1.5 text-sm text-slate-300">{children}</dd>
+    </div>
+  );
+}
+
+const titleCase = (value: string) =>
+  value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+export function Inspector({
+  entity,
+  currentEvent,
+  connectedEntities,
+  isLive,
+  rawEvent,
+  diagnostics = [],
+  runLabel = "Run",
+  repositoryFiles = [],
+  runtimeActivity,
+  onSelectEntity,
+  onViewEvents,
+}: InspectorProps) {
+  const [eventView, setEventView] = useState<"normalized" | "raw">("normalized");
+  const [evidenceExpanded, setEvidenceExpanded] = useState(false);
+  const [selectedFilePath, setSelectedFilePath] = useState<string>();
+  const architecture = entity?.metadata?.architecture as ArchitectureDetails | undefined;
+  const selectedFile = repositoryFiles.find((file) => file.path === selectedFilePath);
+  const eventArchitectureIds = Array.isArray(currentEvent?.metadata?.architectureEntityIds)
+    ? currentEvent.metadata.architectureEntityIds.filter(
+        (entityId): entityId is string => typeof entityId === "string",
+      )
+    : [];
+  if (!entity && !currentEvent) {
+    return (
+      <aside className="flex h-full flex-col border-l border-white/[0.065] bg-[#0c0f15]/88 p-5">
+        <div className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-slate-600">
+          Inspector
+        </div>
+        <div className="mt-16 text-center">
+          <div className="mx-auto grid size-11 place-items-center rounded-xl border border-dashed border-white/10 text-slate-600">
+            <ArrowUpRight className="size-4" />
+          </div>
+          <p className="mt-4 text-sm text-slate-400">Select a component to inspect it.</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            Live events appear here during replay.
+          </p>
+        </div>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="h-full overflow-y-auto border-l border-white/[0.065] bg-[#0c0f15]/88 p-5">
+      {entity ? (
+        <>
+          <div className="flex items-start gap-3">
+            <div className="grid size-10 place-items-center rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] text-cyan-300">
+              <EntityIcon kind={entity.kind} className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-base font-semibold text-slate-100">{entity.name}</h2>
+              <Badge className="mt-1.5">{titleCase(entity.kind)}</Badge>
+              {architecture ? (
+                <Badge className="ml-1.5 mt-1.5 border-indigo-300/15 bg-indigo-300/[0.05] text-indigo-200/80">
+                  {titleCase(architecture.confidenceLabel)} ·{" "}
+                  {Math.round(architecture.confidence * 100)}%
+                </Badge>
+              ) : null}
+            </div>
+          </div>
+          <p className="mt-4 text-sm leading-6 text-slate-500">{entity.description}</p>
+          <dl className="mt-6 grid gap-5">
+            <Detail label="Provider">{entity.provider ?? "Local"}</Detail>
+            <Detail label="Status">
+              <span className="inline-flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-emerald-400" />
+                {runtimeActivity?.hasError
+                  ? "Error observed"
+                  : runtimeActivity?.observed
+                    ? isLive
+                      ? "Active / observed"
+                      : "Observed"
+                    : architecture
+                      ? "Detected"
+                      : isLive
+                        ? "Observed"
+                        : "Available"}
+              </span>
+            </Detail>
+            <Detail label="Run">{runLabel}</Detail>
+            {entity.metadata?.averageLatency ? (
+              <Detail label="Avg latency">{String(entity.metadata.averageLatency)}</Detail>
+            ) : null}
+            {architecture?.technologies.length ? (
+              <Detail label="Technology">
+                <div className="flex flex-wrap gap-1.5">
+                  {architecture.technologies.map((technology) => (
+                    <Badge key={technology} className="normal-case tracking-normal text-slate-400">
+                      {technology}
+                    </Badge>
+                  ))}
+                </div>
+              </Detail>
+            ) : null}
+            <Detail label="Connected to">
+              <div className="flex flex-wrap gap-1.5">
+                {connectedEntities.map((connected) => (
+                  <Badge key={connected.id} className="normal-case tracking-normal text-slate-400">
+                    {connected.name}
+                  </Badge>
+                ))}
+              </div>
+            </Detail>
+            {entity.source ? (
+              <Detail label="Source">
+                <span className="font-mono text-xs text-cyan-300/85">
+                  {entity.source.file}
+                  {entity.source.line ? `:${entity.source.line}` : ""}
+                </span>
+              </Detail>
+            ) : null}
+            {architecture ? (
+              <Detail label="Evidence">
+                <div className="grid gap-2">
+                  {architecture.evidence
+                    .slice(0, evidenceExpanded ? architecture.evidence.length : 3)
+                    .map((evidence, index) => (
+                      <div
+                        key={`${evidence.file}-${evidence.line ?? index}`}
+                        className="rounded-md border border-white/[0.055] bg-black/20 p-2.5"
+                      >
+                        <div className="font-mono text-[0.625rem] text-cyan-300/70">
+                          {evidence.file}
+                          {evidence.line ? `:${evidence.line}` : ""}
+                        </div>
+                        <div className="mt-1 text-xs leading-5 text-slate-500">
+                          {evidence.description}
+                        </div>
+                      </div>
+                    ))}
+                  {architecture.evidence.length > 3 ? (
+                    <button
+                      type="button"
+                      onClick={() => setEvidenceExpanded((expanded) => !expanded)}
+                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "size-3.5 transition-transform",
+                          evidenceExpanded && "rotate-180",
+                        )}
+                      />
+                      {evidenceExpanded
+                        ? "Show less"
+                        : `Show ${architecture.evidence.length - 3} more`}
+                    </button>
+                  ) : null}
+                </div>
+              </Detail>
+            ) : null}
+            {repositoryFiles.length > 0 ? (
+              <Detail label={`Files (${repositoryFiles.length})`}>
+                <div className="grid gap-1">
+                  {repositoryFiles.slice(0, 20).map((file) => (
+                    <button
+                      type="button"
+                      key={file.path}
+                      onClick={() => setSelectedFilePath(file.path)}
+                      className={cn(
+                        "flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-slate-500 hover:bg-white/[0.035] hover:text-slate-300",
+                        selectedFilePath === file.path && "bg-white/[0.045] text-cyan-300/80",
+                      )}
+                    >
+                      <FileCode2 className="size-3.5 shrink-0" />
+                      <span className="truncate font-mono">{file.path}</span>
+                    </button>
+                  ))}
+                </div>
+              </Detail>
+            ) : null}
+            {selectedFile ? (
+              <Detail label="Selected file">
+                <div className="rounded-lg border border-white/[0.055] bg-black/20 p-3 text-xs leading-5 text-slate-500">
+                  <div className="break-all font-mono text-cyan-300/80">{selectedFile.path}</div>
+                  <div className="mt-2">Role · {titleCase(selectedFile.role)}</div>
+                  <div>
+                    Imports ·{" "}
+                    {selectedFile.imports.length ? selectedFile.imports.join(", ") : "None"}
+                  </div>
+                  <div>
+                    Exports ·{" "}
+                    {selectedFile.exports.length ? selectedFile.exports.join(", ") : "None"}
+                  </div>
+                </div>
+              </Detail>
+            ) : null}
+            {runtimeActivity ? (
+              <Detail label="Runtime">
+                <div className="rounded-lg border border-white/[0.055] bg-black/20 p-3 text-xs leading-5 text-slate-500">
+                  <div>Touched in selected run · {runtimeActivity.observed ? "Yes" : "No"}</div>
+                  <div>Events · {runtimeActivity.eventCount}</div>
+                  {runtimeActivity.lastTimestamp !== undefined ? (
+                    <div>
+                      Last activity · {(runtimeActivity.lastTimestamp / 1000).toFixed(2)} sec
+                    </div>
+                  ) : null}
+                  <div className="mt-2 font-mono text-[0.625rem] text-slate-600">
+                    READ {runtimeActivity.operations.read} · EDIT {runtimeActivity.operations.edit}{" "}
+                    · CREATE {runtimeActivity.operations.create} · DELETE{" "}
+                    {runtimeActivity.operations.delete}
+                  </div>
+                  {runtimeActivity.eventCount > 0 && onViewEvents ? (
+                    <button
+                      type="button"
+                      onClick={onViewEvents}
+                      className="mt-2 flex items-center gap-1.5 text-cyan-300/75 hover:text-cyan-200"
+                    >
+                      View events <ArrowRight className="size-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+              </Detail>
+            ) : null}
+          </dl>
+        </>
+      ) : null}
+
+      {currentEvent ? (
+        <section className="mt-7 border-t border-white/[0.065] pt-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-slate-600">
+              Current event
+            </div>
+            <Badge className="border-cyan-300/15 bg-cyan-300/[0.06] text-cyan-300">
+              {currentEvent.category}
+            </Badge>
+          </div>
+          <div className="mt-3 flex rounded-md border border-white/[0.06] bg-black/20 p-0.5">
+            {(["normalized", "raw"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                onClick={() => setEventView(view)}
+                disabled={view === "raw" && rawEvent === undefined}
+                className={cn(
+                  "flex-1 rounded px-2 py-1 font-mono text-[0.625rem] uppercase tracking-wider text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-35",
+                  eventView === view && "bg-white/[0.07] text-slate-300",
+                )}
+              >
+                {view}
+              </button>
+            ))}
+          </div>
+          {eventArchitectureIds[0] && onSelectEntity ? (
+            <button
+              type="button"
+              onClick={() => onSelectEntity(eventArchitectureIds[0] as string)}
+              className="mt-3 flex items-center gap-1.5 text-xs text-cyan-300/75 hover:text-cyan-200"
+            >
+              View in architecture <ArrowRight className="size-3.5" />
+            </button>
+          ) : null}
+          {eventView === "raw" && rawEvent !== undefined ? (
+            <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-white/[0.055] bg-black/25 p-3 font-mono text-[0.6875rem] leading-5 text-slate-400">
+              {JSON.stringify(rawEvent, null, 2)}
+            </pre>
+          ) : (
+            <>
+              <h3 className="mt-3 text-sm font-semibold text-slate-100">
+                {titleCase(currentEvent.action)}
+              </h3>
+              <div className="mt-2 flex items-center gap-2 font-mono text-xs text-slate-500">
+                <TimerReset className="size-3.5" /> {currentEvent.durationMs ?? 0} ms
+              </div>
+              {currentEvent.metadata ? (
+                <dl className="mt-4 grid gap-3 rounded-lg border border-white/[0.055] bg-black/20 p-3">
+                  {Object.entries(currentEvent.metadata).map(([key, value]) => (
+                    <div key={key}>
+                      <dt className="font-mono text-[0.625rem] uppercase tracking-wider text-slate-600">
+                        {key}
+                      </dt>
+                      <dd className="mt-1 break-words text-xs leading-5 text-slate-400">
+                        {typeof value === "string" ? value : JSON.stringify(value)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {diagnostics.length > 0 ? (
+        <section className="mt-7 border-t border-white/[0.065] pt-5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-slate-600">
+              <AlertTriangle className="size-3.5" /> Diagnostics
+            </div>
+            <Badge>{diagnostics.length}</Badge>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {diagnostics.slice(-8).map((diagnostic, index) => (
+              <div
+                key={`${diagnostic.code}-${diagnostic.line ?? index}`}
+                className="rounded-lg border border-amber-300/10 bg-amber-300/[0.035] p-2.5"
+              >
+                <div className="flex items-center gap-2 font-mono text-[0.625rem] text-amber-300/70">
+                  <Braces className="size-3" /> {diagnostic.code}
+                  {diagnostic.file ? ` · ${diagnostic.file}` : ""}
+                  {diagnostic.line ? `:${diagnostic.line}` : ""}
+                </div>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{diagnostic.message}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </aside>
+  );
+}

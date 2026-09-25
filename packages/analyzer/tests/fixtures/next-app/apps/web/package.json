@@ -1,0 +1,13 @@
+{
+  "name": "@fixture/web",
+  "private": true,
+  "scripts": {
+    "dangerous": "touch SHOULD_NOT_EXIST"
+  },
+  "dependencies": {
+    "next": "15.3.3",
+    "react": "19.1.0",
+    "openai": "4.0.0",
+    "pg": "8.0.0"
+  }
+}

@@ -1,0 +1,16 @@
+node_modules
+.next
+dist
+coverage
+.turbo
+.vercel
+.pnpm-store
+.DS_Store
+*.tsbuildinfo
+*.log
+
+# Local environment values must never be committed.
+.env
+.env.*
+!.env.example
+!.env.*.example

@@ -1,0 +1,7 @@
+{
+  "name": "fixture-next",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ]
+}

@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --background: 222 35% 4%;
+  --foreground: 210 40% 96%;
+  --card: 220 26% 9%;
+  --card-foreground: 210 40% 96%;
+  --muted: 217 20% 15%;
+  --muted-foreground: 215 16% 57%;
+  --border: 215 22% 18%;
+  --ring: 187 86% 53%;
+  --radius: 0.625rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #080a0f;
+}
+
+body {
+  font-family:
+    "Geist",
+    "Inter",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgb(103 232 249 / 0.22);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(148 163 184 / 0.2);
+  background-clip: padding-box;
+}
+
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.react-flow__controls-button {
+  border: 0 !important;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06) !important;
+  background: #11151d !important;
+  color: #94a3b8 !important;
+  fill: currentColor !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #171c26 !important;
+  color: #e2e8f0 !important;
+}
+
+.react-flow__node:focus-visible {
+  outline: none;
+}
+
+.graph-node {
+  color: #94a3b8;
+  border-color: rgb(148 163 184 / 0.15);
+}
+
+.graph-node::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle at 22% 0%, currentColor 0%, transparent 46%);
+  opacity: 0.055;
+  transition: opacity 220ms ease;
+}
+
+.graph-node:hover {
+  border-color: color-mix(in srgb, currentColor 34%, transparent);
+  transform: translateY(-1px);
+}
+
+.graph-node.is-active {
+  border-color: color-mix(in srgb, currentColor 58%, transparent);
+  box-shadow:
+    0 0 0 1px rgb(103 232 249 / 0.05),
+    0 0 34px color-mix(in srgb, currentColor 16%, transparent),
+    0 16px 42px rgb(0 0 0 / 0.34);
+}
+
+.graph-node.is-active::before {
+  opacity: 0.16;
+  animation: node-breathe 1.8s ease-in-out infinite;
+}
+
+.graph-node.is-completed {
+  border-color: color-mix(in srgb, currentColor 24%, transparent);
+}
+
+.node-tone-user {
+  color: #cbd5e1;
+}
+.node-tone-frontend {
+  color: #60a5fa;
+}
+.node-tone-service {
+  color: #818cf8;
+}
+.node-tone-agent {
+  color: #67e8f9;
+}
+.node-tone-model {
+  color: #c084fc;
+}
+.node-tone-memory {
+  color: #34d399;
+}
+.node-tone-data {
+  color: #fb923c;
+}
+.node-tone-tool {
+  color: #facc15;
+}
+.node-tone-web {
+  color: #38bdf8;
+}
+.node-tone-document {
+  color: #a3e635;
+}
+
+.signal-particle {
+  filter: drop-shadow(0 0 5px #67e8f9);
+}
+
+@keyframes node-breathe {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.22;
+  }
+}
+
+@media (max-width: 1080px) {
+  .visualizer-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .visualizer-shell > aside {
+    display: none;
+  }
+
+  .visualizer-shell > footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .visualizer-shell > footer > :last-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
