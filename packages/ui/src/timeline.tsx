@@ -11,6 +11,7 @@ export interface TimelineProps {
 const categoryColor: Record<RuntimeEvent["category"], string> = {
   prompt: "bg-violet-400",
   http: "bg-blue-400",
+  service: "bg-slate-400",
   agent: "bg-cyan-300",
   model: "bg-fuchsia-400",
   tool: "bg-amber-400",

@@ -10,20 +10,25 @@ import type { ArchitectureGraph, Run, RuntimeEvent } from "@visual-system/schema
 import { demoArchitecture, demoRun } from "@/lib/fixtures";
 
 export type VisualizerMode = "map" | "live" | "runs";
-export type DataSource = "demo" | "codex" | "repository";
+export type DataSource = "demo" | "codex" | "claude" | "telemetry" | "repository";
+export type ArchitectureLayerFilter = "all" | "application" | "infrastructure" | "runtime";
 
 export interface PublicSessionSummary {
   id: string;
-  fileName: string;
+  source?: "codex" | "claude" | "telemetry";
+  title?: string;
+  fileName?: string;
   startedAt: string | null;
   modifiedAt: string;
-  bytes: number;
-  lineCount: number | null;
+  bytes?: number;
+  lineCount?: number | null;
   eventCount: number | null;
-  cwd: string | null;
-  originator: string | null;
-  cliVersion: string | null;
-  status: "active" | "completed" | "unknown";
+  cwd?: string | null;
+  originator?: string | null;
+  cliVersion?: string | null;
+  status: "active" | "completed" | "error" | "unknown";
+  serviceName?: string;
+  traceId?: string;
 }
 
 export interface VisualizerDiagnostic extends AdapterDiagnostic {
@@ -147,6 +152,7 @@ interface VisualizationState {
   sourceLoading: boolean;
   sourceError: string | undefined;
   showExecution: boolean;
+  layerFilter: ArchitectureLayerFilter;
   setMode: (mode: VisualizerMode) => void;
   selectEntity: (entityId: string | undefined) => void;
   togglePlayback: () => void;
@@ -160,6 +166,7 @@ interface VisualizationState {
   applyLiveDelta: (delta: LiveDelta) => void;
   jumpToLive: () => void;
   toggleExecutionOverlay: () => void;
+  setLayerFilter: (filter: ArchitectureLayerFilter) => void;
   viewEntityEvents: (entityId: string) => void;
   setTailConnected: (connected: boolean) => void;
   setSourceLoading: (loading: boolean) => void;
@@ -177,6 +184,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
   sourceLoading: false,
   sourceError: undefined,
   showExecution: false,
+  layerFilter: "all",
   setMode: (mode) => {
     if (mode === "live") {
       const snapshot = engine.play();
@@ -224,7 +232,9 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
   loadDataset: (incoming, followLive = false) => {
     const current = get().dataset;
     const dataset =
-      incoming.source === "codex" && current.source === "repository" && current.repository
+      ["codex", "claude", "telemetry"].includes(incoming.source) &&
+      current.source === "repository" &&
+      current.repository
         ? reconciledRepositoryDataset(current.repository, incoming)
         : incoming;
     engine = engineFor(dataset.run, followLive ? 800 : 0);
@@ -243,6 +253,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
       autoFollow: followLive,
       liveFollowing: followLive,
       showExecution: dataset.source === "repository" && Boolean(dataset.session),
+      layerFilter: "all",
       sourceLoading: false,
       sourceError: undefined,
     });
@@ -250,7 +261,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
   loadRepository: (repository) => {
     const current = get().dataset;
     const hasExecution =
-      current.source === "codex" ||
+      ["codex", "claude", "telemetry"].includes(current.source) ||
       (current.source === "repository" && current.executionArchitecture && current.executionRun);
     const dataset: VisualizationDataset = hasExecution
       ? reconciledRepositoryDataset(repository, current)
@@ -271,6 +282,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
       autoFollow: false,
       liveFollowing: false,
       showExecution: Boolean(dataset.session),
+      layerFilter: "all",
       sourceLoading: false,
       sourceError: undefined,
     });
@@ -294,7 +306,12 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
     if (state.dataset.source === "repository" && state.dataset.repository) {
       dataset = reconciledRepositoryDataset(state.dataset.repository, {
         ...state.dataset,
-        source: "codex",
+        source:
+          state.dataset.executionRun && state.dataset.session?.source
+            ? state.dataset.session.source
+            : state.dataset.source === "repository"
+              ? "codex"
+              : state.dataset.source,
         architecture: executionArchitecture,
         run: executionRun,
         executionArchitecture,
@@ -337,6 +354,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
     set({ snapshot: engine.snapshot(), mode: "live", liveFollowing: true, autoFollow: true });
   },
   toggleExecutionOverlay: () => set((state) => ({ showExecution: !state.showExecution })),
+  setLayerFilter: (layerFilter) => set({ layerFilter, selectedEntityId: undefined }),
   viewEntityEvents: (entityId) => {
     const state = get();
     const activity = state.dataset.reconciliation?.activities[entityId];
@@ -359,11 +377,30 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
 }));
 
 export function displayedArchitecture(
-  state: Pick<VisualizationState, "dataset" | "showExecution">,
+  state: Pick<VisualizationState, "dataset" | "showExecution" | "layerFilter">,
 ) {
-  return state.dataset.source === "repository" &&
-    state.showExecution &&
-    state.dataset.reconciliation
-    ? state.dataset.reconciliation.graph
-    : state.dataset.architecture;
+  const graph =
+    state.dataset.source === "repository" && state.showExecution && state.dataset.reconciliation
+      ? state.dataset.reconciliation.graph
+      : state.dataset.architecture;
+  if (state.dataset.source !== "repository") return graph;
+  const visible = graph.entities.filter((entity) => {
+    const architecture = entity.metadata?.architecture as
+      { layer?: string; layers?: string[]; visibility?: string } | undefined;
+    const runtime = entity.metadata?.runtime as
+      { observed?: boolean; external?: boolean } | undefined;
+    if (state.layerFilter === "runtime")
+      return runtime?.observed === true || runtime?.external === true;
+    const layers =
+      architecture?.layers ?? (architecture?.layer ? [architecture.layer] : ["application"]);
+    if (state.layerFilter === "application") return layers.includes("application");
+    if (state.layerFilter === "infrastructure") return layers.includes("infrastructure");
+    return architecture?.visibility !== "detail";
+  });
+  const ids = new Set(visible.map((entity) => entity.id));
+  return {
+    ...graph,
+    entities: visible,
+    edges: graph.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)),
+  };
 }

@@ -1,0 +1,10 @@
+[project]
+name = "research-api"
+version = "0.1.0"
+dependencies = [
+  "fastapi>=0.100",
+  "openai>=1",
+  "sqlalchemy>=2",
+  "psycopg>=3",
+]
+

@@ -1,0 +1,7 @@
+{
+  "name": "infrastructure-duplicates",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ]
+}

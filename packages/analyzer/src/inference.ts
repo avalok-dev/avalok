@@ -5,14 +5,14 @@ import {
   type GraphEdge,
 } from "@visual-system/schema";
 import { confidenceFromEvidence, confidenceLabel } from "./confidence";
-import { workspaceForPath } from "./detectors";
+import { serviceForPath } from "./services";
 import type {
   AnalysisContext,
   ArchitectureEdgeMetadata,
   ArchitectureEvidence,
   ArchitectureMetadata,
   DetectorSignal,
-  PackageManifest,
+  ServiceUnit,
 } from "./types";
 
 const slug = (value: string) =>
@@ -26,23 +26,21 @@ const title = (value: string) =>
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-function workspaces(context: AnalysisContext) {
-  const selected = context.manifests.filter((manifest) => manifest.isWorkspace);
-  return selected.length > 0
-    ? selected
-    : context.manifests.filter((manifest) => manifest.directory === ".");
-}
-
-function workspaceId(directory: string) {
-  return `architecture:workspace:${directory === "." ? "root" : slug(directory)}`;
-}
-
-function friendlyWorkspaceName(manifest: PackageManifest, technologies: readonly string[]) {
+function serviceName(service: ServiceUnit, technologies: readonly string[]) {
   const base =
-    manifest.directory === "."
-      ? manifest.name
-      : (manifest.directory.split("/").at(-1) ?? manifest.name);
-  if (technologies.includes("Next.js")) return "Web Application";
+    service.directory === "."
+      ? service.name
+      : (service.directory.split("/").at(-1) ?? service.name);
+  if (technologies.includes("Next.js"))
+    return /frontend/i.test(base) ? "Frontend" : "Web Application";
+  if (technologies.includes("FastAPI"))
+    return /backend|api/i.test(base) ? "Backend API" : "FastAPI API";
+  if (technologies.includes("Flask"))
+    return /backend|api/i.test(base) ? "Backend API" : "Flask API";
+  if (technologies.includes("Django"))
+    return /backend|api/i.test(base) ? "Backend API" : "Django Application";
+  if (technologies.includes("Celery") || technologies.includes("RQ") || /worker/i.test(base))
+    return "Worker";
   if (/^(?:graph|graph-engine)$/i.test(base)) return "Graph Engine";
   if (/^(?:replay|replay-engine)$/i.test(base)) return "Replay Engine";
   if (/^(?:schema|schemas)$/i.test(base)) return "Schema";
@@ -54,20 +52,15 @@ function friendlyWorkspaceName(manifest: PackageManifest, technologies: readonly
   return title(base);
 }
 
-function packageKind(manifest: PackageManifest, technologies: readonly string[]): Entity["kind"] {
-  const base = manifest.directory.split("/").at(-1) ?? manifest.name;
+function serviceKind(service: ServiceUnit, technologies: readonly string[]): Entity["kind"] {
+  const base = service.directory.split("/").at(-1) ?? service.name;
   if (
     technologies.some((item) => item === "Next.js" || item === "React") ||
-    /^(?:ui|components)$/.test(base)
+    /^(?:ui|frontend|web)$/.test(base)
   )
     return "frontend";
   if (/schema/.test(base)) return "document";
   return "service";
-}
-
-function groupFor(directory: string) {
-  if (directory === ".") return "repository";
-  return directory.split("/")[0] ?? "repository";
 }
 
 function entityMetadata(
@@ -77,15 +70,16 @@ function entityMetadata(
   partial: boolean,
 ) {
   const confidence = confidenceFromEvidence(evidence, partial ? 0.08 : 0);
-  const architecture: ArchitectureMetadata = {
-    category,
-    confidence,
-    confidenceLabel: confidenceLabel(confidence),
-    evidence,
-    ...options,
-    ...(partial ? { partial: true } : {}),
+  return {
+    architecture: {
+      category,
+      confidence,
+      confidenceLabel: confidenceLabel(confidence),
+      evidence,
+      ...options,
+      ...(partial ? { partial: true } : {}),
+    } satisfies ArchitectureMetadata,
   };
-  return { architecture };
 }
 
 function edgeMetadata(
@@ -94,73 +88,99 @@ function edgeMetadata(
   partial: boolean,
 ) {
   const confidence = confidenceFromEvidence(evidence, partial ? 0.08 : 0);
-  const architecture: ArchitectureEdgeMetadata = {
-    relationship,
-    confidence,
-    confidenceLabel: confidenceLabel(confidence),
-    evidence,
+  return {
+    architecture: {
+      relationship,
+      confidence,
+      confidenceLabel: confidenceLabel(confidence),
+      evidence,
+    } satisfies ArchitectureEdgeMetadata,
   };
-  return { architecture };
+}
+
+function knownImage(image: string) {
+  const name = image.toLowerCase().split("@")[0]!.split(":")[0]!.split("/").at(-1) ?? image;
+  if (name.startsWith("postgres"))
+    return { id: "postgresql", name: "PostgreSQL", kind: "database" as const };
+  if (name.startsWith("redis")) return { id: "redis", name: "Redis", kind: "database" as const };
+  if (name.startsWith("mysql") || name.startsWith("mariadb"))
+    return { id: "mysql", name: "MySQL", kind: "database" as const };
+  if (name.startsWith("mongo"))
+    return { id: "mongodb", name: "MongoDB", kind: "database" as const };
+  if (name.startsWith("rabbitmq"))
+    return { id: "rabbitmq", name: "RabbitMQ", kind: "queue" as const };
+  return undefined;
 }
 
 export function generateArchitectureGraph(
   context: AnalysisContext,
   signals: readonly DetectorSignal[],
 ): ArchitectureGraph {
-  const workspaceManifests = workspaces(context);
   const entities: Entity[] = [];
   const edges: GraphEdge[] = [];
-  const packageIds = new Map(
-    workspaceManifests.map((manifest) => [manifest.directory, workspaceId(manifest.directory)]),
-  );
   const partial = context.inventory.partialReasons.length > 0;
+  const serviceIds = new Map(context.services.map((service) => [service.directory, service.id]));
 
-  for (const manifest of workspaceManifests) {
-    const ownedModules = context.modules.filter(
-      (module) =>
-        workspaceForPath(module.path, workspaceManifests)?.directory === manifest.directory,
+  for (const service of context.services) {
+    const serviceSignals = signals.filter(
+      (signal) => signal.workspaceDirectory === service.directory,
     );
-    const ownedFiles = context.inventory.files.filter(
-      (file) => workspaceForPath(file.path, workspaceManifests)?.directory === manifest.directory,
+    const technologies = [...new Set(serviceSignals.map((signal) => signal.name))].sort();
+    const modules = context.modules.filter(
+      (module) => serviceForPath(module.path, context.services)?.directory === service.directory,
     );
-    const packageSignals = signals.filter(
-      (signal) => signal.workspaceDirectory === manifest.directory,
+    const routes = modules.flatMap((module) =>
+      module.routes.map((route) => ({
+        path: route.path,
+        methods: route.methods,
+        file: module.path,
+        ...(route.line ? { line: route.line } : {}),
+      })),
     );
-    const technologies = [...new Set(packageSignals.map((signal) => signal.name))].sort();
-    const evidence: ArchitectureEvidence[] = [
-      {
-        kind: "workspace",
-        file: manifest.path,
-        description: `${manifest.name} workspace manifest`,
-        weight: 0.85,
-      },
-    ];
-    const firstSource = ownedModules[0];
-    if (firstSource)
+    const evidence = [...service.evidence];
+    if (modules[0])
       evidence.push({
         kind: "source",
-        file: firstSource.path,
-        description: `${ownedModules.length} parsed source modules owned by this workspace`,
+        file: modules[0].path,
+        description: `${modules.length} parsed source modules owned by this service`,
         weight: 0.7,
       });
-    const name = friendlyWorkspaceName(manifest, technologies);
+    const name = serviceName(service, technologies);
     entities.push({
-      id: workspaceId(manifest.directory),
-      kind: packageKind(manifest, technologies),
+      id: service.id,
+      kind: serviceKind(service, technologies),
       name,
-      provider: technologies[0] ?? "Local",
-      description: `${manifest.name} detected from workspace metadata and owned source files.`,
-      source: { file: manifest.path },
+      provider:
+        technologies.find((item) => !["Python", "Node.js"].includes(item)) ??
+        technologies[0] ??
+        "Local",
+      description: `${name} detected from service ownership, manifests, and source evidence.`,
+      source: {
+        file: service.manifestPath ?? service.sourceFiles[0] ?? service.dockerfiles[0] ?? ".",
+      },
       metadata: entityMetadata(
-        "package",
+        "service",
         evidence,
         {
-          group: groupFor(manifest.directory),
-          directory: manifest.directory,
+          group:
+            service.directory === "."
+              ? "repository"
+              : (service.directory.split("/")[0] ?? "services"),
+          directory: service.directory,
           technologies,
-          sourceFiles: ownedFiles.map((file) => file.path),
-          fileCount: ownedFiles.length,
+          sourceFiles: service.sourceFiles,
+          fileCount: service.sourceFiles.length,
           dependencies: [],
+          languages: service.languages,
+          routes,
+          ports: service.ports,
+          composeServices: service.composeServices,
+          runtimeNames: [
+            ...(service.declaredName ? [service.declaredName] : []),
+            ...service.composeServices,
+          ],
+          level: "system",
+          staticStatus: "detected",
         },
         partial,
       ),
@@ -168,48 +188,50 @@ export function generateArchitectureGraph(
   }
 
   const edgeEvidence = new Map<string, ArchitectureEvidence[]>();
-  const edgeRelationships = new Map<string, ArchitectureEdgeMetadata["relationship"]>();
-  const addEdgeEvidence = (
-    sourceDirectory: string,
-    targetDirectory: string,
+  const relationships = new Map<string, ArchitectureEdgeMetadata["relationship"]>();
+  const addEdge = (
+    source: string | undefined,
+    target: string | undefined,
     relationship: ArchitectureEdgeMetadata["relationship"],
     evidence: ArchitectureEvidence,
   ) => {
-    if (sourceDirectory === targetDirectory) return;
-    const source = packageIds.get(sourceDirectory);
-    const target = packageIds.get(targetDirectory);
-    if (!source || !target) return;
-    const key = `${source}\0${target}`;
+    if (!source || !target || source === target) return;
+    const key = `${source}\0${target}\0${relationship}`;
     edgeEvidence.set(key, [...(edgeEvidence.get(key) ?? []), evidence]);
-    if (!edgeRelationships.has(key) || relationship === "workspace-dependency")
-      edgeRelationships.set(key, relationship);
+    relationships.set(key, relationship);
   };
 
-  const manifestByName = new Map(workspaceManifests.map((manifest) => [manifest.name, manifest]));
-  for (const manifest of workspaceManifests) {
-    const dependencies = { ...manifest.devDependencies, ...manifest.dependencies };
-    for (const dependencyName of Object.keys(dependencies)) {
-      const target = manifestByName.get(dependencyName);
-      if (!target) continue;
-      addEdgeEvidence(manifest.directory, target.directory, "workspace-dependency", {
-        kind: "dependency",
-        file: manifest.path,
-        description: `${manifest.name} depends on ${dependencyName}`,
-        weight: 0.72,
-      });
+  const manifestByName = new Map(context.manifests.map((manifest) => [manifest.name, manifest]));
+  for (const manifest of context.manifests) {
+    const source = serviceIds.get(manifest.directory);
+    for (const dependencyName of Object.keys({
+      ...manifest.devDependencies,
+      ...manifest.dependencies,
+    })) {
+      const targetManifest = manifestByName.get(dependencyName);
+      addEdge(
+        source,
+        targetManifest ? serviceIds.get(targetManifest.directory) : undefined,
+        "workspace-dependency",
+        {
+          kind: "dependency",
+          file: manifest.path,
+          description: `${manifest.name} depends on ${dependencyName}`,
+          weight: 0.72,
+        },
+      );
     }
   }
   for (const module of context.modules) {
     if (context.inventory.files.find((file) => file.path === module.path)?.role === "test")
       continue;
-    const sourceWorkspace = workspaceForPath(module.path, workspaceManifests);
-    if (!sourceWorkspace) continue;
+    const source = serviceForPath(module.path, context.services);
+    if (!source) continue;
     for (const reference of module.imports) {
-      let targetDirectory = reference.workspaceDirectory;
-      if (!targetDirectory && reference.resolvedPath)
-        targetDirectory = workspaceForPath(reference.resolvedPath, workspaceManifests)?.directory;
-      if (!targetDirectory) continue;
-      addEdgeEvidence(sourceWorkspace.directory, targetDirectory, "source-import", {
+      const target = reference.resolvedPath
+        ? serviceForPath(reference.resolvedPath, context.services)
+        : context.services.find((service) => service.directory === reference.workspaceDirectory);
+      addEdge(source.id, target?.id, "source-import", {
         kind: "import",
         file: module.path,
         line: reference.line,
@@ -219,115 +241,65 @@ export function generateArchitectureGraph(
     }
   }
 
-  for (const [key, evidence] of edgeEvidence) {
-    const [source = "", target = ""] = key.split("\0");
-    const relationship = edgeRelationships.get(key) ?? "source-import";
-    edges.push({
-      id: `architecture:edge:${slug(source)}:${slug(target)}`,
-      source,
-      target,
-      kind: "static",
-      label: relationship === "workspace-dependency" ? "depends on" : "imports",
-      metadata: edgeMetadata(relationship, evidence, partial),
-    });
-  }
-
-  const entityById = new Map(entities.map((entity) => [entity.id, entity]));
-  for (const edge of edges) {
-    const source = entityById.get(edge.source);
-    const target = entityById.get(edge.target);
-    const architecture = source?.metadata?.architecture as ArchitectureMetadata | undefined;
-    if (source && target && architecture && !architecture.dependencies.includes(target.name))
-      architecture.dependencies.push(target.name);
-  }
-
-  const routeModules = context.modules.filter(
-    (module) =>
-      module.routes.length > 0 &&
-      context.inventory.files.find((file) => file.path === module.path)?.role !== "test",
-  );
-  const routeLimit = 20;
-  for (const module of routeModules.slice(0, routeLimit)) {
-    const owner = workspaceForPath(module.path, workspaceManifests);
-    const ownerId = owner ? packageIds.get(owner.directory) : undefined;
-    if (!ownerId) continue;
-    for (const route of module.routes) {
-      const evidence: ArchitectureEvidence[] = [
-        {
-          kind: "route",
-          file: module.path,
-          ...(route.line ? { line: route.line } : {}),
-          description: `${route.style} route convention for ${route.path}`,
-          weight: 0.78,
-        },
-      ];
-      if (route.methods.length > 0)
-        evidence.push({
-          kind: "source",
-          file: module.path,
-          description: `${route.methods.join(", ")} method export detected`,
-          weight: 0.78,
-        });
-      const id = `architecture:route:${slug(module.path)}:${slug(route.path)}`;
-      entities.push({
-        id,
-        kind: "api",
-        name: route.path,
-        provider: route.style === "next-app" ? "Next.js" : title(route.style),
-        description: `${route.methods.join(", ") || "HTTP"} route detected from static source conventions.`,
-        source: { file: module.path, ...(route.line ? { line: route.line } : {}) },
-        metadata: entityMetadata(
-          "route",
-          evidence,
-          {
-            parentId: ownerId,
-            group: "routes",
-            directory: module.path,
-            technologies: [route.style === "next-app" ? "Next.js" : title(route.style)],
-            sourceFiles: [module.path],
-            fileCount: 1,
-            dependencies: [],
-          },
-          partial,
-        ),
-      });
-      edges.push({
-        id: `architecture:edge:${slug(ownerId)}:${slug(id)}`,
-        source: ownerId,
-        target: id,
-        kind: "static",
-        label: "exposes",
-        metadata: edgeMetadata("contains-route", evidence, partial),
-      });
-    }
-  }
-  if (routeModules.length > routeLimit) {
-    context.diagnostics.push({
-      severity: "info",
-      code: "inference.route-limit",
-      message: `Only the first ${routeLimit} route modules are shown on the default graph.`,
-      stage: "detecting-architecture",
-    });
-  }
-
-  const promotedGroups = new Map<string, DetectorSignal[]>();
-  for (const signal of signals.filter((item) => item.promoteToEntity)) {
-    promotedGroups.set(signal.detectorId, [
-      ...(promotedGroups.get(signal.detectorId) ?? []),
+  const integrationGroups = new Map<string, DetectorSignal[]>();
+  for (const signal of signals.filter((item) => item.promoteToEntity))
+    integrationGroups.set(signal.detectorId, [
+      ...(integrationGroups.get(signal.detectorId) ?? []),
       signal,
     ]);
+
+  const composeEntityIds = new Map<string, string>();
+  for (const composeFile of context.compose) {
+    for (const composeService of composeFile.services) {
+      const application = composeService.buildContext
+        ? context.services.find((service) => service.directory === composeService.buildContext)
+        : context.services.find((service) => service.composeServices.includes(composeService.name));
+      if (application) {
+        composeEntityIds.set(`${composeFile.path}\0${composeService.name}`, application.id);
+        continue;
+      }
+      const image = composeService.image ? knownImage(composeService.image) : undefined;
+      if (!image) continue;
+      const detectorId = image.id;
+      const evidence: ArchitectureEvidence[] = [
+        {
+          kind: "compose-service",
+          file: composeFile.path,
+          description: `Compose service ${composeService.name} uses image ${composeService.image}`,
+          weight: 0.82,
+        },
+      ];
+      integrationGroups.set(detectorId, [
+        ...(integrationGroups.get(detectorId) ?? []),
+        {
+          detectorId,
+          name: image.name,
+          category: image.kind === "database" ? "database" : "integration",
+          kind: image.kind,
+          workspaceDirectory: ".",
+          evidence,
+          confidence: confidenceFromEvidence(evidence),
+          promoteToEntity: true,
+        },
+      ]);
+      composeEntityIds.set(
+        `${composeFile.path}\0${composeService.name}`,
+        `architecture:integration:${slug(detectorId)}`,
+      );
+    }
   }
-  for (const [detectorId, integrationSignals] of promotedGroups) {
-    const evidence = integrationSignals.flatMap((signal) => signal.evidence);
+
+  for (const [detectorId, integrationSignals] of integrationGroups) {
     const first = integrationSignals[0];
     if (!first) continue;
-    const integrationId = `architecture:integration:${slug(detectorId)}`;
+    const evidence = integrationSignals.flatMap((signal) => signal.evidence);
+    const id = `architecture:integration:${slug(detectorId)}`;
     entities.push({
-      id: integrationId,
+      id,
       kind: first.kind,
       name: first.name,
       provider: first.name,
-      description: `${first.name} inferred from static dependency and usage evidence.`,
+      description: `${first.name} inferred from static source, dependency, or deployment evidence.`,
       source: evidence[0]
         ? { file: evidence[0].file, ...(evidence[0].line ? { line: evidence[0].line } : {}) }
         : undefined,
@@ -340,28 +312,137 @@ export function generateArchitectureGraph(
           sourceFiles: [...new Set(evidence.map((item) => item.file))],
           fileCount: new Set(evidence.map((item) => item.file)).size,
           dependencies: [],
+          level: "system",
+          staticStatus: "inferred",
         },
         partial,
       ),
     });
     for (const signal of integrationSignals) {
-      const ownerId = packageIds.get(signal.workspaceDirectory);
-      if (!ownerId) continue;
-      edges.push({
-        id: `architecture:edge:${slug(ownerId)}:${slug(integrationId)}`,
-        source: ownerId,
-        target: integrationId,
-        kind: "static",
-        label: "uses",
-        metadata: edgeMetadata("uses-integration", signal.evidence, partial),
+      const ownerId = serviceIds.get(signal.workspaceDirectory);
+      addEdge(
+        ownerId,
+        id,
+        "uses-integration",
+        signal.evidence[0] ?? {
+          kind: "source",
+          file: ".",
+          description: `${first.name} usage detected`,
+          weight: 0.55,
+        },
+      );
+    }
+  }
+
+  for (const composeFile of context.compose) {
+    for (const service of composeFile.services) {
+      const source = composeEntityIds.get(`${composeFile.path}\0${service.name}`);
+      for (const dependency of service.dependsOn) {
+        const target = composeEntityIds.get(`${composeFile.path}\0${dependency}`);
+        addEdge(source, target, "deployment-dependency", {
+          kind: "compose-dependency",
+          file: composeFile.path,
+          description: `Compose service ${service.name} depends_on ${dependency}`,
+          weight: 0.78,
+        });
+      }
+    }
+  }
+
+  for (const module of context.modules) {
+    const source = serviceForPath(module.path, context.services);
+    if (!source) continue;
+    for (const host of module.externalHosts) {
+      const [hostName, portText] = host.host.split(":");
+      const port = Number.parseInt(portText ?? "", 10);
+      const target = context.services.find(
+        (service) =>
+          service.id !== source.id &&
+          (service.composeServices.includes(hostName ?? "") ||
+            (Number.isInteger(port) && service.ports.includes(port))),
+      );
+      addEdge(source.id, target?.id, "calls-service", {
+        kind: "external-host",
+        file: module.path,
+        line: host.line,
+        description: `${host.host} uniquely matches ${target?.name ?? "a service"}`,
+        weight: 0.72,
       });
     }
   }
 
+  for (const [key, evidence] of edgeEvidence) {
+    const [source = "", target = "", relationship = "source-import"] = key.split("\0");
+    const typedRelationship =
+      relationships.get(key) ?? (relationship as ArchitectureEdgeMetadata["relationship"]);
+    const labels: Record<ArchitectureEdgeMetadata["relationship"], string> = {
+      "workspace-dependency": "depends on",
+      "source-import": "imports",
+      "contains-route": "contains",
+      "uses-integration": "uses",
+      "deployment-dependency": "depends on",
+      "calls-service": "calls",
+      "deployed-as": "deployed as",
+      contains: "contains",
+      references: "references",
+      "routes-to": "routes to",
+      selects: "selects",
+      mounts: "mounts",
+      "uses-config": "uses config",
+      "uses-secret": "uses secret",
+      "uses-identity": "uses identity",
+      scales: "scales",
+      "managed-by": "managed by",
+      "configured-by": "configured by",
+      "runs-on": "runs on",
+    };
+    edges.push({
+      id: `architecture:edge:${slug(source)}:${slug(target)}:${slug(typedRelationship)}`,
+      source,
+      target,
+      kind: "static",
+      label: labels[typedRelationship],
+      metadata: edgeMetadata(typedRelationship, evidence, partial),
+    });
+  }
+
+  const boundedEntities =
+    entities.length <= 30
+      ? entities
+      : [
+          ...entities.filter(
+            (entity) =>
+              (entity.metadata?.architecture as ArchitectureMetadata | undefined)?.category ===
+              "service",
+          ),
+          ...entities
+            .filter(
+              (entity) =>
+                (entity.metadata?.architecture as ArchitectureMetadata | undefined)?.category !==
+                "service",
+            )
+            .sort((left, right) => {
+              const leftConfidence =
+                (left.metadata?.architecture as ArchitectureMetadata | undefined)?.confidence ?? 0;
+              const rightConfidence =
+                (right.metadata?.architecture as ArchitectureMetadata | undefined)?.confidence ?? 0;
+              return rightConfidence - leftConfidence || left.id.localeCompare(right.id);
+            })
+            .slice(0, Math.max(0, 30 - context.services.length)),
+        ];
+  if (boundedEntities.length < entities.length) {
+    context.diagnostics.push({
+      severity: "info",
+      code: "inference.node-budget",
+      message: `${entities.length - boundedEntities.length} lower-confidence entities were grouped out of the default 30-node system view.`,
+      stage: "generating-graph",
+    });
+  }
+  const boundedIds = new Set(boundedEntities.map((entity) => entity.id));
   return ArchitectureGraphSchema.parse({
     id: `repository:${slug(context.repositoryName)}`,
     title: context.repositoryName,
-    entities,
-    edges,
+    entities: boundedEntities,
+    edges: edges.filter((edge) => boundedIds.has(edge.source) && boundedIds.has(edge.target)),
   });
 }

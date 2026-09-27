@@ -21,6 +21,7 @@ export interface InspectorProps {
   connectedEntities: readonly Entity[];
   isLive: boolean;
   rawEvent?: unknown;
+  traceEvents?: readonly RuntimeEvent[];
   diagnostics?: ReadonlyArray<{
     severity: "info" | "warning" | "error";
     code: string;
@@ -57,10 +58,33 @@ interface ArchitectureDetails {
   confidence: number;
   confidenceLabel: string;
   technologies: string[];
+  languages?: string[];
+  ports?: number[];
+  routes?: Array<{ path: string; methods: string[]; file: string; line?: number }>;
   sourceFiles: string[];
   fileCount: number;
   dependencies: string[];
   evidence: Array<{ kind: string; file: string; line?: number; description: string }>;
+  layer?: string;
+  layers?: string[];
+  platform?: string;
+  infrastructureKind?: string;
+  resourceType?: string;
+  address?: string;
+  namespace?: string;
+  visibility?: string;
+  childSummaries?: string[];
+  images?: string[];
+  labels?: Record<string, string>;
+  selectors?: Record<string, string>;
+  details?: Record<string, string | number | boolean | string[]>;
+  metrics?: Array<{
+    name: string;
+    status: "configured" | "observed" | "estimated";
+    source: string;
+    unit?: string;
+    value: string | number;
+  }>;
 }
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
@@ -83,6 +107,7 @@ export function Inspector({
   connectedEntities,
   isLive,
   rawEvent,
+  traceEvents = [],
   diagnostics = [],
   runLabel = "Run",
   repositoryFiles = [],
@@ -100,6 +125,20 @@ export function Inspector({
         (entityId): entityId is string => typeof entityId === "string",
       )
     : [];
+  const spanEvents = new Map(
+    traceEvents.flatMap((event) => (event.spanId ? [[event.spanId, event] as const] : [])),
+  );
+  const ancestors: RuntimeEvent[] = [];
+  let parentSpanId = currentEvent?.parentSpanId;
+  while (parentSpanId && ancestors.length < 12) {
+    const parent = spanEvents.get(parentSpanId);
+    if (!parent) break;
+    ancestors.unshift(parent);
+    parentSpanId = parent.parentSpanId;
+  }
+  const childCount = currentEvent?.spanId
+    ? traceEvents.filter((event) => event.parentSpanId === currentEvent.spanId).length
+    : 0;
   if (!entity && !currentEvent) {
     return (
       <aside className="flex h-full flex-col border-l border-white/[0.065] bg-[#0c0f15]/88 p-5">
@@ -141,6 +180,32 @@ export function Inspector({
           <p className="mt-4 text-sm leading-6 text-slate-500">{entity.description}</p>
           <dl className="mt-6 grid gap-5">
             <Detail label="Provider">{entity.provider ?? "Local"}</Detail>
+            {architecture?.layer ? (
+              <Detail label="Layer">
+                {titleCase(architecture.layers?.join(" + ") ?? architecture.layer)}
+              </Detail>
+            ) : null}
+            {architecture?.resourceType ? (
+              <Detail label="Infrastructure">
+                <div className="grid gap-1 text-xs text-slate-400">
+                  <span>
+                    {architecture.platform ? `${titleCase(architecture.platform)} · ` : ""}
+                    {architecture.resourceType}
+                  </span>
+                  {architecture.address ? (
+                    <span className="break-all font-mono text-cyan-300/75">
+                      {architecture.address}
+                    </span>
+                  ) : null}
+                  {architecture.namespace ? (
+                    <span>Namespace · {architecture.namespace}</span>
+                  ) : null}
+                  {architecture.visibility ? (
+                    <span>View · {titleCase(architecture.visibility)}</span>
+                  ) : null}
+                </div>
+              </Detail>
+            ) : null}
             <Detail label="Status">
               <span className="inline-flex items-center gap-2">
                 <span className="size-1.5 rounded-full bg-emerald-400" />
@@ -169,6 +234,109 @@ export function Inspector({
                       {technology}
                     </Badge>
                   ))}
+                </div>
+              </Detail>
+            ) : null}
+            {architecture?.languages?.length ? (
+              <Detail label="Languages">
+                <div className="flex flex-wrap gap-1.5">
+                  {architecture.languages.map((language) => (
+                    <Badge key={language} className="normal-case tracking-normal text-slate-400">
+                      {titleCase(language)}
+                    </Badge>
+                  ))}
+                </div>
+              </Detail>
+            ) : null}
+            {architecture?.ports?.length ? (
+              <Detail label="Ports">
+                <span className="font-mono text-xs text-slate-400">
+                  {architecture.ports.join(", ")}
+                </span>
+              </Detail>
+            ) : null}
+            {architecture?.routes?.length ? (
+              <Detail label={`Routes (${architecture.routes.length})`}>
+                <div className="grid gap-1.5">
+                  {architecture.routes.slice(0, 20).map((route) => (
+                    <div
+                      key={`${route.methods.join(",")}:${route.path}`}
+                      className="font-mono text-xs text-slate-500"
+                    >
+                      <span className="text-cyan-300/70">{route.methods.join(", ") || "HTTP"}</span>{" "}
+                      {route.path}
+                    </div>
+                  ))}
+                </div>
+              </Detail>
+            ) : null}
+            {entity.metrics?.length || architecture?.metrics?.length ? (
+              <Detail label="Resource metrics">
+                <div className="grid gap-2">
+                  {(entity.metrics ?? architecture?.metrics ?? []).map((metric, index) => (
+                    <div
+                      key={`${metric.name}-${metric.source}-${index}`}
+                      className="rounded-md border border-white/[0.055] bg-black/20 p-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-slate-300">{titleCase(metric.name)}</span>
+                        <Badge className="normal-case tracking-normal text-slate-500">
+                          {metric.status}
+                        </Badge>
+                      </div>
+                      <div className="mt-1 font-mono text-xs text-cyan-300/75">
+                        {metric.value}
+                        {metric.unit ? ` ${metric.unit}` : ""}
+                      </div>
+                      <div className="mt-1 truncate font-mono text-[0.625rem] text-slate-600">
+                        {metric.source}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Detail>
+            ) : null}
+            {architecture?.images?.length ? (
+              <Detail label="Images">
+                <div className="grid gap-1 font-mono text-xs text-slate-500">
+                  {architecture.images.map((image) => (
+                    <span key={image} className="break-all">
+                      {image}
+                    </span>
+                  ))}
+                </div>
+              </Detail>
+            ) : null}
+            {architecture?.childSummaries?.length ? (
+              <Detail label={`Hierarchy (${architecture.childSummaries.length})`}>
+                <div className="grid gap-1.5">
+                  {architecture.childSummaries.slice(0, 20).map((child) => (
+                    <div
+                      key={child}
+                      className="rounded-md border border-white/[0.05] bg-black/15 px-2.5 py-2 text-xs text-slate-500"
+                    >
+                      {child}
+                    </div>
+                  ))}
+                </div>
+              </Detail>
+            ) : null}
+            {architecture?.details && Object.keys(architecture.details).length ? (
+              <Detail label="Configuration">
+                <div className="grid gap-1.5 rounded-lg border border-white/[0.055] bg-black/20 p-3">
+                  {Object.entries(architecture.details)
+                    .slice(0, 20)
+                    .map(([key, value]) => (
+                      <div
+                        key={key}
+                        className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-2 text-xs"
+                      >
+                        <span className="font-mono text-slate-600">{key}</span>
+                        <span className="break-all text-slate-400">
+                          {Array.isArray(value) ? value.join(", ") : String(value)}
+                        </span>
+                      </div>
+                    ))}
                 </div>
               </Detail>
             ) : null}
@@ -342,6 +510,33 @@ export function Inspector({
               <div className="mt-2 flex items-center gap-2 font-mono text-xs text-slate-500">
                 <TimerReset className="size-3.5" /> {currentEvent.durationMs ?? 0} ms
               </div>
+              {currentEvent.spanId ? (
+                <div className="mt-3 rounded-lg border border-white/[0.055] bg-black/20 p-3">
+                  <div className="font-mono text-[0.625rem] uppercase tracking-wider text-slate-600">
+                    Trace hierarchy
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                    {ancestors.map((event) => (
+                      <span key={event.id} className="contents">
+                        <Badge className="normal-case tracking-normal">{event.action}</Badge>
+                        <ArrowRight className="size-3 text-slate-700" />
+                      </span>
+                    ))}
+                    <Badge className="border-cyan-300/15 bg-cyan-300/[0.06] normal-case tracking-normal text-cyan-300">
+                      {currentEvent.action}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 break-all font-mono text-[0.625rem] text-slate-600">
+                    span {currentEvent.spanId}
+                    {currentEvent.parentSpanId
+                      ? ` · parent ${currentEvent.parentSpanId}`
+                      : " · root"}
+                    {childCount > 0
+                      ? ` · ${childCount} direct child${childCount === 1 ? "" : "ren"}`
+                      : ""}
+                  </div>
+                </div>
+              ) : null}
               {currentEvent.metadata ? (
                 <dl className="mt-4 grid gap-3 rounded-lg border border-white/[0.055] bg-black/20 p-3">
                   {Object.entries(currentEvent.metadata).map(([key, value]) => (

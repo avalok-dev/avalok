@@ -36,8 +36,20 @@ async function currentRepositoryRoot() {
 export async function GET(request: Request) {
   try {
     const root = await currentRepositoryRoot();
-    const force = new URL(request.url).searchParams.get("rescan") === "1";
-    const analysis = await analyzeRepository(root, { force });
+    const parameters = new URL(request.url).searchParams;
+    const force = parameters.get("rescan") === "1";
+    const fixture = parameters.get("fixture");
+    const allowedFixtures: Record<string, string> = {
+      fastapi: join(root, "packages/analyzer/tests/fixtures/python-fastapi"),
+      polyglot: join(root, "examples/polyglot-ai-platform"),
+      terraform: join(root, "packages/analyzer/tests/fixtures/terraform-aws"),
+      kubernetes: join(root, "packages/analyzer/tests/fixtures/kubernetes-app"),
+      helm: join(root, "packages/analyzer/tests/fixtures/helm-app"),
+      infrastructure: join(root, "examples/infrastructure-ai-platform"),
+    };
+    if (fixture && !allowedFixtures[fixture])
+      return Response.json({ error: "Unknown repository fixture." }, { status: 404 });
+    const analysis = await analyzeRepository(fixture ? allowedFixtures[fixture]! : root, { force });
     return Response.json(analysis, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return Response.json(

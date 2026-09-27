@@ -8,7 +8,13 @@ import {
 } from "@visual-system/schema";
 
 export type ReconciliationMatchType =
-  "exact-source-path" | "workspace-ownership" | "known-integration";
+  | "exact-source-path"
+  | "workspace-ownership"
+  | "known-integration"
+  | "service-name"
+  | "http-route"
+  | "database-system"
+  | "deployment-context";
 
 export interface ReconciliationMatch {
   runtimeEventId: string;
@@ -126,7 +132,7 @@ export function reconcileArchitectureExecution(
     if (!metadata) continue;
     for (const file of metadata.sourceFiles)
       sourceOwners.set(file, [...(sourceOwners.get(file) ?? []), entity.id]);
-    if (metadata.category === "package" && metadata.directory)
+    if (["application", "service", "package"].includes(metadata.category) && metadata.directory)
       directoryOwners.push({ directory: metadata.directory, entityId: entity.id });
   }
   directoryOwners.sort((left, right) => right.directory.length - left.directory.length);
@@ -192,6 +198,122 @@ export function reconcileArchitectureExecution(
         confidence: 0.9,
         evidence: `${target.name} matches the detected ${integration.name} integration.`,
       });
+  }
+
+  for (const event of events) {
+    const serviceName =
+      typeof event.metadata?.serviceName === "string"
+        ? event.metadata.serviceName.toLowerCase()
+        : undefined;
+    const route =
+      typeof event.metadata?.route === "string" ? event.metadata.route.toLowerCase() : undefined;
+    const dbSystem =
+      typeof event.metadata?.dbSystem === "string"
+        ? event.metadata.dbSystem.toLowerCase()
+        : undefined;
+    const candidates: ReconciliationMatch[] = [];
+    if (serviceName) {
+      const serviceMatches = architecture.entities.filter((entity) => {
+        const metadata = architectureMetadata(entity);
+        const directoryName = metadata?.directory?.split("/").filter(Boolean).at(-1)?.toLowerCase();
+        return (
+          ["application", "service", "package"].includes(metadata?.category ?? "") &&
+          (entity.name.toLowerCase() === serviceName ||
+            directoryName === serviceName ||
+            metadata?.runtimeNames?.some((name) => name.toLowerCase() === serviceName))
+        );
+      });
+      if (serviceMatches.length === 1)
+        candidates.push({
+          runtimeEventId: event.id,
+          architectureEntityId: serviceMatches[0]!.id,
+          matchType: "service-name",
+          confidence: 0.92,
+          evidence: `Telemetry service.name ${serviceName} uniquely matches the detected component.`,
+        });
+    }
+    if (route) {
+      const routeMatches = architecture.entities.filter((entity) => {
+        const metadata = architectureMetadata(entity);
+        return (
+          (metadata?.category === "route" && entity.name.toLowerCase() === route) ||
+          metadata?.routes?.some((candidate) => candidate.path.toLowerCase() === route)
+        );
+      });
+      if (routeMatches.length === 1)
+        candidates.push({
+          runtimeEventId: event.id,
+          architectureEntityId: routeMatches[0]!.id,
+          matchType: "http-route",
+          confidence: 0.97,
+          evidence: `Telemetry route ${route} exactly matches a detected route.`,
+        });
+    }
+    if (dbSystem) {
+      const databaseMatches = architecture.entities.filter(
+        (entity) =>
+          entity.kind === "database" &&
+          (entity.name.toLowerCase() === dbSystem || entity.provider?.toLowerCase() === dbSystem),
+      );
+      if (databaseMatches.length === 1)
+        candidates.push({
+          runtimeEventId: event.id,
+          architectureEntityId: databaseMatches[0]!.id,
+          matchType: "database-system",
+          confidence: 0.95,
+          evidence: `Telemetry db.system ${dbSystem} matches the detected database integration.`,
+        });
+    }
+    for (const candidate of candidates) {
+      if (
+        !matches.some(
+          (match) =>
+            match.runtimeEventId === candidate.runtimeEventId &&
+            match.architectureEntityId === candidate.architectureEntityId,
+        )
+      )
+        matches.push(candidate);
+    }
+  }
+
+  const deploymentTargets = new Map<string, string[]>();
+  for (const edge of architecture.edges) {
+    const edgeArchitecture = edge.metadata?.architecture as { relationship?: string } | undefined;
+    if (edgeArchitecture?.relationship !== "deployed-as" && edge.label !== "deployed as") continue;
+    const target = architecture.entities.find((entity) => entity.id === edge.target);
+    const targetMetadata = target ? architectureMetadata(target) : undefined;
+    if (
+      targetMetadata?.category !== "infrastructure" ||
+      !["workload", "container", "deployment", "function"].includes(
+        targetMetadata.infrastructureKind ?? "",
+      )
+    )
+      continue;
+    deploymentTargets.set(edge.source, [
+      ...(deploymentTargets.get(edge.source) ?? []),
+      edge.target,
+    ]);
+  }
+  for (const match of [...matches]) {
+    for (const deploymentId of deploymentTargets.get(match.architectureEntityId) ?? []) {
+      if (
+        matches.some(
+          (candidate) =>
+            candidate.runtimeEventId === match.runtimeEventId &&
+            candidate.architectureEntityId === deploymentId,
+        )
+      )
+        continue;
+      matches.push({
+        runtimeEventId: match.runtimeEventId,
+        ...(match.runtimePath ? { runtimePath: match.runtimePath } : {}),
+        ...(match.runtimeEntityId ? { runtimeEntityId: match.runtimeEntityId } : {}),
+        architectureEntityId: deploymentId,
+        matchType: "deployment-context",
+        confidence: Math.min(match.confidence, 0.88),
+        evidence: `${match.architectureEntityId} has an evidence-backed deployed-as relationship to ${deploymentId}.`,
+      });
+    }
   }
 
   const matchesByEvent = new Map<string, ReconciliationMatch[]>();

@@ -1,0 +1,70 @@
+[
+  {
+    "session_id": "claude-fixture-session",
+    "cwd": "/workspace/example",
+    "hook_event_name": "SessionStart",
+    "model": "claude-fixture",
+    "receivedAt": "2026-09-24T12:00:00.000Z"
+  },
+  {
+    "session_id": "claude-fixture-session",
+    "prompt_id": "prompt-1",
+    "cwd": "/workspace/example",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Read README.md, create harmless-note.txt, and run pwd.",
+    "receivedAt": "2026-09-24T12:00:01.000Z"
+  },
+  {
+    "session_id": "claude-fixture-session",
+    "prompt_id": "prompt-1",
+    "cwd": "/workspace/example",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_use_id": "tool-read",
+    "tool_input": { "file_path": "/workspace/example/README.md" },
+    "duration_ms": 12,
+    "receivedAt": "2026-09-24T12:00:02.000Z"
+  },
+  {
+    "session_id": "claude-fixture-session",
+    "prompt_id": "prompt-1",
+    "cwd": "/workspace/example",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_use_id": "tool-write",
+    "tool_input": { "file_path": "/workspace/example/harmless-note.txt", "content": "hello" },
+    "duration_ms": 20,
+    "receivedAt": "2026-09-24T12:00:03.000Z"
+  },
+  {
+    "session_id": "claude-fixture-session",
+    "prompt_id": "prompt-1",
+    "cwd": "/workspace/example",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "tool-bash",
+    "tool_input": { "command": "pwd" },
+    "duration_ms": 8,
+    "receivedAt": "2026-09-24T12:00:04.000Z"
+  },
+  {
+    "session_id": "claude-fixture-session",
+    "prompt_id": "prompt-1",
+    "cwd": "/workspace/example",
+    "hook_event_name": "PostToolUseFailure",
+    "tool_name": "mcp__fixture__lookup",
+    "tool_use_id": "tool-mcp",
+    "tool_input": { "api_key": "fake-secret" },
+    "error": "fixture failure",
+    "duration_ms": 6,
+    "receivedAt": "2026-09-24T12:00:05.000Z"
+  },
+  {
+    "session_id": "claude-fixture-session",
+    "prompt_id": "prompt-1",
+    "cwd": "/workspace/example",
+    "hook_event_name": "Stop",
+    "last_assistant_message": "Done.",
+    "receivedAt": "2026-09-24T12:00:06.000Z"
+  }
+]

@@ -1,14 +1,17 @@
 # Repository analyzer
 
-`@visual-system/analyzer` converts a local JavaScript/TypeScript repository into an evidence-backed `ArchitectureGraph`. It is a Node-only, React-independent package. The browser receives bounded metadata, never raw source contents.
+`@visual-system/analyzer` converts local application, deployment, and infrastructure configuration into an evidence-backed `ArchitectureGraph`. It is a Node-only, React-independent package. The browser receives bounded metadata, never raw source contents or secret values.
 
 ## Pipeline
 
 ```text
 repository
   -> bounded file inventory
-  -> static manifest parsing
-  -> TypeScript syntax parsing
+  -> static Node/Python manifest parsing
+  -> JS/TS and Python source adapters
+  -> Dockerfile/Compose configuration adapters
+  -> Terraform/Kubernetes/Helm infrastructure adapters
+  -> service ownership
   -> import graph
   -> modular detectors
   -> architecture inference
@@ -20,17 +23,20 @@ The pipeline implementation is split across `inventory.ts`, `manifests.ts`, `sou
 
 ## Supported inputs
 
-- TypeScript, TSX, JavaScript, JSX, and JSON source/configuration
+- TypeScript, TSX, JavaScript, JSX, Python, JSON, TOML, and YAML source/configuration
 - `package.json`, `pnpm-workspace.yaml`, `tsconfig.json`, and `jsconfig.json`
+- `pyproject.toml`, requirements files, Pipfile, Dockerfiles, and Compose
+- Terraform `.tf`/`.tf.json`, Kubernetes multi-document YAML, and statically resolvable Helm charts
 - relative imports, workspace package imports, and common TypeScript path aliases
-- Next.js App Router routes and straightforward Express/Fastify literal routes
+- Python local/relative imports and conventional `src/` packages
+- Next.js, Express, Fastify, FastAPI, Flask, and basic Django recognition
 - static environment variable names and public external hostnames
 
-Python and other language analyzers are intentionally out of scope.
+Go, Java, Kotlin, Rust, Ruby, PHP, C#, Swift, and C/C++ are inventory-only. Infrastructure input is static configuration only; cloud and cluster APIs are not queried.
 
 ## Evidence and confidence
 
-Package entities originate from workspace manifests and owned files. Relationships originate from workspace dependency declarations and cross-package imports. Routes originate from framework conventions and exported HTTP methods. Integrations require usage evidence before being promoted to the default graph.
+Service entities originate from Node/Python manifests, Compose build contexts, Dockerfiles, and owned files. Relationships originate from workspace imports/dependencies, literal service targets, and Compose deployment dependencies. Routes remain service inspector metadata. Integrations require usage or deployment evidence before being promoted to the default graph.
 
 Each entity and important edge stores bounded evidence records in `metadata.architecture`. The confidence score combines independent evidence weights and is rendered as Confirmed, High, Medium, or Low. Dependencies alone remain low-confidence technology metadata in most cases; dependency plus import or route plus method evidence is high/confirmed.
 
@@ -45,7 +51,7 @@ The analyzer uses only read-only filesystem metadata and bounded file reads. It 
 - make network requests, call an LLM, upload source, or emit telemetry;
 - write to the analyzed repository.
 
-Symlinks are not followed. Default ignores include dependency, VCS, build, coverage, and cache directories. Secret `.env` files are skipped; `.env.example`-style templates contribute names only.
+Symlinks are not followed. Default ignores include dependency, VCS, build, coverage, cache, and `.terraform` directories plus state/variable files. Secret `.env` files are skipped; `.env.example`-style templates contribute names only. Repositories may add `.agentmapignore` patterns for analysis-only exclusions without changing Git tracking.
 
 ## Limits and partial results
 
@@ -53,7 +59,7 @@ Defaults are 10,000 files, 1 MiB per file, and 25 MiB total eligible bytes. Limi
 
 ## Cache
 
-The local process cache is keyed by canonical root, analyzer version, repository-relative paths, sizes, and mtimes. An unchanged repository reuses the completed result. The **Rescan** action bypasses this cache. No cache file is written into the target repository.
+The local process cache is keyed by canonical root, analyzer version, and architecture-relevant paths, sizes, and mtimes. Documentation and asset changes do not invalidate architecture work. The **Rescan** action bypasses this cache. No cache file is written into the target repository.
 
 ## Initial detectors
 
@@ -61,4 +67,6 @@ Framework/library metadata: Next.js, React, React Flow, Zustand, ELK, Zod, and N
 
 Evidence-backed integrations: OpenAI, Anthropic, MCP, OpenTelemetry, PostgreSQL, Redis, Prisma, Drizzle, Supabase, AWS, Stripe, Firebase, LangChain, LlamaIndex, and statically identifiable external HTTP hosts.
 
-The detector list is intentionally modular. A detector receives the immutable analysis context and returns signals; it does not own scanning or parsing.
+The source-adapter and detector lists are intentionally small and internal. Adapters return the same generic source/configuration observations; detectors receive the immutable analysis context and return signals. No language owns a separate graph model.
+
+See [python-analysis.md](./python-analysis.md), [docker-analysis.md](./docker-analysis.md), [service-inference.md](./service-inference.md), [infrastructure-model.md](./infrastructure-model.md), [terraform-analysis.md](./terraform-analysis.md), [kubernetes-analysis.md](./kubernetes-analysis.md), and [helm-analysis.md](./helm-analysis.md).

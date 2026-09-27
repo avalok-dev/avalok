@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ArchitectureGraphSchema, RunSchema } from "../src/index";
+import { ArchitectureGraphSchema, ResourceMetricSchema, RunSchema } from "../src/index";
 
 describe("schema validation", () => {
   it("accepts a connected architecture", () => {
@@ -47,5 +47,25 @@ describe("schema validation", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("distinguishes configured, observed, and estimated resource metrics", () => {
+    expect(
+      ResourceMetricSchema.parse({
+        name: "replicas",
+        status: "configured",
+        source: "deployment.yaml · spec.replicas",
+        unit: "count",
+        value: 3,
+      }),
+    ).toMatchObject({ status: "configured", value: 3 });
+    expect(
+      ResourceMetricSchema.safeParse({
+        name: "cpu-utilization",
+        status: "actual",
+        source: "unknown",
+        value: 0.5,
+      }).success,
+    ).toBe(false);
   });
 });

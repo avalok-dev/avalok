@@ -29,6 +29,17 @@ const kindTone: Record<Entity["kind"], string> = {
   queue: "node-tone-service",
   storage: "node-tone-data",
   infrastructure: "node-tone-service",
+  cloud: "node-tone-web",
+  network: "node-tone-service",
+  cluster: "node-tone-agent",
+  namespace: "node-tone-document",
+  workload: "node-tone-service",
+  container: "node-tone-tool",
+  gateway: "node-tone-web",
+  load_balancer: "node-tone-web",
+  function: "node-tone-agent",
+  config: "node-tone-document",
+  identity: "node-tone-user",
 };
 
 export function GraphNode({ data, selected }: NodeProps<GraphNodeModel>) {

@@ -1,11 +1,7 @@
 import type { ArchitectureGraph, Run, RuntimeEvent } from "@visual-system/schema";
+import type { RuntimeDiagnostic } from "@visual-system/runtime-adapter";
 
-export interface AdapterDiagnostic {
-  severity: "info" | "warning" | "error";
-  code: string;
-  message: string;
-  line?: number;
-}
+export type AdapterDiagnostic = RuntimeDiagnostic;
 
 export interface CodexSessionSummary {
   id: string;

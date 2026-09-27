@@ -8,9 +8,17 @@ coverage
 .DS_Store
 *.tsbuildinfo
 *.log
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Local environment values must never be committed.
 .env
 .env.*
 !.env.example
 !.env.*.example
+.agentmap/

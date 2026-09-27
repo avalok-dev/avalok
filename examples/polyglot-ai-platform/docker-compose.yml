@@ -1,0 +1,19 @@
+services:
+  web:
+    build: ./frontend
+    ports: ["3000:3000"]
+    depends_on: [api]
+  api:
+    build: ./backend
+    ports: ["8000:8000"]
+    depends_on: [postgres, redis]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+  worker:
+    build: ./worker
+    depends_on: [redis]
+  postgres:
+    image: postgres:17
+  redis:
+    image: redis:7

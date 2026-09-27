@@ -1,0 +1,9 @@
+namespace: research
+backend:
+  image: ghcr.io/agentmap/backend:1.0.0
+  replicas: 3
+worker:
+  image: ghcr.io/agentmap/worker:1.0.0
+  replicas: 2
+frontend:
+  image: ghcr.io/agentmap/frontend:1.0.0

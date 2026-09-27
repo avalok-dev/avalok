@@ -1,12 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { basename, posix } from "node:path";
 import ts from "typescript";
+import { parsePythonSource } from "./python-parser";
 import type {
   AnalysisDiagnostic,
   FileInventory,
   ImportReference,
   PackageManifest,
   RouteSignal,
+  SourceAnalyzerAdapter,
   SourceModule,
 } from "./types";
 
@@ -210,12 +212,142 @@ function parseEnvironmentTemplate(path: string, body: string): SourceModule {
   });
   return {
     path,
+    language: "environment",
     imports: [],
     exports: [],
     declarations: [],
     environmentVariables,
     externalHosts: [],
     routes: [],
+    calls: [],
+    decorators: [],
+    connectionSchemes: [],
+  };
+}
+
+async function parseEcmaScriptSource(
+  file: FileInventory["files"][number],
+  fileSet: ReadonlySet<string>,
+  manifestsByName: ReadonlyMap<string, PackageManifest>,
+  aliasConfigs: readonly AliasConfig[],
+  diagnostics: AnalysisDiagnostic[],
+): Promise<SourceModule | undefined> {
+  if (!file.language || !sourceExtensions.includes(file.extension) || file.role === "generated")
+    return undefined;
+  const body = await readFile(file.absolutePath, "utf8");
+  const source = ts.createSourceFile(
+    file.path,
+    body,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKind(file.extension),
+  );
+  const imports: ImportReference[] = [];
+  const exports = new Set<string>();
+  const declarations = new Set<string>();
+  const environmentVariables = new Map<string, number>();
+  const externalHosts = new Map<string, number>();
+  const routes: RouteSignal[] = [];
+  const calls: SourceModule["calls"] = [];
+  const exportedMethods = new Set<string>();
+  const addImport = (specifier: string, node: ts.Node, kind: ImportReference["kind"]) => {
+    imports.push({
+      specifier,
+      line: lineOf(source, node),
+      kind,
+      ...resolveImport(file.path, specifier, fileSet, manifestsByName, aliasConfigs),
+    });
+  };
+  const visit = (node: ts.Node) => {
+    if (ts.isImportDeclaration(node)) {
+      const specifier = literalText(node.moduleSpecifier);
+      if (specifier) addImport(specifier, node, "import");
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+      const specifier = literalText(node.moduleSpecifier);
+      if (specifier) addImport(specifier, node, "export");
+    } else if (ts.isCallExpression(node)) {
+      if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+        const specifier = literalText(node.arguments[0]);
+        if (specifier) addImport(specifier, node, "dynamic");
+      } else if (ts.isIdentifier(node.expression) && node.expression.text === "require") {
+        const specifier = literalText(node.arguments[0]);
+        if (specifier) addImport(specifier, node, "require");
+      }
+      const route = callRoute(node, source);
+      if (route) routes.push(route);
+      calls.push({
+        callee: node.expression.getText(source),
+        line: lineOf(source, node),
+        literalArguments: node.arguments.flatMap((argument) => {
+          const value = literalText(argument);
+          return value === undefined ? [] : [value];
+        }),
+      });
+    }
+    const name = declaredName(node);
+    if (name) {
+      declarations.add(name);
+      if (hasExportModifier(node)) {
+        for (const part of name.split(", ")) {
+          exports.add(part);
+          if (httpMethods.has(part)) exportedMethods.add(part);
+        }
+      }
+    }
+    if (ts.isExportAssignment(node)) exports.add("default");
+    if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause))
+      for (const element of node.exportClause.elements) exports.add(element.name.text);
+    const variable = envName(node);
+    if (variable && !environmentVariables.has(variable))
+      environmentVariables.set(variable, lineOf(source, node));
+    if (ts.isStringLiteralLike(node) && /^https?:\/\//i.test(node.text)) {
+      try {
+        const host = new URL(node.text).host;
+        if (host && !externalHosts.has(host)) externalHosts.set(host, lineOf(source, node));
+      } catch {
+        // Invalid literal URLs do not contribute architecture evidence.
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  const nextRoute = nextRoutePath(file.path);
+  if (nextRoute)
+    routes.unshift({ path: nextRoute, methods: [...exportedMethods].sort(), style: "next-app" });
+  const parseDiagnostics =
+    (source as ts.SourceFile & { parseDiagnostics?: readonly ts.DiagnosticWithLocation[] })
+      .parseDiagnostics ?? [];
+  if (parseDiagnostics.length > 0) {
+    const first = parseDiagnostics[0];
+    diagnostics.push({
+      severity: "warning",
+      code: "source.syntax",
+      message: first
+        ? ts.flattenDiagnosticMessageText(first.messageText, " ")
+        : "Source contains syntax errors.",
+      file: file.path,
+      ...(first?.start === undefined
+        ? {}
+        : { line: source.getLineAndCharacterOfPosition(first.start).line + 1 }),
+      stage: "building-imports",
+    });
+  }
+  return {
+    path: file.path,
+    language: file.language === "javascript" ? "javascript" : "typescript",
+    imports,
+    exports: [...exports].sort(),
+    declarations: [...declarations].sort(),
+    environmentVariables: [...environmentVariables].map(([name, line]) => ({ name, line })),
+    externalHosts: [...externalHosts].map(([host, line]) => ({ host, line })),
+    routes,
+    calls,
+    decorators: [],
+    connectionSchemes: body.split(/\r?\n/).flatMap((line, index) => {
+      const match = line.match(/["'](postgres(?:ql)?|mysql|sqlite|mongodb(?:\+srv)?|redis):\/\//i);
+      return match?.[1] ? [{ scheme: match[1].toLowerCase(), line: index + 1 }] : [];
+    }),
+    ...(parseDiagnostics.length > 0 ? { parseError: "syntax diagnostics present" } : {}),
   };
 }
 
@@ -232,9 +364,22 @@ export async function parseSources(
   );
   const aliasConfigs = await readAliasConfigs(inventory, diagnostics);
   const modules: SourceModule[] = [];
+  const adapters: SourceAnalyzerAdapter[] = [
+    {
+      id: "python",
+      supports: (file) => file.language === "python",
+      analyze: (file) => parsePythonSource(file, inventory, manifests, diagnostics),
+    },
+    {
+      id: "javascript-typescript",
+      supports: (file) => file.language === "javascript" || file.language === "typescript",
+      analyze: (file) =>
+        parseEcmaScriptSource(file, fileSet, manifestsByName, aliasConfigs, diagnostics),
+    },
+  ];
 
   for (const file of inventory.files) {
-    if (/^\.env\.(?:example|sample|template)$/.test(basename(file.path))) {
+    if (/^\.env(?:\.[^.]+)*\.(?:example|sample|template)$/.test(basename(file.path))) {
       modules.push(parseEnvironmentTemplate(file.path, await readFile(file.absolutePath, "utf8")));
       continue;
     }
@@ -252,122 +397,10 @@ export async function parseSources(
       }
       continue;
     }
-    if (!file.language || !sourceExtensions.includes(file.extension) || file.role === "generated")
-      continue;
-
-    const body = await readFile(file.absolutePath, "utf8");
-    const source = ts.createSourceFile(
-      file.path,
-      body,
-      ts.ScriptTarget.Latest,
-      true,
-      scriptKind(file.extension),
-    );
-    const imports: ImportReference[] = [];
-    const exports = new Set<string>();
-    const declarations = new Set<string>();
-    const environmentVariables = new Map<string, number>();
-    const externalHosts = new Map<string, number>();
-    const routes: RouteSignal[] = [];
-    const exportedMethods = new Set<string>();
-
-    const addImport = (specifier: string, node: ts.Node, kind: ImportReference["kind"]) => {
-      const resolution = resolveImport(
-        file.path,
-        specifier,
-        fileSet,
-        manifestsByName,
-        aliasConfigs,
-      );
-      imports.push({ specifier, line: lineOf(source, node), kind, ...resolution });
-    };
-
-    const visit = (node: ts.Node) => {
-      if (ts.isImportDeclaration(node)) {
-        const specifier = literalText(node.moduleSpecifier);
-        if (specifier) addImport(specifier, node, "import");
-      } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
-        const specifier = literalText(node.moduleSpecifier);
-        if (specifier) addImport(specifier, node, "export");
-      } else if (ts.isCallExpression(node)) {
-        if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-          const specifier = literalText(node.arguments[0]);
-          if (specifier) addImport(specifier, node, "dynamic");
-        } else if (ts.isIdentifier(node.expression) && node.expression.text === "require") {
-          const specifier = literalText(node.arguments[0]);
-          if (specifier) addImport(specifier, node, "require");
-        }
-        const route = callRoute(node, source);
-        if (route) routes.push(route);
-      }
-
-      const name = declaredName(node);
-      if (name) {
-        declarations.add(name);
-        if (hasExportModifier(node)) {
-          for (const part of name.split(", ")) {
-            exports.add(part);
-            if (httpMethods.has(part)) exportedMethods.add(part);
-          }
-        }
-      }
-      if (ts.isExportAssignment(node)) exports.add("default");
-      if (
-        ts.isExportDeclaration(node) &&
-        node.exportClause &&
-        ts.isNamedExports(node.exportClause)
-      ) {
-        for (const element of node.exportClause.elements) exports.add(element.name.text);
-      }
-
-      const variable = envName(node);
-      if (variable && !environmentVariables.has(variable))
-        environmentVariables.set(variable, lineOf(source, node));
-      if (ts.isStringLiteralLike(node) && /^https?:\/\//i.test(node.text)) {
-        try {
-          const host = new URL(node.text).host;
-          if (host && !externalHosts.has(host)) externalHosts.set(host, lineOf(source, node));
-        } catch {
-          // Non-URL string literals are irrelevant to architecture detection.
-        }
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(source);
-
-    const nextRoute = nextRoutePath(file.path);
-    if (nextRoute)
-      routes.unshift({ path: nextRoute, methods: [...exportedMethods].sort(), style: "next-app" });
-    const parseDiagnostics =
-      (source as ts.SourceFile & { parseDiagnostics?: readonly ts.DiagnosticWithLocation[] })
-        .parseDiagnostics ?? [];
-    if (parseDiagnostics.length > 0) {
-      const first = parseDiagnostics[0];
-      const message = first
-        ? ts.flattenDiagnosticMessageText(first.messageText, " ")
-        : "Source contains syntax errors.";
-      diagnostics.push({
-        severity: "warning",
-        code: "source.syntax",
-        message,
-        file: file.path,
-        ...(first?.start === undefined
-          ? {}
-          : { line: source.getLineAndCharacterOfPosition(first.start).line + 1 }),
-        stage: "building-imports",
-      });
-    }
-
-    modules.push({
-      path: file.path,
-      imports,
-      exports: [...exports].sort(),
-      declarations: [...declarations].sort(),
-      environmentVariables: [...environmentVariables].map(([name, line]) => ({ name, line })),
-      externalHosts: [...externalHosts].map(([host, line]) => ({ host, line })),
-      routes,
-      ...(parseDiagnostics.length > 0 ? { parseError: "syntax diagnostics present" } : {}),
-    });
+    const adapter = adapters.find((candidate) => candidate.supports(file));
+    if (!adapter) continue;
+    const module = await adapter.analyze(file, { inventory, manifests, diagnostics });
+    if (module) modules.push(module);
   }
 
   return modules.sort((left, right) => left.path.localeCompare(right.path));

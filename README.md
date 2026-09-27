@@ -1,8 +1,8 @@
 # AI System Visualizer
 
-AgentMap visualizes both detected repository architecture and observed local Codex execution. Repository analysis is local, static, deterministic, and read-only: it never executes target code, reads secret values, sends source to a network service, or uses an LLM.
+AgentMap visualizes detected repository architecture alongside observable local execution from Codex, Claude Code, and OpenTelemetry/OpenInference. Repository analysis is local, static, deterministic, and read-only: it never executes target code, reads secret values, sends source to a network service, or uses an LLM.
 
-Use the source selector to switch between the built-in demo, the current repository, and discovered local Codex sessions. Analyze the repository first and then choose a Codex session to enable the unified execution overlay.
+Use the source selector to switch between the built-in demo, the current repository, and discovered local runtime runs. Analyze the repository first and then choose a runtime run to enable the unified execution overlay.
 
 An open-source visual foundation for understanding the architecture and observable runtime behavior of AI applications.
 
@@ -16,14 +16,21 @@ Milestone 2 keeps the local demo and adds a dedicated, read-only adapter for rep
 - A polished Next.js visualization with Map, Live, and Runs views
 - One realistic simulated research-agent run
 - Local Codex session discovery, historical replay, live tailing, diagnostics, and raw/normalized inspection
-- Local, static JS/TS repository analysis with evidence and confidence
+- Local, static JS/TS and Python repository analysis with evidence and confidence
+- Static Dockerfile/Compose understanding and multi-service ownership
 - Deterministic architecture/runtime reconciliation and a unified execution overlay
+- Local OTLP/HTTP JSON ingestion with OpenInference-aware normalization, replay, and live updates
+- Claude Code observations through supported OpenTelemetry traces and opt-in lifecycle hooks
+- Local persisted runtime runs with redaction, truncation, hierarchy, and diagnostics
+- Static Terraform, Kubernetes, Helm, and AWS infrastructure intelligence
+- Unified application → deployment → cloud relationships, layer filters, and infrastructure inspector detail
+- Provenance-aware configured/observed/estimated resource metric and cost schemas
 
-Generic telemetry ingestion, persistence, accounts, and cloud services do not exist yet.
+Accounts and cloud services do not exist. Runtime data remains local.
 
 ## Run locally
 
-Requires Node.js 22.13 or newer and pnpm 11.
+Requires Node.js 24.19 or newer in the Node 24 LTS line and pnpm 11.19.
 
 ```bash
 pnpm install
@@ -49,12 +56,31 @@ pnpm build
 - `packages/replay` — deterministic timeline engine
 - `packages/ui` — reusable React visualization components
 - `packages/codex-adapter` — read-only Codex JSONL discovery and normalization
+- `packages/runtime-adapter` — vendor-neutral source capabilities, deltas, and privacy policy
+- `packages/telemetry-adapter` — OTLP/OpenInference normalization and local persistence
+- `packages/claude-adapter` — supported Claude Code hook normalization
+- `apps/collector` — loopback-only local OTLP/Claude receiver
 - `packages/analyzer` — bounded static repository intelligence
 - `packages/reconcile` — deterministic architecture/runtime reconciliation
 - `examples/demo-agent` — simulated system description
+- `examples/instrumented-ai-app` — deterministic OTLP/OpenInference end-to-end fixture
+- `examples/polyglot-ai-platform` — Next.js, FastAPI, worker, PostgreSQL, Redis, and Python OTLP fixture
+- `examples/infrastructure-ai-platform` — unified code, Terraform AWS, Helm, and Kubernetes golden fixture
 - `docs/architecture` — design notes and boundaries
 
-See [the architecture overview](docs/architecture/overview.md), [project context](docs/PROJECT_CONTEXT.md), and [open-core boundary](docs/architecture/open-core.md).
+## Capability matrix
+
+| Source                                             | Static architecture | Runtime                         |
+| -------------------------------------------------- | ------------------- | ------------------------------- |
+| JavaScript / TypeScript                            | Supported           | OpenTelemetry                   |
+| Python                                             | Supported           | OpenTelemetry / OpenInference   |
+| Codex                                              | Not applicable      | Historical + live               |
+| Claude Code                                        | Not applicable      | Hooks + OpenTelemetry           |
+| Dockerfile / Compose                               | Supported           | Not applicable                  |
+| Go / Java / Kotlin / Rust / other common languages | Inventory only      | OpenTelemetry when instrumented |
+| Terraform / Kubernetes / Helm                      | Supported (static)  | Deployment context              |
+
+See [the architecture overview](docs/architecture/overview.md), [Milestone 6 design](docs/architecture/milestone-6.md), [Milestone 6 acceptance guide](docs/development/milestone-6-acceptance.md), [project context](docs/PROJECT_CONTEXT.md), and [open-core boundary](docs/architecture/open-core.md).
 
 ## License
 

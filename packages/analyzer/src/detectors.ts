@@ -1,5 +1,6 @@
 import type { EntityKind } from "@visual-system/schema";
 import { confidenceFromEvidence } from "./confidence";
+import { serviceForPath } from "./services";
 import type {
   AnalysisContext,
   ArchitectureDetector,
@@ -14,6 +15,9 @@ interface DetectorDefinition {
   category: DetectorSignal["category"];
   kind: EntityKind;
   packages: string[];
+  imports?: string[];
+  calls?: RegExp;
+  schemes?: RegExp;
   environment?: RegExp;
   hosts?: RegExp;
   promoteToEntity?: boolean;
@@ -39,11 +43,39 @@ const definitions: DetectorDefinition[] = [
   { id: "elk", name: "ELK", category: "library", kind: "tool", packages: ["elkjs"] },
   { id: "zod", name: "Zod", category: "library", kind: "tool", packages: ["zod"] },
   {
+    id: "fastapi",
+    name: "FastAPI",
+    category: "framework",
+    kind: "service",
+    packages: ["fastapi"],
+    imports: ["fastapi"],
+    calls: /(?:^|\.)FastAPI$/,
+  },
+  {
+    id: "flask",
+    name: "Flask",
+    category: "framework",
+    kind: "service",
+    packages: ["flask"],
+    imports: ["flask"],
+    calls: /(?:^|\.)(?:Flask|Blueprint)$/,
+  },
+  {
+    id: "django",
+    name: "Django",
+    category: "framework",
+    kind: "service",
+    packages: ["django"],
+    imports: ["django"],
+  },
+  {
     id: "openai",
     name: "OpenAI",
     category: "integration",
     kind: "model",
-    packages: ["openai", "@openai/agents"],
+    packages: ["openai", "@openai/agents", "openai-agents"],
+    imports: ["openai", "@openai/agents", "agents"],
+    calls: /(?:^|\.)(?:OpenAI|AsyncOpenAI|Agent)$/,
     environment: /^OPENAI_/,
     hosts: /(?:^|\.)openai\.com$/i,
     promoteToEntity: true,
@@ -53,7 +85,9 @@ const definitions: DetectorDefinition[] = [
     name: "Anthropic",
     category: "integration",
     kind: "model",
-    packages: ["@anthropic-ai/sdk"],
+    packages: ["@anthropic-ai/sdk", "anthropic"],
+    imports: ["@anthropic-ai/sdk", "anthropic"],
+    calls: /(?:^|\.)(?:Anthropic|AsyncAnthropic)$/,
     environment: /^ANTHROPIC_/,
     hosts: /(?:^|\.)anthropic\.com$/i,
     promoteToEntity: true,
@@ -63,7 +97,8 @@ const definitions: DetectorDefinition[] = [
     name: "MCP",
     category: "integration",
     kind: "mcp_server",
-    packages: ["@modelcontextprotocol/sdk"],
+    packages: ["@modelcontextprotocol/sdk", "mcp", "fastmcp"],
+    imports: ["@modelcontextprotocol/sdk", "mcp", "fastmcp"],
     promoteToEntity: true,
   },
   {
@@ -71,17 +106,63 @@ const definitions: DetectorDefinition[] = [
     name: "OpenTelemetry",
     category: "integration",
     kind: "infrastructure",
-    packages: ["@opentelemetry/api", "@opentelemetry/sdk-node"],
+    packages: [
+      "@opentelemetry/api",
+      "@opentelemetry/sdk-node",
+      "opentelemetry-api",
+      "opentelemetry-sdk",
+    ],
+    imports: ["@opentelemetry", "opentelemetry"],
     environment: /^OTEL_/,
     promoteToEntity: true,
+  },
+  {
+    id: "openinference",
+    name: "OpenInference",
+    category: "integration",
+    kind: "infrastructure",
+    packages: ["openinference-instrumentation"],
+    imports: ["openinference"],
   },
   {
     id: "postgresql",
     name: "PostgreSQL",
     category: "database",
     kind: "database",
-    packages: ["pg", "postgres"],
+    packages: ["pg", "postgres", "psycopg", "psycopg2", "asyncpg"],
+    imports: ["pg", "postgres", "psycopg", "psycopg2", "asyncpg"],
+    schemes: /^postgres(?:ql)?$/,
     environment: /^(?:POSTGRES_|DATABASE_URL$)/,
+    promoteToEntity: true,
+  },
+  {
+    id: "sqlite",
+    name: "SQLite",
+    category: "database",
+    kind: "database",
+    packages: ["aiosqlite"],
+    imports: ["sqlite3", "aiosqlite"],
+    schemes: /^sqlite$/,
+    promoteToEntity: true,
+  },
+  {
+    id: "mysql",
+    name: "MySQL",
+    category: "database",
+    kind: "database",
+    packages: ["pymysql", "mysql-connector-python", "mysqlclient"],
+    imports: ["pymysql", "mysql", "MySQLdb"],
+    schemes: /^mysql$/,
+    promoteToEntity: true,
+  },
+  {
+    id: "mongodb",
+    name: "MongoDB",
+    category: "database",
+    kind: "database",
+    packages: ["pymongo", "motor"],
+    imports: ["pymongo", "motor"],
+    schemes: /^mongodb(?:\+srv)?$/,
     promoteToEntity: true,
   },
   {
@@ -90,6 +171,8 @@ const definitions: DetectorDefinition[] = [
     category: "database",
     kind: "database",
     packages: ["redis", "ioredis", "@upstash/redis"],
+    imports: ["redis", "ioredis", "@upstash/redis"],
+    schemes: /^redis$/,
     environment: /REDIS/,
     promoteToEntity: true,
   },
@@ -99,6 +182,7 @@ const definitions: DetectorDefinition[] = [
     category: "orm",
     kind: "tool",
     packages: ["@prisma/client", "prisma"],
+    imports: ["@prisma/client"],
     promoteToEntity: true,
   },
   {
@@ -108,6 +192,33 @@ const definitions: DetectorDefinition[] = [
     kind: "tool",
     packages: ["drizzle-orm", "drizzle-kit"],
     promoteToEntity: true,
+  },
+  {
+    id: "sqlalchemy",
+    name: "SQLAlchemy",
+    category: "orm",
+    kind: "tool",
+    packages: ["sqlalchemy"],
+    imports: ["sqlalchemy"],
+    calls: /(?:^|\.)(?:create_engine|create_async_engine|sessionmaker)$/,
+  },
+  {
+    id: "celery",
+    name: "Celery",
+    category: "framework",
+    kind: "queue",
+    packages: ["celery"],
+    imports: ["celery"],
+    calls: /(?:^|\.)Celery$/,
+  },
+  {
+    id: "rq",
+    name: "RQ",
+    category: "framework",
+    kind: "queue",
+    packages: ["rq"],
+    imports: ["rq"],
+    calls: /(?:^|\.)(?:Queue|Worker)$/,
   },
   {
     id: "supabase",
@@ -124,7 +235,8 @@ const definitions: DetectorDefinition[] = [
     name: "AWS",
     category: "integration",
     kind: "infrastructure",
-    packages: ["aws-sdk", "@aws-sdk/client-s3", "@aws-sdk/client-dynamodb"],
+    packages: ["aws-sdk", "@aws-sdk/client-s3", "@aws-sdk/client-dynamodb", "boto3"],
+    imports: ["aws-sdk", "@aws-sdk", "boto3"],
     environment: /^AWS_/,
     hosts: /(?:^|\.)amazonaws\.com$/i,
     promoteToEntity: true,
@@ -154,7 +266,8 @@ const definitions: DetectorDefinition[] = [
     name: "LangChain",
     category: "framework",
     kind: "agent",
-    packages: ["langchain", "@langchain/core"],
+    packages: ["langchain", "@langchain/core", "langchain-core"],
+    imports: ["langchain", "@langchain"],
     promoteToEntity: true,
   },
   {
@@ -162,17 +275,11 @@ const definitions: DetectorDefinition[] = [
     name: "LlamaIndex",
     category: "framework",
     kind: "agent",
-    packages: ["llamaindex"],
+    packages: ["llamaindex", "llama-index"],
+    imports: ["llamaindex"],
     promoteToEntity: true,
   },
 ];
-
-function workspaces(context: AnalysisContext) {
-  const selected = context.manifests.filter((manifest) => manifest.isWorkspace);
-  return selected.length > 0
-    ? selected
-    : context.manifests.filter((manifest) => manifest.directory === ".");
-}
 
 export function workspaceForPath(path: string, manifests: readonly PackageManifest[]) {
   return manifests
@@ -189,6 +296,12 @@ function isTestModule(context: AnalysisContext, path: string) {
   return context.inventory.files.find((file) => file.path === path)?.role === "test";
 }
 
+const importMatches = (specifier: string, names: readonly string[]) =>
+  names.some(
+    (name) =>
+      specifier === name || specifier.startsWith(`${name}/`) || specifier.startsWith(`${name}.`),
+  );
+
 class DependencyDetector implements ArchitectureDetector {
   readonly id: string;
   constructor(private readonly definition: DetectorDefinition) {
@@ -196,115 +309,153 @@ class DependencyDetector implements ArchitectureDetector {
   }
 
   detect(context: AnalysisContext): DetectorSignal[] {
-    const signals: DetectorSignal[] = [];
-    const workspaceManifests = workspaces(context);
-    for (const workspace of workspaceManifests) {
+    return context.services.flatMap((service) => {
       const evidence: ArchitectureEvidence[] = [];
-      const dependencies = { ...workspace.devDependencies, ...workspace.dependencies };
+      const manifests = context.manifests.filter(
+        (manifest) => manifest.directory === service.directory,
+      );
+      const dependencies = Object.assign(
+        {},
+        ...manifests.map((manifest) => ({ ...manifest.devDependencies, ...manifest.dependencies })),
+      ) as Record<string, string>;
       for (const packageName of this.definition.packages) {
-        if (packageName in dependencies) {
-          evidence.push({
-            kind: "dependency",
-            file: workspace.path,
-            description: `${packageName} dependency`,
-            weight: 0.28,
-          });
-        }
+        if (!(packageName in dependencies)) continue;
+        const manifest = manifests.find(
+          (item) => packageName in item.dependencies || packageName in item.devDependencies,
+        );
+        evidence.push({
+          kind: "dependency",
+          file: manifest?.path ?? service.manifestPath ?? ".",
+          description: `${packageName} dependency`,
+          weight: 0.28,
+        });
       }
       for (const module of context.modules) {
         if (isTestModule(context, module.path)) continue;
-        if (workspaceForPath(module.path, workspaceManifests)?.directory !== workspace.directory)
+        if (serviceForPath(module.path, context.services)?.directory !== service.directory)
           continue;
         for (const reference of module.imports) {
-          const matched = this.definition.packages.some(
-            (packageName) =>
-              reference.specifier === packageName ||
-              reference.specifier.startsWith(`${packageName}/`),
-          );
-          if (matched)
-            evidence.push({
-              kind: "import",
-              file: module.path,
-              line: reference.line,
-              description: `${reference.specifier} imported`,
-              weight: 0.48,
-            });
-        }
-        for (const variable of module.environmentVariables) {
-          if (this.definition.environment?.test(variable.name)) {
-            evidence.push({
-              kind: "environment",
-              file: module.path,
-              line: variable.line,
-              description: `${variable.name} referenced (value not read)`,
-              weight: 0.22,
-            });
-          }
-        }
-        for (const host of module.externalHosts) {
-          if (this.definition.hosts?.test(host.host)) {
-            evidence.push({
-              kind: "external-host",
-              file: module.path,
-              line: host.line,
-              description: `${host.host} referenced`,
-              weight: 0.4,
-            });
-          }
-        }
-      }
-      const confidence = confidenceFromEvidence(evidence);
-      if (evidence.length === 0) continue;
-      signals.push({
-        detectorId: this.id,
-        name: this.definition.name,
-        category: this.definition.category,
-        kind: this.definition.kind,
-        workspaceDirectory: workspace.directory,
-        evidence,
-        confidence,
-        promoteToEntity: this.definition.promoteToEntity === true && confidence >= 0.55,
-      });
-    }
-    return signals;
-  }
-}
-
-const nodeDetector: ArchitectureDetector = {
-  id: "nodejs",
-  detect(context) {
-    const workspaceManifests = workspaces(context);
-    return workspaceManifests.flatMap((workspace) => {
-      const evidence: ArchitectureEvidence[] = [];
-      for (const module of context.modules) {
-        if (isTestModule(context, module.path)) continue;
-        if (workspaceForPath(module.path, workspaceManifests)?.directory !== workspace.directory)
-          continue;
-        const nodeImport = module.imports.find((reference) =>
-          reference.specifier.startsWith("node:"),
-        );
-        if (nodeImport)
+          if (
+            !importMatches(reference.specifier, this.definition.imports ?? this.definition.packages)
+          )
+            continue;
           evidence.push({
             kind: "import",
             file: module.path,
-            line: nodeImport.line,
-            description: `${nodeImport.specifier} imported`,
-            weight: 0.65,
+            line: reference.line,
+            description: `${reference.specifier} imported`,
+            weight: 0.48,
           });
+        }
+        for (const call of module.calls) {
+          if (!this.definition.calls?.test(call.callee)) continue;
+          evidence.push({
+            kind: "call",
+            file: module.path,
+            line: call.line,
+            description: `${call.callee} constructed or called`,
+            weight: 0.44,
+          });
+        }
+        for (const connection of module.connectionSchemes) {
+          if (!this.definition.schemes?.test(connection.scheme)) continue;
+          evidence.push({
+            kind: "connection-scheme",
+            file: module.path,
+            line: connection.line,
+            description: `${connection.scheme} connection scheme referenced (value redacted)`,
+            weight: 0.52,
+          });
+        }
+        for (const variable of module.environmentVariables) {
+          if (!this.definition.environment?.test(variable.name)) continue;
+          evidence.push({
+            kind: "environment",
+            file: module.path,
+            line: variable.line,
+            description: `${variable.name} referenced (value not read)`,
+            weight: 0.22,
+          });
+        }
+        for (const host of module.externalHosts) {
+          if (!this.definition.hosts?.test(host.host)) continue;
+          evidence.push({
+            kind: "external-host",
+            file: module.path,
+            line: host.line,
+            description: `${host.host} referenced`,
+            weight: 0.4,
+          });
+        }
       }
+      const confidence = confidenceFromEvidence(evidence);
       if (evidence.length === 0) return [];
       return [
         {
-          detectorId: "nodejs",
-          name: "Node.js",
-          category: "runtime" as const,
-          kind: "service" as const,
-          workspaceDirectory: workspace.directory,
+          detectorId: this.id,
+          name: this.definition.name,
+          category: this.definition.category,
+          kind: this.definition.kind,
+          workspaceDirectory: service.directory,
           evidence,
-          confidence: confidenceFromEvidence(evidence),
-          promoteToEntity: false,
+          confidence,
+          promoteToEntity: this.definition.promoteToEntity === true && confidence >= 0.55,
         },
       ];
+    });
+  }
+}
+
+const runtimeDetector: ArchitectureDetector = {
+  id: "runtimes",
+  detect(context) {
+    return context.services.flatMap((service) => {
+      const signals: DetectorSignal[] = [];
+      if (service.languages.includes("python"))
+        signals.push({
+          detectorId: "python",
+          name: "Python",
+          category: "runtime",
+          kind: "service",
+          workspaceDirectory: service.directory,
+          evidence: [
+            {
+              kind: "source",
+              file:
+                service.sourceFiles.find((path) => path.endsWith(".py")) ??
+                service.manifestPath ??
+                ".",
+              description: "Python source owned by this service",
+              weight: 0.7,
+            },
+          ],
+          confidence: 0.7,
+          promoteToEntity: false,
+        });
+      if (
+        service.languages.some((language) => language === "typescript" || language === "javascript")
+      )
+        signals.push({
+          detectorId: "nodejs",
+          name: "Node.js",
+          category: "runtime",
+          kind: "service",
+          workspaceDirectory: service.directory,
+          evidence: [
+            {
+              kind: "source",
+              file:
+                service.sourceFiles.find((path) => /\.[cm]?[jt]sx?$/.test(path)) ??
+                service.manifestPath ??
+                ".",
+              description: "JavaScript/TypeScript source owned by this service",
+              weight: 0.7,
+            },
+          ],
+          confidence: 0.7,
+          promoteToEntity: false,
+        });
+      return signals;
     });
   },
 };
@@ -315,31 +466,42 @@ const knownHostMatchers = definitions.flatMap((definition) =>
 const externalHttpDetector: ArchitectureDetector = {
   id: "external-http",
   detect(context) {
-    const workspaceManifests = workspaces(context);
-    const byWorkspaceHost = new Map<string, ArchitectureEvidence[]>();
+    const byServiceHost = new Map<string, ArchitectureEvidence[]>();
+    const internalHosts = new Set(
+      context.services
+        .flatMap((service) => [
+          service.declaredName,
+          service.directory.split("/").at(-1),
+          ...service.composeServices,
+        ])
+        .filter((host): host is string => Boolean(host)),
+    );
     for (const module of context.modules) {
       if (isTestModule(context, module.path)) continue;
-      const workspace = workspaceForPath(module.path, workspaceManifests);
-      if (!workspace) continue;
+      const service = serviceForPath(module.path, context.services);
+      if (!service) continue;
       for (const host of module.externalHosts) {
+        const hostname = host.host.replace(/:\d+$/, "");
         if (
-          /^(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(host.host) ||
-          knownHostMatchers.some((matcher) => matcher.test(host.host))
+          /^(?:localhost|127\.0\.0\.1)$/i.test(hostname) ||
+          internalHosts.has(hostname) ||
+          knownHostMatchers.some((matcher) => matcher.test(hostname))
         )
           continue;
-        const key = `${workspace.directory}\0${host.host}`;
-        const list = byWorkspaceHost.get(key) ?? [];
-        list.push({
-          kind: "external-host",
-          file: module.path,
-          line: host.line,
-          description: `${host.host} referenced`,
-          weight: 0.65,
-        });
-        byWorkspaceHost.set(key, list);
+        const key = `${service.directory}\0${host.host}`;
+        byServiceHost.set(key, [
+          ...(byServiceHost.get(key) ?? []),
+          {
+            kind: "external-host",
+            file: module.path,
+            line: host.line,
+            description: `${host.host} referenced`,
+            weight: 0.65,
+          },
+        ]);
       }
     }
-    return [...byWorkspaceHost].map(([key, evidence]) => {
+    return [...byServiceHost].map(([key, evidence]) => {
       const [workspaceDirectory = ".", host = "External HTTP"] = key.split("\0");
       return {
         detectorId: `external-http:${host}`,
@@ -357,7 +519,7 @@ const externalHttpDetector: ArchitectureDetector = {
 
 export const builtInDetectors: ArchitectureDetector[] = [
   ...definitions.map((definition) => new DependencyDetector(definition)),
-  nodeDetector,
+  runtimeDetector,
   externalHttpDetector,
 ];
 

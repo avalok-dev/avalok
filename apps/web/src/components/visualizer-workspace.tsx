@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { RuntimeSnapshot } from "@visual-system/runtime-adapter";
 import { Inspector } from "@visual-system/ui";
 import { ArchitectureCanvas } from "./architecture-canvas";
 import { ExecutionDock } from "./execution-dock";
@@ -17,6 +18,7 @@ import {
 } from "@/store/visualization-store";
 
 type CodexSnapshot = Omit<VisualizationDataset, "source"> & { cursor: number };
+type StreamTarget = { source: "codex" | "claude" | "telemetry"; id: string };
 
 export function VisualizerWorkspace() {
   const mode = useVisualizationStore((state) => state.mode);
@@ -36,10 +38,11 @@ export function VisualizerWorkspace() {
   const setSourceError = useVisualizationStore((state) => state.setSourceError);
   const loadRepository = useVisualizationStore((state) => state.loadRepository);
   const showExecution = useVisualizationStore((state) => state.showExecution);
+  const layerFilter = useVisualizationStore((state) => state.layerFilter);
   const selectEntity = useVisualizationStore((state) => state.selectEntity);
   const viewEntityEvents = useVisualizationStore((state) => state.viewEntityEvents);
   const [sourceOpen, setSourceOpen] = useState(false);
-  const [streamSessionId, setStreamSessionId] = useState<string>();
+  const [streamTarget, setStreamTarget] = useState<StreamTarget>();
 
   useEffect(() => {
     if (!snapshot.isPlaying) return;
@@ -55,13 +58,37 @@ export function VisualizerWorkspace() {
   }, [snapshot.isPlaying, tick]);
 
   useEffect(() => {
-    if (!streamSessionId) return;
+    if (!streamTarget) return;
     const stream = new EventSource(
-      `/api/codex/sessions/${encodeURIComponent(streamSessionId)}/stream`,
+      streamTarget.source === "codex"
+        ? `/api/codex/sessions/${encodeURIComponent(streamTarget.id)}/stream`
+        : `/api/runtime/runs/${streamTarget.source}/${encodeURIComponent(streamTarget.id)}/stream`,
     );
     const onSnapshot = (event: MessageEvent<string>) => {
-      const payload = JSON.parse(event.data) as CodexSnapshot;
-      loadDataset({ ...payload, source: "codex" }, true);
+      if (streamTarget.source === "codex") {
+        const payload = JSON.parse(event.data) as CodexSnapshot;
+        loadDataset(
+          {
+            ...payload,
+            source: "codex",
+            ...(payload.session ? { session: { ...payload.session, source: "codex" } } : {}),
+          },
+          true,
+        );
+      } else {
+        const payload = JSON.parse(event.data) as RuntimeSnapshot;
+        loadDataset(
+          {
+            source: payload.source.id,
+            architecture: payload.architecture,
+            run: payload.run,
+            rawEvents: payload.rawEvents,
+            diagnostics: payload.diagnostics,
+            session: payload.session,
+          },
+          true,
+        );
+      }
       setTailConnected(true);
       setSourceOpen(false);
     };
@@ -82,10 +109,10 @@ export function VisualizerWorkspace() {
       stream.close();
       setTailConnected(false);
     };
-  }, [applyLiveDelta, loadDataset, setSourceError, setTailConnected, streamSessionId]);
+  }, [applyLiveDelta, loadDataset, setSourceError, setTailConnected, streamTarget]);
 
   const selectDemo = () => {
-    setStreamSessionId(undefined);
+    setStreamTarget(undefined);
     loadDataset({
       source: "demo",
       architecture: demoArchitecture,
@@ -97,21 +124,28 @@ export function VisualizerWorkspace() {
   };
 
   const selectSession = (session: PublicSessionSummary) => {
-    if (session.id === streamSessionId) {
+    const source = session.source ?? "codex";
+    if (session.id === streamTarget?.id && source === streamTarget.source) {
       setSourceLoading(false);
       setSourceOpen(false);
       return;
     }
     setSourceLoading(true);
     setSourceError(undefined);
-    setStreamSessionId(session.id);
+    setStreamTarget({ source, id: session.id });
   };
 
-  const selectRepository = async (force = false) => {
+  const selectRepository = async (
+    force = false,
+    fixture?: "fastapi" | "polyglot" | "terraform" | "kubernetes" | "helm" | "infrastructure",
+  ) => {
     setSourceLoading(true);
     setSourceError(undefined);
     try {
-      const response = await fetch(`/api/repository${force ? "?rescan=1" : ""}`, {
+      const parameters = new URLSearchParams();
+      if (force) parameters.set("rescan", "1");
+      if (fixture) parameters.set("fixture", fixture);
+      const response = await fetch(`/api/repository${parameters.size ? `?${parameters}` : ""}`, {
         cache: "no-store",
       });
       const payload = (await response.json()) as
@@ -126,7 +160,7 @@ export function VisualizerWorkspace() {
     }
   };
 
-  const visibleArchitecture = displayedArchitecture({ dataset, showExecution });
+  const visibleArchitecture = displayedArchitecture({ dataset, showExecution, layerFilter });
   const selectedEntity = visibleArchitecture.entities.find(
     (entity) => entity.id === selectedEntityId,
   );
@@ -145,7 +179,13 @@ export function VisualizerWorkspace() {
       ? "demo/research-agent"
       : dataset.source === "repository"
         ? (dataset.repository?.repository.name ?? "Current repository")
-        : (dataset.session?.cwd?.split("/").filter(Boolean).at(-1) ?? "Codex session");
+        : (dataset.session?.cwd?.split("/").filter(Boolean).at(-1) ??
+          dataset.session?.serviceName ??
+          (dataset.source === "claude"
+            ? "Claude Code"
+            : dataset.source === "telemetry"
+              ? "Telemetry"
+              : "Codex session"));
   const architectureFiles = selectedEntity
     ? dataset.repository?.files.filter((file) => {
         const architecture = selectedEntity.metadata?.architecture as
@@ -176,7 +216,7 @@ export function VisualizerWorkspace() {
           error={sourceError}
           onClose={() => setSourceOpen(false)}
           onDemo={selectDemo}
-          onRepository={(force) => void selectRepository(force)}
+          onRepository={(force, fixture) => void selectRepository(force, fixture)}
           onSession={selectSession}
         />
         {mode === "runs" ? <RunsPanel onReplay={replayRun} /> : null}
@@ -187,15 +227,28 @@ export function VisualizerWorkspace() {
         connectedEntities={connectedEntities}
         isLive={mode === "live"}
         rawEvent={snapshot.currentEvent ? dataset.rawEvents[snapshot.currentEvent.id] : undefined}
+        traceEvents={dataset.run.events.filter(
+          (event) => event.traceId === snapshot.currentEvent?.traceId,
+        )}
         diagnostics={dataset.diagnostics}
         runLabel={
           dataset.source === "demo"
             ? "Demo fixture"
             : dataset.source === "repository"
               ? dataset.session
-                ? "Repository + Codex session"
+                ? `Repository + ${
+                    dataset.session.source === "claude"
+                      ? "Claude Code"
+                      : dataset.session.source === "telemetry"
+                        ? "telemetry"
+                        : "Codex"
+                  } session`
                 : "Static repository analysis"
-              : "Local Codex session"
+              : dataset.source === "claude"
+                ? "Local Claude Code session"
+                : dataset.source === "telemetry"
+                  ? "Local telemetry trace"
+                  : "Local Codex session"
         }
         repositoryFiles={architectureFiles}
         runtimeActivity={

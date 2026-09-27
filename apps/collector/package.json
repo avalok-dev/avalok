@@ -1,0 +1,24 @@
+{
+  "name": "@visual-system/collector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "dev": "node --experimental-strip-types src/server.ts",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@visual-system/claude-adapter": "workspace:*",
+    "@visual-system/runtime-adapter": "workspace:*",
+    "@visual-system/telemetry-adapter": "workspace:*"
+  },
+  "devDependencies": {
+    "@visual-system/instrumented-ai-app": "workspace:*",
+    "@types/node": "^22.15.30",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

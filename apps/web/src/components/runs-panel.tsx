@@ -20,7 +20,13 @@ export function RunsPanel({ onReplay }: { onReplay: () => void }) {
             </h2>
           </div>
           <Badge className="border-emerald-400/15 bg-emerald-400/[0.06] text-emerald-300">
-            {dataset.source === "demo" ? "local fixture" : "local JSONL"}
+            {dataset.source === "demo"
+              ? "local fixture"
+              : dataset.session?.source === "telemetry"
+                ? "local OTLP"
+                : dataset.session?.source === "claude"
+                  ? "Claude Code"
+                  : "local JSONL"}
           </Badge>
         </div>
         <div className="p-3">

@@ -61,10 +61,10 @@ export function ExecutionDock() {
                 ? tailConnected
                   ? liveFollowing
                     ? dataset.source === "repository"
-                      ? "Following local JSONL · architecture overlay active"
-                      : "Following local JSONL · observable records only"
+                      ? `Following ${dataset.session.source ?? "codex"} · architecture overlay active`
+                      : `Following ${dataset.session.source ?? "codex"} · observable records only`
                     : "Live updates paused at selected time"
-                  : "Historical local JSONL · reconnecting"
+                  : `Historical ${dataset.session.source ?? "codex"} data · reconnecting`
                 : dataset.source === "repository"
                   ? "Static local analysis · no target code executed"
                   : "Simulated observable events · no chain-of-thought"}

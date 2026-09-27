@@ -17,6 +17,17 @@ export const EntityKindSchema = z.enum([
   "queue",
   "storage",
   "infrastructure",
+  "cloud",
+  "network",
+  "cluster",
+  "namespace",
+  "workload",
+  "container",
+  "gateway",
+  "load_balancer",
+  "function",
+  "config",
+  "identity",
 ]);
 
 export type EntityKind = z.infer<typeof EntityKindSchema>;
@@ -29,6 +40,34 @@ export const SourceLocationSchema = z.object({
 
 export type SourceLocation = z.infer<typeof SourceLocationSchema>;
 
+export const MetricStatusSchema = z.enum(["configured", "observed", "estimated"]);
+export type MetricStatus = z.infer<typeof MetricStatusSchema>;
+
+export const ResourceMetricSchema = z.object({
+  name: z.string().min(1),
+  status: MetricStatusSchema,
+  source: z.string().min(1),
+  unit: z.string().min(1).optional(),
+  value: z.union([z.number(), z.string()]),
+  observedAt: z.string().datetime().optional(),
+  windowStart: z.string().datetime().optional(),
+  windowEnd: z.string().datetime().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+});
+export type ResourceMetric = z.infer<typeof ResourceMetricSchema>;
+
+export const CostAttributionSchema = z.object({
+  category: z.string().min(1),
+  status: z.enum(["observed", "estimated"]),
+  source: z.string().min(1),
+  amount: z.number().nonnegative(),
+  currency: z.string().length(3),
+  windowStart: z.string().datetime().optional(),
+  windowEnd: z.string().datetime().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+});
+export type CostAttribution = z.infer<typeof CostAttributionSchema>;
+
 export const EntitySchema = z.object({
   id: z.string().min(1),
   kind: EntityKindSchema,
@@ -36,6 +75,8 @@ export const EntitySchema = z.object({
   provider: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
   source: SourceLocationSchema.optional(),
+  metrics: z.array(ResourceMetricSchema).optional(),
+  costs: z.array(CostAttributionSchema).optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 
@@ -55,6 +96,7 @@ export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
 export const EventCategorySchema = z.enum([
   "prompt",
   "http",
+  "service",
   "agent",
   "model",
   "tool",

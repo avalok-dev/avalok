@@ -1,0 +1,7 @@
+{
+  "name": "polyglot-platform",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ]
+}

@@ -34,10 +34,20 @@ const fallbackPositions: Record<string, { x: number; y: number }> = {
   documents: { x: 1320, y: 240 },
 };
 
+function useDisplayedArchitecture() {
+  const dataset = useVisualizationStore((state) => state.dataset);
+  const showExecution = useVisualizationStore((state) => state.showExecution);
+  const layerFilter = useVisualizationStore((state) => state.layerFilter);
+  return useMemo(
+    () => displayedArchitecture({ dataset, showExecution, layerFilter }),
+    [dataset, layerFilter, showExecution],
+  );
+}
+
 function CanvasGraph() {
   const mode = useVisualizationStore((state) => state.mode);
   const snapshot = useVisualizationStore((state) => state.snapshot);
-  const architecture = useVisualizationStore(displayedArchitecture);
+  const architecture = useDisplayedArchitecture();
   const source = useVisualizationStore((state) => state.dataset.source);
   const showExecution = useVisualizationStore((state) => state.showExecution);
   const run = useVisualizationStore((state) => state.dataset.run);
@@ -156,11 +166,13 @@ function CanvasGraph() {
 }
 
 export function ArchitectureCanvas() {
-  const architecture = useVisualizationStore(displayedArchitecture);
+  const architecture = useDisplayedArchitecture();
   const source = useVisualizationStore((state) => state.dataset.source);
   const session = useVisualizationStore((state) => state.dataset.session);
   const showExecution = useVisualizationStore((state) => state.showExecution);
   const toggleExecutionOverlay = useVisualizationStore((state) => state.toggleExecutionOverlay);
+  const layerFilter = useVisualizationStore((state) => state.layerFilter);
+  const setLayerFilter = useVisualizationStore((state) => state.setLayerFilter);
   return (
     <div className="relative h-full min-h-0 bg-[#090c12]">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-3">
@@ -173,6 +185,28 @@ export function ArchitectureCanvas() {
           / {architecture.title}
         </div>
         <div className="flex items-center gap-2">
+          {source === "repository" ? (
+            <div
+              className="pointer-events-auto flex rounded-md border border-white/[0.055] bg-[#0c1017]/90 p-0.5 backdrop-blur"
+              aria-label="Architecture layer"
+            >
+              {(["all", "application", "infrastructure", "runtime"] as const).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setLayerFilter(filter)}
+                  aria-pressed={layerFilter === filter}
+                  className={
+                    layerFilter === filter
+                      ? "rounded px-2 py-1 font-mono text-[0.625rem] capitalize text-cyan-200 bg-cyan-300/[0.09]"
+                      : "rounded px-2 py-1 font-mono text-[0.625rem] capitalize text-slate-600 transition-colors hover:text-slate-300"
+                  }
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          ) : null}
           {source === "repository" && session ? (
             <button
               type="button"

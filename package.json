@@ -5,11 +5,11 @@
   "license": "Apache-2.0",
   "packageManager": "pnpm@11.19.0",
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=24.19.0 <25"
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --filter=@visual-system/web",
+    "dev": "turbo run dev --filter=@visual-system/web --filter=@visual-system/collector",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

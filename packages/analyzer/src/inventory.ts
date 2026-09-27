@@ -7,7 +7,7 @@ import type {
   FileInventory,
   FileRole,
   InventoryFile,
-  SupportedLanguage,
+  RepositoryLanguage,
 } from "./types";
 
 const ignoredDirectories = new Set([
@@ -25,6 +25,14 @@ const ignoredDirectories = new Set([
   "target",
   "tmp",
   "temp",
+  ".venv",
+  "venv",
+  "__pycache__",
+  ".pytest_cache",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".terraform",
+  "site-packages",
 ]);
 
 const binaryExtensions = new Set([
@@ -67,7 +75,7 @@ const binaryExtensions = new Set([
   ".zip",
 ]);
 
-const sourceExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+const sourceExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"]);
 const configNames = new Set([
   "package.json",
   "tsconfig.json",
@@ -75,24 +83,54 @@ const configNames = new Set([
   "turbo.json",
   "pnpm-workspace.yaml",
   "pnpm-workspace.yml",
+  "pyproject.toml",
+  "requirements.txt",
+  "Pipfile",
+  "docker-compose.yml",
+  "docker-compose.yaml",
+  "compose.yml",
+  "compose.yaml",
 ]);
 
 const toPosix = (value: string) => value.split(sep).join("/");
 
-function languageFor(extension: string): SupportedLanguage | undefined {
+function languageFor(name: string, extension: string): RepositoryLanguage | undefined {
+  if (/^Dockerfile(?:\..+)?$/i.test(name)) return "dockerfile";
   if ([".ts", ".tsx"].includes(extension)) return "typescript";
   if ([".js", ".jsx", ".mjs", ".cjs"].includes(extension)) return "javascript";
+  if (extension === ".py") return "python";
+  if (extension === ".tf" || name.endsWith(".tf.json")) return "terraform";
   if (extension === ".json") return "json";
+  if ([".yaml", ".yml"].includes(extension)) return "yaml";
+  if (extension === ".go") return "go";
+  if (extension === ".java") return "java";
+  if ([".kt", ".kts"].includes(extension)) return "kotlin";
+  if (extension === ".rs") return "rust";
+  if (extension === ".rb") return "ruby";
+  if (extension === ".php") return "php";
+  if (extension === ".cs") return "csharp";
+  if (extension === ".swift") return "swift";
+  if (extension === ".c" || extension === ".h") return "c";
+  if ([".cc", ".cpp", ".cxx", ".hpp", ".hh"].includes(extension)) return "cpp";
   return undefined;
 }
 
 function roleFor(path: string, extension: string): FileRole {
   const name = basename(path);
-  if (/\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:__tests__|tests?|fixtures)\//.test(path))
+  if (
+    /\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:__tests__|tests?|fixtures)\//.test(path) ||
+    /(?:^|\/)test_[^/]+\.py$|_test\.py$/.test(path)
+  )
     return "test";
   if (/\.generated\.|\.gen\.|\.min\.[jt]s$|\.tsbuildinfo$/.test(path)) return "generated";
   if (sourceExtensions.has(extension)) return "source";
-  if (configNames.has(name) || /(?:^|\.)config\.[cm]?[jt]s$/.test(name) || extension === ".json")
+  if (
+    configNames.has(name) ||
+    /^Dockerfile(?:\..+)?$/i.test(name) ||
+    /(?:^|\/)requirements(?:\.txt|\/[^/]+\.txt)$/i.test(path) ||
+    /(?:^|\.)config\.[cm]?[jt]s$/.test(name) ||
+    [".json", ".toml", ".yaml", ".yml", ".tf"].includes(extension)
+  )
     return "config";
   if ([".md", ".mdx", ".txt", ".rst"].includes(extension)) return "documentation";
   if ([".css", ".scss", ".sass", ".less", ".svg"].includes(extension)) return "asset";
@@ -113,17 +151,23 @@ function regexForGitignore(pattern: string) {
   return new RegExp(`${prefix}${escaped}${directory ? "(?:/|$)" : "$"}`);
 }
 
-async function readGitignore(rootPath: string) {
-  try {
-    const body = await readFile(join(rootPath, ".gitignore"), "utf8");
-    return body
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"))
-      .map(regexForGitignore);
-  } catch {
-    return [];
+async function readIgnoreFiles(rootPath: string) {
+  const patterns: RegExp[] = [];
+  for (const name of [".gitignore", ".agentmapignore"]) {
+    try {
+      const body = await readFile(join(rootPath, name), "utf8");
+      patterns.push(
+        ...body
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"))
+          .map(regexForGitignore),
+      );
+    } catch {
+      // Optional ignore files are absent in most repositories.
+    }
   }
+  return patterns;
 }
 
 async function looksBinary(path: string) {
@@ -153,7 +197,7 @@ export async function inventoryRepository(
   const rootStat = await stat(rootPath);
   if (!rootStat.isDirectory()) throw new Error("Repository target must be a directory.");
 
-  const gitignore = await readGitignore(rootPath);
+  const gitignore = await readIgnoreFiles(rootPath);
   const files: InventoryFile[] = [];
   const diagnostics: AnalysisDiagnostic[] = [];
   const partialReasons: string[] = [];
@@ -216,7 +260,10 @@ export async function inventoryRepository(
       }
       if (
         gitignore.some((pattern) => pattern.test(relativePath)) ||
-        isSecretEnvironmentFile(entry.name)
+        isSecretEnvironmentFile(entry.name) ||
+        /(?:^|\/)(?:terraform\.tfstate(?:\..+)?|[^/]+\.tfvars(?:\.json)?|[^/]+\.auto\.tfvars(?:\.json)?|\.terraform\.lock\.hcl)$/.test(
+          relativePath,
+        )
       ) {
         ignoredCount += 1;
         continue;
@@ -259,7 +306,7 @@ export async function inventoryRepository(
         continue;
       }
       totalEligibleBytes += fileStat.size;
-      const language = languageFor(extension);
+      const language = languageFor(entry.name, extension);
       files.push({
         path: relativePath,
         absolutePath,
@@ -275,8 +322,10 @@ export async function inventoryRepository(
 
   await visit(rootPath);
   const hash = createHash("sha256");
-  for (const file of files)
+  for (const file of files) {
+    if (["documentation", "asset", "unknown"].includes(file.role)) continue;
     hash.update(`${file.path}\0${file.size}\0${Math.floor(file.mtimeMs)}\n`);
+  }
   return {
     rootPath,
     inventory: {

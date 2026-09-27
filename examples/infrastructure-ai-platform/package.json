@@ -1,0 +1,7 @@
+{
+  "name": "infrastructure-ai-platform",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ]
+}

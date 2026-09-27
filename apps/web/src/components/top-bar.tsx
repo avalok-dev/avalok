@@ -40,10 +40,11 @@ export function TopBar({
         <button
           type="button"
           onClick={onSourceClick}
-          className="hidden min-w-0 items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-white/[0.04] md:flex"
+          aria-label={`Select data source (${sourceLabel})`}
+          className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-white/[0.04]"
         >
-          <span className="font-mono text-[0.6875rem] text-slate-600">SOURCE</span>
-          <span className="max-w-[220px] truncate font-mono text-xs text-slate-300">
+          <span className="hidden font-mono text-[0.6875rem] text-slate-600 lg:inline">SOURCE</span>
+          <span className="hidden max-w-[140px] truncate font-mono text-xs text-slate-300 md:inline lg:max-w-[220px]">
             {sourceLabel}
           </span>
           <ChevronDown className="size-3 text-slate-600" />

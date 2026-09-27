@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@visual-system/runtime-adapter": "workspace:*",
     "@visual-system/schema": "workspace:*"
   },
   "devDependencies": {

@@ -1,4 +1,5 @@
 import { stat } from "node:fs/promises";
+import { runtimeSources } from "@visual-system/runtime-adapter";
 import { CodexNormalizer } from "./normalizer";
 import { IncrementalJsonlReader } from "./jsonl";
 import { defaultCodexSessionsDirectory, resolveSessionById } from "./discovery";
@@ -7,6 +8,7 @@ import type { CodexSessionData, CodexSessionSummary } from "./types";
 export * from "./types";
 export * from "./jsonl";
 export { CodexNormalizer } from "./normalizer";
+export const codexRuntimeSource = runtimeSources.codex;
 export {
   defaultCodexSessionsDirectory,
   discoverCodexSessions,

@@ -1,6 +1,7 @@
 import {
   Bot,
   BrainCircuit,
+  Braces,
   AppWindow,
   CloudCog,
   Database,
@@ -32,6 +33,17 @@ const icons = {
   queue: Network,
   storage: HardDrive,
   infrastructure: Server,
+  cloud: CloudCog,
+  network: Network,
+  cluster: Network,
+  namespace: FileStack,
+  workload: Server,
+  container: Server,
+  gateway: Globe2,
+  load_balancer: Network,
+  function: Braces,
+  config: FileStack,
+  identity: UserRound,
 } satisfies Record<EntityKind, typeof UserRound>;
 
 export function EntityIcon({ kind, className }: { kind: EntityKind; className?: string }) {

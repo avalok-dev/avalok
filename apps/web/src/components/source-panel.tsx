@@ -1,23 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Database,
+  Boxes,
+  CloudCog,
+  FileCode2,
   FlaskConical,
   FolderKanban,
   LoaderCircle,
   RefreshCw,
   ShieldCheck,
+  RadioTower,
   TerminalSquare,
   X,
 } from "lucide-react";
 import type { RepositoryAnalysis } from "@visual-system/analyzer";
 import { Badge, Button, cn } from "@visual-system/ui";
-import type { PublicSessionSummary } from "@/store/visualization-store";
+import type { DataSource, PublicSessionSummary } from "@/store/visualization-store";
 
 function sessionLabel(session: PublicSessionSummary) {
   const directory = session.cwd?.split("/").filter(Boolean).at(-1);
-  return directory || session.fileName.replace(".jsonl", "");
+  return (
+    directory ||
+    session.title ||
+    session.serviceName ||
+    session.fileName?.replace(".jsonl", "") ||
+    session.id
+  );
 }
 
 export function SourcePanel({
@@ -34,7 +44,7 @@ export function SourcePanel({
   onSession,
 }: {
   open: boolean;
-  currentSource: "demo" | "codex" | "repository";
+  currentSource: DataSource;
   currentSessionId: string | undefined;
   currentEventCount: number;
   repository: RepositoryAnalysis | undefined;
@@ -42,34 +52,63 @@ export function SourcePanel({
   error: string | undefined;
   onClose: () => void;
   onDemo: () => void;
-  onRepository: (force?: boolean) => void;
+  onRepository: (
+    force?: boolean,
+    fixture?: "fastapi" | "polyglot" | "terraform" | "kubernetes" | "helm" | "infrastructure",
+  ) => void;
   onSession: (session: PublicSessionSummary) => void;
 }) {
   const [sessions, setSessions] = useState<PublicSessionSummary[]>([]);
   const [discovering, setDiscovering] = useState(false);
   const [discoveryError, setDiscoveryError] = useState<string>();
 
-  const discover = async () => {
-    setDiscovering(true);
+  const discover = useCallback(async (background = false) => {
+    if (!background) setDiscovering(true);
     setDiscoveryError(undefined);
     try {
-      const response = await fetch("/api/codex/sessions", { cache: "no-store" });
-      const payload = (await response.json()) as {
+      const [codexResponse, runtimeResponse] = await Promise.all([
+        fetch("/api/codex/sessions", { cache: "no-store" }),
+        fetch("/api/runtime/runs", { cache: "no-store" }),
+      ]);
+      const payload = (await codexResponse.json()) as {
         sessions?: PublicSessionSummary[];
         error?: string;
       };
-      if (!response.ok || !payload.sessions) throw new Error(payload.error ?? "Discovery failed.");
-      setSessions(payload.sessions);
+      const runtimePayload = (await runtimeResponse.json()) as {
+        runs?: PublicSessionSummary[];
+        error?: string;
+      };
+      if (!codexResponse.ok || !payload.sessions)
+        throw new Error(payload.error ?? "Codex discovery failed.");
+      if (!runtimeResponse.ok || !runtimePayload.runs)
+        throw new Error(runtimePayload.error ?? "Runtime discovery failed.");
+      const discovered = [
+        ...runtimePayload.runs,
+        ...payload.sessions.map((session) => ({ ...session, source: "codex" as const })),
+      ];
+      setSessions(
+        discovered.filter(
+          (session, index) =>
+            discovered.findIndex(
+              (candidate) =>
+                (candidate.source ?? "codex") === (session.source ?? "codex") &&
+                candidate.id === session.id,
+            ) === index,
+        ),
+      );
     } catch (caught) {
       setDiscoveryError(caught instanceof Error ? caught.message : "Discovery failed.");
     } finally {
-      setDiscovering(false);
+      if (!background) setDiscovering(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (open && sessions.length === 0 && !discovering) void discover();
-  }, [open, sessions.length, discovering]);
+    if (!open) return;
+    void discover();
+    const interval = window.setInterval(() => void discover(true), 2_000);
+    return () => window.clearInterval(interval);
+  }, [discover, open]);
 
   if (!open) return null;
 
@@ -121,7 +160,7 @@ export function SourcePanel({
           )}
         >
           <span className="grid size-9 place-items-center rounded-lg border border-white/[0.07] bg-black/20 text-indigo-300">
-            {loading && currentSource !== "codex" ? (
+            {loading && !["codex", "claude", "telemetry"].includes(currentSource) ? (
               <LoaderCircle className="size-4 animate-spin" />
             ) : (
               <FolderKanban className="size-4" />
@@ -130,11 +169,63 @@ export function SourcePanel({
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium text-slate-200">Current repository</span>
             <span className="mt-0.5 block text-xs text-slate-600">
-              Local static JS/TS architecture
+              Local code, deployment, and infrastructure architecture
             </span>
           </span>
           <Badge>{repository?.metrics.cacheHit ? "cached" : "local"}</Badge>
         </button>
+
+        <div className="mt-1 grid grid-cols-2 gap-1 px-1">
+          <button
+            type="button"
+            onClick={() => onRepository(false, "fastapi")}
+            className={cn(
+              "flex items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left text-xs text-slate-500 transition-colors hover:bg-white/[0.035] hover:text-slate-300",
+              repository?.repository.name === "python-fastapi" &&
+                "border-cyan-300/15 bg-cyan-300/[0.05] text-slate-300",
+            )}
+          >
+            <FileCode2 className="size-3.5 text-indigo-300/70" /> FastAPI fixture
+          </button>
+          <button
+            type="button"
+            onClick={() => onRepository(false, "polyglot")}
+            className={cn(
+              "flex items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left text-xs text-slate-500 transition-colors hover:bg-white/[0.035] hover:text-slate-300",
+              repository?.repository.name === "polyglot-ai-platform" &&
+                "border-cyan-300/15 bg-cyan-300/[0.05] text-slate-300",
+            )}
+          >
+            <Boxes className="size-3.5 text-indigo-300/70" /> Polyglot fixture
+          </button>
+          <button
+            type="button"
+            onClick={() => onRepository(false, "infrastructure")}
+            className={cn(
+              "col-span-2 flex items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left text-xs text-slate-500 transition-colors hover:bg-white/[0.035] hover:text-slate-300",
+              repository?.repository.name === "infrastructure-ai-platform" &&
+                "border-cyan-300/15 bg-cyan-300/[0.05] text-slate-300",
+            )}
+          >
+            <CloudCog className="size-3.5 text-cyan-300/70" /> Infrastructure AI platform
+          </button>
+          {(
+            [
+              ["terraform", "Terraform AWS"],
+              ["kubernetes", "Kubernetes"],
+              ["helm", "Helm chart"],
+            ] as const
+          ).map(([fixture, label]) => (
+            <button
+              key={fixture}
+              type="button"
+              onClick={() => onRepository(false, fixture)}
+              className="flex items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left text-xs text-slate-500 transition-colors hover:bg-white/[0.035] hover:text-slate-300"
+            >
+              <CloudCog className="size-3.5 text-indigo-300/70" /> {label}
+            </button>
+          ))}
+        </div>
 
         {currentSource === "repository" && repository ? (
           <div className="mx-2 mt-2 rounded-lg border border-white/[0.055] bg-black/20 p-3">
@@ -144,7 +235,24 @@ export function SourcePanel({
               </span>
               <button
                 type="button"
-                onClick={() => onRepository(true)}
+                onClick={() =>
+                  onRepository(
+                    true,
+                    repository.repository.name === "python-fastapi"
+                      ? "fastapi"
+                      : repository.repository.name === "polyglot-ai-platform"
+                        ? "polyglot"
+                        : repository.repository.name === "infrastructure-ai-platform"
+                          ? "infrastructure"
+                          : repository.repository.name === "terraform-aws"
+                            ? "terraform"
+                            : repository.repository.name === "kubernetes-app"
+                              ? "kubernetes"
+                              : repository.repository.name === "helm-app"
+                                ? "helm"
+                                : undefined,
+                  )
+                }
                 className="flex items-center gap-1 font-mono text-[0.625rem] text-slate-500 hover:text-slate-300"
               >
                 <RefreshCw className="size-3" /> Rescan
@@ -155,12 +263,32 @@ export function SourcePanel({
               <span>Parsed · {repository.metrics.filesParsed}</span>
               <span>Ignored · {repository.metrics.filesIgnored}</span>
               <span>Packages · {repository.metrics.packagesDiscovered}</span>
+              <span>Infrastructure · {repository.metrics.infrastructureResources}</span>
+              <span>Terraform · {repository.metrics.terraformFiles}</span>
+              <span>Kubernetes · {repository.metrics.kubernetesDocuments}</span>
               <span>Imports · {repository.metrics.importEdges}</span>
               <span>Unresolved · {repository.metrics.unresolvedImports}</span>
               <span>Entities · {repository.metrics.architectureEntities}</span>
               <span>Edges · {repository.metrics.architectureEdges}</span>
               <span>Warnings · {repository.metrics.warnings}</span>
               <span>Duration · {repository.metrics.durationMs} ms</span>
+            </div>
+            <div className="mt-3 border-t border-white/[0.055] pt-2">
+              <div className="flex flex-wrap gap-1">
+                {repository.summary.languages.slice(0, 5).map((language) => (
+                  <Badge
+                    key={language.language}
+                    className="normal-case tracking-normal text-slate-500"
+                  >
+                    {language.language} {language.percentage}%
+                  </Badge>
+                ))}
+              </div>
+              <p className="mt-2 text-[0.6875rem] leading-5 text-slate-600">
+                {repository.summary.services} services · {repository.summary.databases} databases ·{" "}
+                {repository.summary.externalIntegrations} external integrations ·{" "}
+                {repository.summary.architectureConfidence} confidence
+              </p>
             </div>
             {repository.partial ? (
               <p className="mt-2 text-[0.6875rem] text-amber-300/70">
@@ -172,7 +300,7 @@ export function SourcePanel({
 
         <div className="mb-1 mt-4 flex items-center justify-between px-2">
           <div className="flex items-center gap-2 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-slate-600">
-            <Database className="size-3.5" /> Local Codex sessions
+            <Database className="size-3.5" /> Local runtime sources
           </div>
           <button
             type="button"
@@ -191,16 +319,18 @@ export function SourcePanel({
         ) : null}
         {discovering && sessions.length === 0 ? (
           <div className="flex items-center gap-2 px-3 py-5 text-xs text-slate-500">
-            <LoaderCircle className="size-4 animate-spin" /> Discovering read-only JSONL sessions…
+            <LoaderCircle className="size-4 animate-spin" /> Discovering local runtime data…
           </div>
         ) : null}
 
         <div className="grid gap-1">
           {sessions.slice(0, 40).map((session) => {
-            const selected = currentSource !== "demo" && currentSessionId === session.id;
+            const selected =
+              (currentSource === (session.source ?? "codex") || currentSource === "repository") &&
+              currentSessionId === session.id;
             return (
               <button
-                key={session.id}
+                key={`${session.source ?? "codex"}:${session.id}`}
                 type="button"
                 onClick={() => onSession(session)}
                 className={cn(
@@ -208,12 +338,22 @@ export function SourcePanel({
                   selected && "border-cyan-300/15 bg-cyan-300/[0.05]",
                 )}
               >
-                <TerminalSquare className="size-4 text-slate-600" />
+                {session.source === "telemetry" ? (
+                  <RadioTower className="size-4 text-slate-600" />
+                ) : (
+                  <TerminalSquare className="size-4 text-slate-600" />
+                )}
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-medium text-slate-300">
                     {sessionLabel(session)}
                   </span>
                   <span className="mt-1 block truncate font-mono text-[0.625rem] text-slate-600">
+                    {(session.source ?? "codex") === "codex"
+                      ? "Codex"
+                      : session.source === "claude"
+                        ? "Claude Code"
+                        : "OTLP"}
+                    {" · "}
                     {new Date(session.startedAt ?? session.modifiedAt).toLocaleString()}
                     {selected ? ` · ${currentEventCount} events` : ""}
                   </span>
@@ -225,6 +365,17 @@ export function SourcePanel({
             );
           })}
         </div>
+
+        {!sessions.some((session) => session.source === "telemetry") ? (
+          <p className="mx-2 mt-3 rounded-lg border border-white/[0.055] bg-black/20 p-3 text-[0.6875rem] leading-5 text-slate-600">
+            Telemetry appears here after an app exports OTLP/HTTP JSON to local port 4318.
+          </p>
+        ) : null}
+        {!sessions.some((session) => session.source === "claude") ? (
+          <p className="mx-2 mt-2 rounded-lg border border-white/[0.055] bg-black/20 p-3 text-[0.6875rem] leading-5 text-slate-600">
+            Claude Code appears here after its optional local HTTP hooks send an observation.
+          </p>
+        ) : null}
       </div>
 
       {error ? (
@@ -233,7 +384,7 @@ export function SourcePanel({
         </div>
       ) : (
         <div className="border-t border-white/[0.055] px-4 py-2.5 text-[0.6875rem] leading-4 text-slate-600">
-          Local only · static analysis never executes target code
+          Local only · runtime data is never uploaded
         </div>
       )}
     </section>
