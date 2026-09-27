@@ -219,6 +219,11 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
   ];
   const serviceName = services[0] ?? "Observed service";
   const kind = sourceKind(spans);
+  const synthetic = spans.some(
+    (span) =>
+      span.resource["agentmap.synthetic"] === true ||
+      span.attributes["agentmap.synthetic"] === true,
+  );
   const entities = new Map<string, Entity>();
   const edges = new Map<string, GraphEdge>();
   const events: RuntimeEvent[] = [];
@@ -228,7 +233,14 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
   let redactedFields = 0;
   let truncatedFields = 0;
 
-  entities.set("user", { id: "user", kind: "user", name: "User" });
+  entities.set("user", {
+    id: "user",
+    kind: "user",
+    name: synthetic ? "Synthetic Fixture · Test User" : "User",
+    ...(synthetic
+      ? { description: "Synthetic fixture actor; not observed application activity." }
+      : {}),
+  });
   const classifications = new Map<string, Classification>();
   for (const span of spans) {
     const openInferenceKind = text(span.attributes["openinference.span.kind"]);
@@ -312,6 +324,7 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
         inputTokens,
         outputTokens,
         serviceName: text(span.resource["service.name"]) ?? serviceName,
+        ...(synthetic ? { synthetic: true, fixture: "AgentMap test trace" } : {}),
         ...(classification.openInferenceKind
           ? { openInferenceSpanKind: classification.openInferenceKind }
           : {}),

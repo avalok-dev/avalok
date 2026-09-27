@@ -22,6 +22,8 @@ export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
 claude
 ```
 
+`http/protobuf` also works since M7.3; either OTLP/HTTP encoding reaches the same pipeline.
+
 Claude tracing is a Claude Code beta feature and may change. AgentMap treats missing attributes defensively.
 
 ## Enable hooks

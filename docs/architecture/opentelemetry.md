@@ -2,7 +2,7 @@
 
 ## Supported
 
-AgentMap includes a small local receiver bound to `127.0.0.1:4318` by default. It accepts OTLP/HTTP JSON trace export requests at `POST /v1/traces`, preserves trace/span hierarchy and timing, normalizes OpenInference semantic attributes when present, persists normalized runs locally, and updates the existing Live view through SSE.
+AgentMap includes a small local receiver bound to `127.0.0.1:4318` by default. It accepts OTLP/HTTP trace export requests encoded as protobuf (`application/x-protobuf`, the default of most official exporters) or JSON (`application/json`) at `POST /v1/traces`, preserves trace/span hierarchy and timing, normalizes OpenInference semantic attributes when present, persists normalized runs locally, and updates the existing Live view through SSE.
 
 The endpoint is:
 
@@ -13,11 +13,12 @@ http://127.0.0.1:4318/v1/traces
 Configure standard exporters with:
 
 ```bash
-export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
 export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
+# Optional: http/protobuf is the usual default; http/json is also accepted.
+export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
 ```
 
-Milestone 4 supports the standard OTLP/HTTP JSON representation. Binary protobuf and OTLP/gRPC are not accepted yet; the receiver returns HTTP 415 with an actionable message rather than guessing at the payload.
+Milestone 4 introduced OTLP/HTTP JSON. Milestone 7.3 added OTLP/HTTP protobuf through the same decode → canonical request → normalization pipeline; see `docs/development/otlp-protobuf.md`. OTLP/gRPC is not supported. Other media types receive HTTP 415.
 
 ## Classification
 

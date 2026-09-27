@@ -1,12 +1,35 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Play, TerminalSquare } from "lucide-react";
+import { ArrowRight, CheckCircle2, Play, RadioTower, TerminalSquare } from "lucide-react";
 import { Badge, Button } from "@visual-system/ui";
 import { useVisualizationStore } from "@/store/visualization-store";
 
-export function RunsPanel({ onReplay }: { onReplay: () => void }) {
+export function RunsPanel({
+  onReplay,
+  onConnectTelemetry,
+}: {
+  onReplay: () => void;
+  onConnectTelemetry: () => void;
+}) {
   const dataset = useVisualizationStore((state) => state.dataset);
   const run = dataset.run;
+  if (run.events.length === 0) {
+    return (
+      <div className="absolute inset-0 z-20 grid place-items-center bg-[#080b10]/65 p-6 backdrop-blur-[4px]">
+        <section className="w-full max-w-lg rounded-2xl border border-white/[0.09] bg-[#10141c] p-6 text-center shadow-2xl">
+          <RadioTower className="mx-auto size-6 text-cyan-300/80" />
+          <h2 className="mt-3 text-base font-semibold text-slate-100">No runs yet</h2>
+          <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">
+            Runs appear after AgentMap observes an available Codex or Claude Code source, or
+            receives OpenTelemetry/OpenInference activity.
+          </p>
+          <Button size="sm" className="mt-4" onClick={onConnectTelemetry}>
+            Connect telemetry
+          </Button>
+        </section>
+      </div>
+    );
+  }
   return (
     <div className="absolute inset-0 z-20 grid place-items-center bg-[#080b10]/75 p-6 backdrop-blur-[6px]">
       <section className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/[0.09] bg-[#10141c] shadow-[0_28px_90px_rgba(0,0,0,0.58)]">

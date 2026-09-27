@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RuntimeSnapshot } from "@visual-system/runtime-adapter";
+import type { CapabilityReport } from "@visual-system/capabilities";
+import { RadioTower } from "lucide-react";
+import { Button } from "@visual-system/ui";
 import { Inspector } from "@visual-system/ui";
 import { ArchitectureCanvas } from "./architecture-canvas";
 import { ExecutionDock } from "./execution-dock";
 import { RunsPanel } from "./runs-panel";
 import { SourcePanel } from "./source-panel";
 import { TopBar } from "./top-bar";
+import { GettingStarted } from "./getting-started";
 import { demoArchitecture, demoRun } from "@/lib/fixtures";
 import {
   displayedArchitecture,
@@ -42,7 +46,25 @@ export function VisualizerWorkspace() {
   const selectEntity = useVisualizationStore((state) => state.selectEntity);
   const viewEntityEvents = useVisualizationStore((state) => state.viewEntityEvents);
   const [sourceOpen, setSourceOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupView, setSetupView] = useState<"overview" | "telemetry">("overview");
+  const [capabilities, setCapabilities] = useState<CapabilityReport>();
   const [streamTarget, setStreamTarget] = useState<StreamTarget>();
+  const initialRepositoryRequested = useRef(false);
+
+  const refreshCapabilities = useCallback(async () => {
+    const response = await fetch("/api/capabilities", { cache: "no-store" });
+    if (response.ok) setCapabilities((await response.json()) as CapabilityReport);
+  }, []);
+
+  const closeSetup = useCallback(() => {
+    setSetupOpen(false);
+    void fetch("/api/settings", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ gettingStartedDismissed: true }),
+    });
+  }, []);
 
   useEffect(() => {
     if (!snapshot.isPlaying) return;
@@ -135,29 +157,77 @@ export function VisualizerWorkspace() {
     setStreamTarget({ source, id: session.id });
   };
 
-  const selectRepository = async (
-    force = false,
-    fixture?: "fastapi" | "polyglot" | "terraform" | "kubernetes" | "helm" | "infrastructure",
-  ) => {
-    setSourceLoading(true);
-    setSourceError(undefined);
-    try {
-      const parameters = new URLSearchParams();
-      if (force) parameters.set("rescan", "1");
-      if (fixture) parameters.set("fixture", fixture);
-      const response = await fetch(`/api/repository${parameters.size ? `?${parameters}` : ""}`, {
-        cache: "no-store",
-      });
-      const payload = (await response.json()) as
-        import("@visual-system/analyzer").RepositoryAnalysis | { error?: string };
-      if (!response.ok || !("graph" in payload)) {
-        throw new Error("error" in payload ? payload.error : "Repository analysis failed.");
+  const selectRepository = useCallback(
+    async (
+      force = false,
+      fixture?: "fastapi" | "polyglot" | "terraform" | "kubernetes" | "helm" | "infrastructure",
+    ) => {
+      setSourceLoading(true);
+      setSourceError(undefined);
+      try {
+        const parameters = new URLSearchParams();
+        if (force) parameters.set("rescan", "1");
+        if (fixture) parameters.set("fixture", fixture);
+        const response = await fetch(`/api/repository${parameters.size ? `?${parameters}` : ""}`, {
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as
+          import("@visual-system/analyzer").RepositoryAnalysis | { error?: string };
+        if (!response.ok || !("graph" in payload)) {
+          throw new Error("error" in payload ? payload.error : "Repository analysis failed.");
+        }
+        loadRepository(payload);
+        if (!force) setSourceOpen(false);
+      } catch (caught) {
+        setSourceError(caught instanceof Error ? caught.message : "Repository analysis failed.");
       }
-      loadRepository(payload);
-      if (!force) setSourceOpen(false);
-    } catch (caught) {
-      setSourceError(caught instanceof Error ? caught.message : "Repository analysis failed.");
-    }
+    },
+    [loadRepository, setSourceError, setSourceLoading],
+  );
+
+  useEffect(() => {
+    if (initialRepositoryRequested.current) return;
+    let active = true;
+    void fetch("/api/health", { cache: "no-store" })
+      .then((response) => response.json() as Promise<{ cli?: boolean }>)
+      .then((health) => {
+        if (active && health.cli && !initialRepositoryRequested.current) {
+          initialRepositoryRequested.current = true;
+          void Promise.all([
+            selectRepository(),
+            refreshCapabilities(),
+            fetch("/api/settings", { cache: "no-store" })
+              .then((response) => response.json() as Promise<{ gettingStartedDismissed?: boolean }>)
+              .then((settings) => {
+                if (active && !settings.gettingStartedDismissed) setSetupOpen(true);
+              }),
+          ]);
+        }
+      })
+      .catch(() => {
+        // Readiness was already established by the CLI; keep Demo usable if this request fails.
+      });
+    return () => {
+      active = false;
+    };
+  }, [refreshCapabilities, selectRepository]);
+
+  const connectTelemetry = () => {
+    setSetupView("telemetry");
+    setSetupOpen(true);
+    void refreshCapabilities();
+  };
+
+  const viewLatestSynthetic = async () => {
+    const response = await fetch("/api/runtime/runs", { cache: "no-store" });
+    const payload = (await response.json()) as { runs?: PublicSessionSummary[] };
+    const session =
+      payload.runs?.find(
+        (item) => item.source === "telemetry" && item.serviceName === "AgentMap Synthetic Fixture",
+      ) ?? payload.runs?.find((item) => item.source === "telemetry");
+    if (session) selectSession(session);
+    setMode("live");
+    closeSetup();
   };
 
   const visibleArchitecture = displayedArchitecture({ dataset, showExecution, layerFilter });
@@ -203,9 +273,28 @@ export function VisualizerWorkspace() {
         sourceLabel={sourceLabel}
         isTailConnected={tailConnected}
         onSourceClick={() => setSourceOpen((open) => !open)}
+        onSetupClick={() => {
+          setSetupView("overview");
+          setSetupOpen(true);
+          void refreshCapabilities();
+        }}
       />
       <section className="relative min-h-0 min-w-0">
         <ArchitectureCanvas />
+        {mode === "map" && visibleArchitecture.entities.length === 0 ? (
+          <div className="absolute inset-0 z-20 grid place-items-center p-6">
+            <div className="max-w-sm rounded-xl border border-white/[0.08] bg-[#10151d]/95 p-5 text-center shadow-2xl">
+              <h2 className="text-sm font-semibold text-slate-100">Repository analyzed</h2>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                No supported static architecture was inferred. Detected languages remain visible in
+                Setup, and runtime telemetry can still build an execution view.
+              </p>
+              <Button size="sm" className="mt-4" onClick={connectTelemetry}>
+                Connect telemetry
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <SourcePanel
           open={sourceOpen}
           currentSource={dataset.source}
@@ -218,8 +307,27 @@ export function VisualizerWorkspace() {
           onDemo={selectDemo}
           onRepository={(force, fixture) => void selectRepository(force, fixture)}
           onSession={selectSession}
+          {...(capabilities ? { capabilities } : {})}
+          onConnectTelemetry={connectTelemetry}
         />
-        {mode === "runs" ? <RunsPanel onReplay={replayRun} /> : null}
+        {mode === "live" && dataset.run.events.length === 0 ? (
+          <div className="absolute inset-0 z-20 grid place-items-center bg-[#080b10]/45 p-6">
+            <div className="max-w-sm rounded-xl border border-white/[0.08] bg-[#10151d]/95 p-5 text-center shadow-2xl">
+              <RadioTower className="mx-auto size-5 text-cyan-300" />
+              <h2 className="mt-3 text-sm font-semibold text-slate-100">Nothing live yet</h2>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                AgentMap is ready. Select an available local agent session or connect your
+                application with telemetry.
+              </p>
+              <Button size="sm" className="mt-4" onClick={connectTelemetry}>
+                Connect telemetry
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        {mode === "runs" ? (
+          <RunsPanel onReplay={replayRun} onConnectTelemetry={connectTelemetry} />
+        ) : null}
       </section>
       <Inspector
         entity={selectedEntity}
@@ -258,6 +366,20 @@ export function VisualizerWorkspace() {
         onViewEvents={selectedEntity ? () => viewEntityEvents(selectedEntity.id) : undefined}
       />
       <ExecutionDock />
+      {setupOpen && capabilities ? (
+        <GettingStarted
+          report={capabilities}
+          view={setupView}
+          onViewChange={setSetupView}
+          onClose={closeSetup}
+          onViewMap={() => {
+            setMode("map");
+            closeSetup();
+          }}
+          onViewLive={() => void viewLatestSynthetic()}
+          onRefresh={() => void refreshCapabilities()}
+        />
+      ) : null}
     </main>
   );
 }

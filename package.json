@@ -8,13 +8,17 @@
     "node": ">=24.19.0 <25"
   },
   "scripts": {
+    "agentmap": "node packages/cli/agentmap.mjs",
     "build": "turbo run build",
     "dev": "turbo run dev --filter=@visual-system/web --filter=@visual-system/collector",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "dist:build": "node packages/cli/scripts/build-distribution.mjs",
+    "dist:pack": "node packages/cli/scripts/pack-distribution.mjs",
+    "dist:smoke": "node packages/cli/scripts/smoke-installed.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",

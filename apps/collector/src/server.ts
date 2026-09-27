@@ -1,9 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
-import { gunzipSync } from "node:zlib";
+import { gunzipSync, inflateSync } from "node:zlib";
 import { normalizeClaudeHook } from "@visual-system/claude-adapter";
 import {
   LocalRuntimeStore,
+  OTLP_PROTOBUF_CONTENT_TYPE,
+  OtlpProtobufDecodeError,
+  buildSyntheticTestTrace,
+  decodeOtlpTraceProtobuf,
+  encodeOtlpStatus,
+  encodeOtlpTraceResponse,
   normalizeTraces,
   parseOtlpJson,
   type TelemetryIngestionDiagnostics,
@@ -25,13 +31,62 @@ async function readBody(request: IncomingMessage, maximum: number) {
     chunks.push(buffer);
   }
   const body = Buffer.concat(chunks);
-  if (request.headers["content-encoding"] === "gzip") {
-    const inflated = gunzipSync(body, { maxOutputLength: maximum });
-    if (inflated.length > maximum)
+  const encoding = (request.headers["content-encoding"] ?? "identity").trim().toLowerCase();
+  if (encoding === "identity" || encoding === "") return body;
+  if (encoding !== "gzip" && encoding !== "deflate")
+    throw new UnsupportedEncodingError(`Unsupported Content-Encoding: ${encoding}.`);
+  let inflated: Buffer;
+  try {
+    inflated = (encoding === "gzip" ? gunzipSync : inflateSync)(body, {
+      maxOutputLength: maximum,
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE")
       throw new RangeError(`Inflated request body exceeds ${maximum} bytes.`);
-    return inflated;
+    throw new SyntaxError(`Request body is not valid ${encoding} data.`);
   }
-  return body;
+  if (inflated.length > maximum)
+    throw new RangeError(`Inflated request body exceeds ${maximum} bytes.`);
+  return inflated;
+}
+
+class UnsupportedEncodingError extends Error {}
+
+/** Media types are case-insensitive and may carry parameters such as `charset`. */
+export function otlpEncoding(contentType: string | undefined) {
+  const mediaType = (contentType ?? "").split(";")[0]!.trim().toLowerCase();
+  if (mediaType === "application/json") return "json" as const;
+  // `application/x-protobuf` is the OTLP/HTTP media type; `application/protobuf` is accepted
+  // as the registered equivalent some clients send.
+  if (mediaType === OTLP_PROTOBUF_CONTENT_TYPE || mediaType === "application/protobuf")
+    return "protobuf" as const;
+  return undefined;
+}
+
+function protobufResponse(response: ServerResponse, status: number, body: Uint8Array) {
+  response.writeHead(status, {
+    "Content-Type": OTLP_PROTOBUF_CONTENT_TYPE,
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+  });
+  response.end(Buffer.from(body));
+}
+
+/** OTLP/HTTP error: `google.rpc.Status` for protobuf requests, JSON otherwise. */
+function otlpError(
+  response: ServerResponse,
+  encoding: "json" | "protobuf" | undefined,
+  status: number,
+  message: string,
+) {
+  if (encoding === "protobuf")
+    protobufResponse(response, status, encodeOtlpStatus(grpcCodeForHttp(status), message));
+  else json(response, status, { error: message });
+}
+
+// google.rpc.Code values for the HTTP statuses this receiver returns.
+function grpcCodeForHttp(status: number) {
+  return status === 413 ? 8 : status === 415 ? 3 : status === 400 ? 3 : 13;
 }
 
 function json(response: ServerResponse, status: number, body: unknown) {
@@ -68,6 +123,30 @@ export function createCollectorServer(options: CollectorOptions = {}) {
     liveStatus: "listening" as const,
     lastReceivedAt: undefined as string | undefined,
   };
+  const ingest = async (payload: unknown) => {
+    const parsed = parseOtlpJson(payload);
+    diagnostics.spansReceived += parsed.spans.length + parsed.malformed;
+    diagnostics.malformedPayloads += parsed.malformed;
+    const snapshots = normalizeTraces(parsed.spans);
+    for (const snapshot of snapshots) {
+      await store.upsert(snapshot);
+      diagnostics.spansNormalized += snapshot.run.events.length;
+      if (
+        snapshot.session.serviceName &&
+        !diagnostics.activeServices.includes(snapshot.session.serviceName) &&
+        diagnostics.activeServices.length < 100
+      )
+        diagnostics.activeServices.push(snapshot.session.serviceName);
+      for (const item of snapshot.diagnostics) {
+        if (item.code === "privacy.redacted") diagnostics.redactedFields += item.count ?? 0;
+        if (item.code === "payload.truncated") diagnostics.truncatedFields += item.count ?? 0;
+        if (item.code === "span.unsupported-openinference-kind")
+          diagnostics.unsupportedSpans += item.count ?? 0;
+      }
+    }
+    diagnostics.lastReceivedAt = new Date().toISOString();
+    return { parsed, snapshots };
+  };
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -76,56 +155,80 @@ export function createCollectorServer(options: CollectorOptions = {}) {
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/traces") {
-        const contentType = (request.headers["content-type"] ?? "").split(";")[0]?.trim();
-        if (contentType !== "application/json") {
+        const encoding = otlpEncoding(request.headers["content-type"]);
+        if (!encoding) {
           json(response, 415, {
             error:
-              "This milestone receiver accepts OTLP/HTTP JSON. Configure OTEL_EXPORTER_OTLP_PROTOCOL=http/json.",
+              "Unsupported Content-Type. OTLP/HTTP traces must be application/x-protobuf or application/json.",
           });
           return;
         }
-        const body = await readBody(request, maximum);
-        let payload: unknown;
+        let body: Buffer;
         try {
-          payload = JSON.parse(body.toString("utf8"));
-        } catch {
-          diagnostics.malformedPayloads += 1;
-          json(response, 400, { error: "Malformed OTLP JSON payload." });
+          body = await readBody(request, maximum);
+        } catch (error) {
+          if (error instanceof RangeError) otlpError(response, encoding, 413, error.message);
+          else if (error instanceof UnsupportedEncodingError)
+            otlpError(response, encoding, 415, error.message);
+          else {
+            diagnostics.malformedPayloads += 1;
+            otlpError(
+              response,
+              encoding,
+              400,
+              error instanceof Error ? error.message : "Request rejected.",
+            );
+          }
           return;
         }
-        const parsed = parseOtlpJson(payload);
-        diagnostics.spansReceived += parsed.spans.length + parsed.malformed;
-        diagnostics.malformedPayloads += parsed.malformed;
-        const snapshots = normalizeTraces(parsed.spans);
-        for (const snapshot of snapshots) {
-          await store.upsert(snapshot);
-          diagnostics.spansNormalized += snapshot.run.events.length;
-          if (
-            snapshot.session.serviceName &&
-            !diagnostics.activeServices.includes(snapshot.session.serviceName) &&
-            diagnostics.activeServices.length < 100
-          )
-            diagnostics.activeServices.push(snapshot.session.serviceName);
-          for (const item of snapshot.diagnostics) {
-            if (item.code === "privacy.redacted") diagnostics.redactedFields += item.count ?? 0;
-            if (item.code === "payload.truncated") diagnostics.truncatedFields += item.count ?? 0;
-            if (item.code === "span.unsupported-openinference-kind")
-              diagnostics.unsupportedSpans += item.count ?? 0;
-          }
+        let payload: unknown;
+        try {
+          payload =
+            encoding === "protobuf"
+              ? decodeOtlpTraceProtobuf(body)
+              : JSON.parse(body.toString("utf8"));
+        } catch (error) {
+          diagnostics.malformedPayloads += 1;
+          otlpError(
+            response,
+            encoding,
+            400,
+            error instanceof OtlpProtobufDecodeError
+              ? error.message
+              : "Malformed OTLP JSON payload.",
+          );
+          return;
         }
-        diagnostics.lastReceivedAt = new Date().toISOString();
-        json(
-          response,
-          200,
+        const { parsed } = await ingest(payload);
+        const partialSuccess =
           parsed.malformed > 0
-            ? {
-                partialSuccess: {
-                  rejectedSpans: String(parsed.malformed),
-                  errorMessage: "Malformed spans were ignored.",
-                },
-              }
-            : {},
-        );
+            ? { rejectedSpans: parsed.malformed, errorMessage: "Malformed spans were ignored." }
+            : undefined;
+        if (encoding === "protobuf")
+          protobufResponse(response, 200, encodeOtlpTraceResponse(partialSuccess));
+        else
+          json(
+            response,
+            200,
+            partialSuccess
+              ? {
+                  partialSuccess: {
+                    rejectedSpans: String(partialSuccess.rejectedSpans),
+                    errorMessage: partialSuccess.errorMessage,
+                  },
+                }
+              : {},
+          );
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/v1/agentmap/test-trace") {
+        const { snapshots } = await ingest(buildSyntheticTestTrace());
+        json(response, 200, {
+          status: "received",
+          synthetic: true,
+          fixture: "m7.2-test-trace",
+          runId: snapshots[0]?.run.id,
+        });
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/claude/hooks") {

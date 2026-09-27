@@ -19,7 +19,7 @@ Milestone 2 keeps the local demo and adds a dedicated, read-only adapter for rep
 - Local, static JS/TS and Python repository analysis with evidence and confidence
 - Static Dockerfile/Compose understanding and multi-service ownership
 - Deterministic architecture/runtime reconciliation and a unified execution overlay
-- Local OTLP/HTTP JSON ingestion with OpenInference-aware normalization, replay, and live updates
+- Local OTLP/HTTP (protobuf and JSON) ingestion with OpenInference-aware normalization, replay, and live updates
 - Claude Code observations through supported OpenTelemetry traces and opt-in lifecycle hooks
 - Local persisted runtime runs with redaction, truncation, hierarchy, and diagnostics
 - Static Terraform, Kubernetes, Helm, and AWS infrastructure intelligence
@@ -38,6 +38,19 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+### Installable preview package (local only)
+
+AgentMap can be built into a single npm package and installed without this repository or pnpm. Nothing is published; the tarball is for local testing.
+
+```bash
+pnpm dist:build
+pnpm dist:pack                      # → artifacts/visual-system-agentmap-<version>.tgz
+npm install -g ./artifacts/visual-system-agentmap-*.tgz
+agentmap /path/to/repository
+```
+
+OTLP/HTTP traces (protobuf or JSON) are accepted at `http://127.0.0.1:4318/v1/traces`. See `docs/development/distribution.md`.
 
 Quality checks:
 

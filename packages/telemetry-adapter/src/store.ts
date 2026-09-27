@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join, parse } from "node:path";
+import { homedir } from "node:os";
+import { join, posix, resolve, win32 } from "node:path";
 import type {
   RuntimeSessionSummary,
   RuntimeSnapshot,
@@ -9,22 +9,33 @@ import type {
 } from "@visual-system/runtime-adapter";
 import type { ArchitectureGraph, Run, RuntimeEvent } from "@visual-system/schema";
 
-function repositoryRoot(start = process.cwd()) {
-  let directory = start;
-  const root = parse(directory).root;
-  while (directory !== root) {
-    if (
-      existsSync(join(directory, "pnpm-workspace.yaml")) &&
-      existsSync(join(directory, "package.json"))
-    )
-      return directory;
-    directory = dirname(directory);
+export function defaultAgentMapDataRoot(
+  environment: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  home = homedir(),
+) {
+  const configured = environment.AGENTMAP_DATA_ROOT ?? environment.AGENTMAP_DATA_DIR;
+  if (configured) return resolve(configured);
+  // Use the target platform's path semantics so the rules are exact (and unit-testable)
+  // regardless of the host running them.
+  if (platform === "win32") {
+    const local = environment.LOCALAPPDATA;
+    return win32.join(
+      local && win32.isAbsolute(local) ? local : win32.join(home, "AppData", "Local"),
+      "AgentMap",
+    );
   }
-  return start;
+  if (platform === "darwin") return posix.join(home, "Library", "Application Support", "AgentMap");
+  // XDG Base Directory: a relative XDG_DATA_HOME is invalid and must be ignored.
+  const xdg = environment.XDG_DATA_HOME;
+  return posix.join(
+    xdg && posix.isAbsolute(xdg) ? xdg : posix.join(home, ".local", "share"),
+    "agentmap",
+  );
 }
 
-export function defaultRuntimeDataDirectory() {
-  return process.env.AGENTMAP_DATA_DIR || join(repositoryRoot(), ".agentmap", "runtime");
+export function defaultRuntimeDataDirectory(environment: NodeJS.ProcessEnv = process.env) {
+  return join(defaultAgentMapDataRoot(environment), "runtime");
 }
 
 const snapshotKey = (source: RuntimeSourceKind, id: string) =>

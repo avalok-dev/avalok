@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The installable package ships Next's standalone server. Contributor builds keep the
+  // default output so `next start` and `pnpm dev` behave as before.
+  ...(process.env.AGENTMAP_DASHBOARD_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   serverExternalPackages: ["@cdktf/hcl2json"],
   webpack(config, { isServer }) {
     if (isServer) {

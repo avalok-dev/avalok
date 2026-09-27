@@ -1,0 +1,7 @@
+{
+  "displayName": "AgentMap",
+  "cliName": "agentmap",
+  "packageName": "@visual-system/agentmap",
+  "description": "Local architecture and runtime map for AI applications (developer preview; working name).",
+  "legacyDataDirectoryName": ".agentmap"
+}

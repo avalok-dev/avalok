@@ -22,3 +22,6 @@ venv/
 !.env.example
 !.env.*.example
 .agentmap/
+
+# Local distribution builds and packed tarballs (M7.3). Never committed or published.
+artifacts/

@@ -1,6 +1,6 @@
 # Runtime privacy, redaction, and size limits
 
-Runtime telemetry is stored locally under `.agentmap/runtime` by default and is gitignored. AgentMap does not upload traces, prompts, responses, Claude sessions, Codex sessions, or repository source to an AgentMap service.
+Runtime telemetry is stored locally under AgentMap's platform user-data `runtime/` directory by default. AgentMap does not upload traces, prompts, responses, Claude sessions, Codex sessions, or repository source to an AgentMap service.
 
 Before persistence and raw inspection, the shared runtime policy recursively redacts case- and separator-insensitive sensitive keys including authorization, API keys, tokens, access/refresh tokens, cookies, set-cookie, passwords, secrets, client secrets, database URLs, and connection strings.
 

@@ -10,7 +10,10 @@ This is concise durable context for new coding tasks. `AGENTS.md` contains manda
 - **Milestone 4:** loopback OTLP/HTTP JSON ingestion, OpenInference and conservative generic OpenTelemetry normalization, opt-in Claude Code hooks/telemetry, a shared runtime adapter contract, persisted runtime runs, live updates, trace hierarchy, privacy/size policy, and expanded reconciliation.
 - **Milestone 5:** safe Python analysis, Dockerfile and Compose parsing, polyglot service discovery, service-level architecture inference, cross-language reconciliation, and a runnable TypeScript/Python/worker fixture.
 - **Milestone 6:** static Terraform, Kubernetes, Helm, and AWS infrastructure intelligence; application/deployment/runtime reconciliation; hierarchy/layer views; and resource metric/cost foundations.
-- Milestones 1-6 are complete. Preserve their behavior rather than recreating it.
+- **Milestone 7.1:** package-shaped `agentmap` CLI, current/explicit repository targeting, one-command dashboard and OTLP startup, loopback-only defaults, readiness checks, source status, browser opening, and coordinated shutdown.
+- **Milestone 7.2:** centralized capability/status reporting, a dismissible first-run/setup surface, actionable empty states, accurate OTLP/HTTP JSON guidance, a synthetic test trace, `agentmap doctor`, and platform-appropriate AgentMap-owned data controls.
+- **Milestone 7.3:** one installable package (bundled CLI/collector/analyzers, Next.js standalone dashboard, allowlisted samples), centralized identity/version, clean-install smoke outside the monorepo, OTLP/HTTP protobuf ingestion, safe migration from `~/.agentmap/runtime`, and cross-platform hardening.
+- Milestones 1-6 and M7.1-M7.3 are complete. Preserve their behavior rather than recreating it.
 
 ## Package map
 
@@ -23,9 +26,11 @@ This is concise durable context for new coding tasks. `AGENTS.md` contains manda
 | `packages/ui`                         | Reusable React canvas, inspector, timeline, controls                 |
 | `packages/codex-adapter`              | Read-only Codex session discovery and event normalization            |
 | `packages/runtime-adapter`            | Runtime source capabilities, snapshot/delta contract, privacy policy |
-| `packages/telemetry-adapter`          | OTLP/OpenInference normalization and local snapshot persistence      |
+| `packages/telemetry-adapter`          | OTLP JSON/protobuf decoding, normalization, local persistence        |
 | `packages/claude-adapter`             | Claude Code lifecycle-hook normalization                             |
-| `apps/collector`                      | Loopback OTLP/HTTP JSON and Claude hook receiver                     |
+| `apps/collector`                      | Loopback OTLP/HTTP protobuf + JSON and Claude hook receiver          |
+| `packages/cli`                        | Product CLI, lifecycle, identity, distribution build/pack/smoke      |
+| `packages/capabilities`               | Shared capability semantics, source status, local data/settings      |
 | `packages/analyzer`                   | Bounded static repository inventory, parsing, detection, inference   |
 | `packages/reconcile`                  | Deterministic runtime-to-architecture matching and unified graph     |
 | `examples/demo-agent`                 | Stable simulated demonstration fixture                               |
@@ -53,10 +58,30 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 - The browser may analyze only the server-selected current repository. It must not accept an unchecked arbitrary filesystem path.
 - Repository analysis stays local: no LLM, cloud, telemetry, or source upload.
 - Runtime sources declare capabilities; unsupported features are not represented as fake empty implementations.
-- The collector binds to `127.0.0.1:4318`, requires explicit opt-in for public binding, bounds payloads, and persists only sanitized normalized snapshots below `.agentmap/runtime`.
+- The collector binds to `127.0.0.1:4318`, requires explicit opt-in for public binding, bounds payloads, and persists only sanitized normalized snapshots below AgentMap's platform user-data `runtime/` directory.
 - OTLP/OpenInference, Claude, and Codex all reach the existing vendor-neutral `Run.events`, graph, replay, and reconciliation paths.
 - Generic service/HTTP/database spans remain conservative; arbitrary telemetry is not labeled as agent activity.
 - Runtime deployment context follows one direct `deployed-as` edge; it is not recursively claimed on cloud/cluster/network entities.
+- Distribution is one package built by `pnpm dist:build` into `packages/cli/dist` and packed by `pnpm dist:pack` into `artifacts/`. Identity lives in `packages/cli/product.json`; the only version is `packages/cli/package.json#version` (`0.1.0-alpha.N`). The generated manifest is `private: true`; nothing is published before M7.4.
+- Installed assets resolve from the bundled module's location; the target is the cwd/argument; data is the platform root. The dashboard child is pinned to `127.0.0.1` and has Next telemetry disabled.
+- OTLP protobuf is decoded with `protobufjs` against vendored official opentelemetry-proto definitions into the OTLP/JSON shape, then shares the JSON pipeline. OTLP/gRPC is unsupported.
+- The CLI defaults to `process.cwd()`, passes a canonical server-owned target to the dashboard, binds local services to `127.0.0.1`, and uses the platform AgentMap user-data root unless `AGENTMAP_DATA_DIR` is set.
+
+## Verified Milestone 7.3 state (2026-09-27)
+
+- `format:check`, lint, typecheck, 148 tests, and the production build pass (baseline before M7.3: 105 tests).
+- `pnpm dist:build && pnpm dist:pack` produces a ≈1.8 MB tarball (≈6.8 MB unpacked, ≈360 MB installed with Next/TypeScript dependencies).
+- `pnpm dist:smoke --hide-workspace --python <venv python>` passed 43/43 on macOS arm64 with the checkout renamed away: JS/TS, Python, polyglot, infrastructure, and Unicode/spaced paths; dashboard assets; samples; test trace; OTLP JSON and protobuf; the standard Python exporter; restart persistence; Ctrl+C (≈50 ms) and force-kill orphan cleanup; safe data clearing.
+- Linux/Windows logic has unit coverage; `.github/workflows/distribution.yml` defines the OS matrix but has not been run yet.
+- Details: `docs/architecture/milestone-7-3.md` and `docs/development/{distribution,clean-install-test,otlp-protobuf,data-migration,platform-support,upgrading}.md`.
+
+## Verified Milestone 7.1 state (2026-09-26)
+
+- The local product command is `pnpm agentmap [path]`; help, version, `--no-open`, `--port`, and `--otlp-port` are supported.
+- Dashboard port `4737` falls forward through a bounded local range; the standardized OTLP port `4318` fails clearly on conflict. Both services bind only to loopback.
+- The real production dashboard and collector were started through the CLI against `examples/polyglot-ai-platform`; both health endpoints passed, the repository API returned the intended canonical target and six architecture entities, Ctrl+C exited zero, and both ports were released.
+- Focused CLI coverage includes argument parsing, default/explicit/invalid targets, ports, loopback startup, analyzer target propagation, non-fatal discovery, browser failure, signals, and a temporary external-repository integration path.
+- Distribution is intentionally deferred: the CLI still uses source workspace packages and the source dashboard directory. M7.3 owns compilation/bundling, dashboard asset inclusion, packed-install tests, and publication metadata.
 
 ## Verified Milestone 6 state (2026-09-26)
 
@@ -93,7 +118,8 @@ Exact counts may change as the repository changes; tests should assert meaningfu
 - Current-repository selection only; no GitHub cloning or arbitrary local-path browser input.
 - Web/UI behavior has unit coverage through underlying packages plus browser verification, but no dedicated component suite yet.
 - Next.js build emits a non-blocking warning that its optional ESLint plugin is not detected in the shared configuration; lint still passes.
-- The receiver supports OTLP/HTTP JSON, not binary protobuf or OTLP/gRPC.
+- The receiver supports OTLP/HTTP protobuf and JSON traces, not OTLP/gRPC, metrics, or logs.
+- Installed size is dominated by Next.js's optional SWC binary and TypeScript; Next server chunks keep build-machine source paths as labels (build releases from a neutral CI path).
 - OTLP exporters generally send completed spans; AgentMap does not fabricate span-start events.
 - Claude historical data includes observations persisted after hooks/telemetry are enabled; private transcript files are not parsed by default.
 
@@ -123,4 +149,4 @@ Exact counts may change as the repository changes; tests should assert meaningfu
 - `docs/architecture/roadmap.md`
 - `docs/architecture/codex-adapter.md`
 
-The next milestone is intentionally not started. The recommended Milestone 7 is opt-in live cloud/cluster observation plus configured-versus-observed drift and billing/utilization overlays on the Milestone 6 provenance model. Static analysis must remain independently useful.
+The next stage is M7.4 public-preview readiness (naming, publication, release checklist, security/privacy review, real Linux/Windows CI results). Do not publish or finalize the name before then.

@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import type { RepositoryAnalysis } from "@visual-system/analyzer";
+import type { CapabilityReport } from "@visual-system/capabilities";
 import { Badge, Button, cn } from "@visual-system/ui";
 import type { DataSource, PublicSessionSummary } from "@/store/visualization-store";
 
@@ -42,6 +43,8 @@ export function SourcePanel({
   onDemo,
   onRepository,
   onSession,
+  capabilities,
+  onConnectTelemetry,
 }: {
   open: boolean;
   currentSource: DataSource;
@@ -57,6 +60,8 @@ export function SourcePanel({
     fixture?: "fastapi" | "polyglot" | "terraform" | "kubernetes" | "helm" | "infrastructure",
   ) => void;
   onSession: (session: PublicSessionSummary) => void;
+  capabilities?: CapabilityReport;
+  onConnectTelemetry: () => void;
 }) {
   const [sessions, setSessions] = useState<PublicSessionSummary[]>([]);
   const [discovering, setDiscovering] = useState(false);
@@ -312,6 +317,35 @@ export function SourcePanel({
           </button>
         </div>
 
+        {capabilities ? (
+          <div className="mb-2 grid gap-1 px-1">
+            {capabilities.sources.slice(0, 3).map((source) => (
+              <div
+                key={source.id}
+                className="rounded-lg border border-white/[0.05] bg-black/15 px-3 py-2"
+              >
+                <div className="flex items-center justify-between text-xs text-slate-300">
+                  <span>{source.label}</span>
+                  <Badge>
+                    {source.observation === "observed"
+                      ? "observed"
+                      : source.connection === "listening"
+                        ? "listening"
+                        : source.connection === "not-configured"
+                          ? "not configured"
+                          : source.connection === "ready"
+                            ? "available"
+                            : source.availability === "error"
+                              ? "error"
+                              : "not detected"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-[0.6875rem] leading-5 text-slate-600">{source.detail}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         {discoveryError ? (
           <p className="m-2 rounded-lg border border-rose-400/15 bg-rose-400/[0.05] p-3 text-xs leading-5 text-rose-300">
             {discoveryError}
@@ -367,9 +401,14 @@ export function SourcePanel({
         </div>
 
         {!sessions.some((session) => session.source === "telemetry") ? (
-          <p className="mx-2 mt-3 rounded-lg border border-white/[0.055] bg-black/20 p-3 text-[0.6875rem] leading-5 text-slate-600">
-            Telemetry appears here after an app exports OTLP/HTTP JSON to local port 4318.
-          </p>
+          <button
+            type="button"
+            onClick={onConnectTelemetry}
+            className="mx-2 mt-3 w-[calc(100%-16px)] rounded-lg border border-cyan-300/10 bg-cyan-300/[0.025] p-3 text-left text-[0.6875rem] leading-5 text-slate-500 hover:text-slate-300"
+          >
+            Nothing live yet. AgentMap is ready to receive OTLP/HTTP traces.{" "}
+            <span className="text-cyan-300">Connect telemetry →</span>
+          </button>
         ) : null}
         {!sessions.some((session) => session.source === "claude") ? (
           <p className="mx-2 mt-2 rounded-lg border border-white/[0.055] bg-black/20 p-3 text-[0.6875rem] leading-5 text-slate-600">
@@ -384,7 +423,7 @@ export function SourcePanel({
         </div>
       ) : (
         <div className="border-t border-white/[0.055] px-4 py-2.5 text-[0.6875rem] leading-4 text-slate-600">
-          Local only · runtime data is never uploaded
+          Local-first · no AgentMap cloud upload
         </div>
       )}
     </section>

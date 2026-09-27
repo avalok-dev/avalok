@@ -2,12 +2,12 @@
 
 AgentMap runtime sources implement a small vendor-neutral contract in `@visual-system/runtime-adapter`. The contract describes the source, declares capabilities, and returns normalized snapshots and deltas containing an execution graph, a `Run`, bounded raw observations, and diagnostics.
 
-| Source      | Historical            | Live                        | Persistence         | Primary interface                                |
-| ----------- | --------------------- | --------------------------- | ------------------- | ------------------------------------------------ |
-| Demo        | built in              | replay only                 | source fixture      | deterministic schema fixture                     |
-| Codex       | yes                   | yes                         | Codex-owned JSONL   | read-only discovery and incremental tail         |
-| Claude Code | yes after observation | yes                         | `.agentmap/runtime` | supported hooks plus optional Claude OTel traces |
-| Telemetry   | yes after ingestion   | completed spans arrive live | `.agentmap/runtime` | OTLP/HTTP JSON                                   |
+| Source      | Historical            | Live                        | Persistence          | Primary interface                                |
+| ----------- | --------------------- | --------------------------- | -------------------- | ------------------------------------------------ |
+| Demo        | built in              | replay only                 | source fixture       | deterministic schema fixture                     |
+| Codex       | yes                   | yes                         | Codex-owned JSONL    | read-only discovery and incremental tail         |
+| Claude Code | yes after observation | yes                         | user-data `runtime/` | supported hooks plus optional Claude OTel traces |
+| Telemetry   | yes after ingestion   | completed spans arrive live | user-data `runtime/` | OTLP/HTTP JSON                                   |
 
 Adapters do not parse inside React, graph, replay, or UI packages. Those packages consume only normalized entities, edges, events, runs, and diagnostics. Capabilities are descriptive rather than a forced interface: a source does not implement a fake method merely to satisfy a plugin framework.
 

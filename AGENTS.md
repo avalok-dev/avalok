@@ -20,6 +20,8 @@
 - Develop: `pnpm dev` (web app at `http://localhost:3000`, local collector at `http://127.0.0.1:4318`)
 - Verify: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
 - In a non-interactive runner, prefix pnpm commands with `CI=true`.
+- Distribution (M7.3): `pnpm dist:build && pnpm dist:pack && pnpm dist:smoke --hide-workspace`. Run it after changes to the CLI, dashboard routes, collector, or anything the installed package loads; never publish.
+- Packages bundled into the dashboard must not call `path` functions through a conditional function value (e.g. `(a ? win32.join : posix.join)(…)`); Next's build-time file tracer crashes on it. Use explicit branches.
 
 ## Architectural invariants
 

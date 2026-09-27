@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/server.ts"
+  },
   "scripts": {
     "build": "tsc --noEmit",
     "dev": "node --experimental-strip-types src/server.ts",
@@ -16,8 +19,13 @@
     "@visual-system/telemetry-adapter": "workspace:*"
   },
   "devDependencies": {
-    "@visual-system/instrumented-ai-app": "workspace:*",
+    "@opentelemetry/api": "1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.222.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "0.222.0",
+    "@opentelemetry/resources": "2.11.0",
+    "@opentelemetry/sdk-trace-base": "2.11.0",
     "@types/node": "^22.15.30",
+    "@visual-system/instrumented-ai-app": "workspace:*",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }

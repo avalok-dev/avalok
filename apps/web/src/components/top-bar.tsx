@@ -1,6 +1,14 @@
 "use client";
 
-import { Activity, Boxes, ChevronDown, CircleDotDashed, Radio, Rows3 } from "lucide-react";
+import {
+  Activity,
+  Boxes,
+  ChevronDown,
+  CircleDotDashed,
+  HelpCircle,
+  Radio,
+  Rows3,
+} from "lucide-react";
 import { Badge, cn } from "@visual-system/ui";
 import type { VisualizerMode } from "@/store/visualization-store";
 
@@ -17,6 +25,7 @@ export function TopBar({
   sourceLabel,
   isTailConnected,
   onSourceClick,
+  onSetupClick,
 }: {
   mode: VisualizerMode;
   onModeChange: (mode: VisualizerMode) => void;
@@ -24,6 +33,7 @@ export function TopBar({
   sourceLabel: string;
   isTailConnected: boolean;
   onSourceClick: () => void;
+  onSetupClick: () => void;
 }) {
   return (
     <header className="col-span-full flex min-w-0 items-center border-b border-white/[0.065] bg-[#090c11]/95 px-4">
@@ -73,6 +83,15 @@ export function TopBar({
       </nav>
 
       <div className="ml-auto flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-slate-500">
+        <button
+          type="button"
+          onClick={onSetupClick}
+          className="mr-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-500 hover:bg-white/[0.04] hover:text-slate-200"
+          aria-label="Open Getting Started"
+        >
+          <HelpCircle className="size-3.5" />
+          <span className="hidden md:inline">Setup</span>
+        </button>
         <span className="relative flex size-2">
           {isPlaying || isTailConnected ? (
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-50" />

@@ -1,0 +1,41 @@
+name: Distribution
+
+# Builds the installable package, packs it, installs the tarball into a clean temporary
+# directory outside the checkout, and runs the installed-product smoke test on each OS.
+# Nothing is published.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  packed-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dist:build
+      - run: pnpm dist:pack
+      # POSIX runners also rename the checkout during the smoke so the installed package
+      # cannot resolve anything from the workspace. Windows keeps files locked, so it skips that.
+      - if: runner.os != 'Windows'
+        run: node packages/cli/scripts/smoke-installed.mjs --hide-workspace
+      - if: runner.os == 'Windows'
+        run: node packages/cli/scripts/smoke-installed.mjs
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentmap-packed-tarball
+          path: artifacts/*.tgz
+          retention-days: 7
