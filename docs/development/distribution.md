@@ -49,10 +49,10 @@ The CLI locates `dashboard/` and `samples/` relative to its own module file, nev
 
 ## Size (0.1.0-alpha.0, macOS arm64)
 
-| Measure                     | Size    |
-| --------------------------- | ------- |
-| Packed tarball              | ≈1.8 MB |
-| Unpacked package            | ≈6.8 MB |
+| Measure                     | Size                        |
+| --------------------------- | --------------------------- |
+| Packed tarball              | ≈1.8 MB                     |
+| Unpacked package            | ≈6.8 MB                     |
 | Installed with dependencies | ≈353 MB (M7.4A measurement) |
 
 Almost all installed size is Next.js's own dependency tree: its optional `@next/swc-<platform>` compiler binary (≈139 MB, unused at runtime), `next` itself (≈150 MB), `typescript` (≈23 MB, required by the analyzer), and sharp/libvips (≈18 MB, optional, unused). Vendoring Next's trace-minimized standalone `node_modules` via `bundleDependencies` could cut this substantially. M7.4A re-measured (1.85 MB packed, 7.4 MB unpacked, 353 MB installed: `next` 153 MB, `@next/swc-*` 124 MB, `typescript` 23 MB, sharp/libvips ≈27 MB) and deliberately did not change packaging: the size is acceptable for a developer preview, and correctness and security came first.
