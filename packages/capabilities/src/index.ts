@@ -120,10 +120,13 @@ function safeOwnedPath(path: string, paths: AgentMapDataPaths) {
   return normalized !== root && normalized.startsWith(`${root}${sep}`) && root !== parse(root).root;
 }
 
-export async function clearAgentMapData(paths = agentMapDataPaths()) {
+// `home` is a parameter (not an inline `homedir()` call) on purpose: Next's build-time file
+// tracer evaluates inline `os.homedir()` paths and, on Windows when the checkout is on another
+// drive, then globs the whole home directory. See docs/development/release-build.md.
+export async function clearAgentMapData(paths = agentMapDataPaths(), home = homedir()) {
   const root = resolve(paths.root);
   if (
-    root === resolve(homedir()) ||
+    root === resolve(home) ||
     root === resolve(process.cwd()) ||
     !safeOwnedPath(paths.runtime, paths) ||
     !safeOwnedPath(paths.settings, paths)
@@ -299,11 +302,15 @@ async function claudeState(target: string, environment: NodeJS.ProcessEnv) {
   }
   let configured = false;
   let configurationError: string | undefined;
-  for (const file of [
-    join(directory, "settings.json"),
-    join(target, ".claude", "settings.json"),
-    join(target, ".claude", "settings.local.json"),
-  ]) {
+  // Segments rather than an array of joined paths: the build-time tracer turns an array literal
+  // of computed paths into repository-wide globs for these file names.
+  const candidates = [
+    [directory, "settings.json"],
+    [target, ".claude", "settings.json"],
+    [target, ".claude", "settings.local.json"],
+  ];
+  for (const segments of candidates) {
+    const file = join(...segments);
     try {
       configured ||= hasClaudeHook(JSON.parse(await readFile(file, "utf8")));
     } catch (error) {

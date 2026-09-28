@@ -6,6 +6,9 @@ export async function POST() {
   try {
     const response = await fetch(`http://127.0.0.1:${port}/v1/agentmap/test-trace`, {
       method: "POST",
+      // The receiver only accepts JSON here so a web page cannot trigger it with a simple POST.
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
       signal: AbortSignal.timeout(2_000),
     });
     const body = (await response.json()) as { error?: string };

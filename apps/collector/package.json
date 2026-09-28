@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@visual-system/claude-adapter": "workspace:*",
+    "@visual-system/local-security": "workspace:*",
     "@visual-system/runtime-adapter": "workspace:*",
     "@visual-system/telemetry-adapter": "workspace:*"
   },

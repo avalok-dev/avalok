@@ -93,7 +93,13 @@ describe("M7.2 product flow integration", () => {
     });
     expect(before.sources.find((source) => source.id === "telemetry")?.observation).toBe("waiting");
     expect(
-      (await fetch(`${running.otlpUrl}/v1/agentmap/test-trace`, { method: "POST" })).status,
+      (
+        await fetch(`${running.otlpUrl}/v1/agentmap/test-trace`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        })
+      ).status,
     ).toBe(200);
     const after = await buildCapabilityReport({
       analysis: running.analysis,

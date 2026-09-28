@@ -1,7 +1,10 @@
 name: Distribution
 
-# Builds the installable package, packs it, installs the tarball into a clean temporary
-# directory outside the checkout, and runs the installed-product smoke test on each OS.
+# Per OS: unit tests, then a neutral-path release build (source copied to a temporary path with
+# spaces, frozen install, dist:build, dist:pack, build-machine path-leak scan) and the
+# installed-product smoke test against that tarball: --version, --help, doctor, startup,
+# dashboard/OTLP health, local HTTP security checks, OTLP JSON + protobuf, the standard Python
+# exporter, restart persistence, shutdown/port release, orphan cleanup, and safe data clearing.
 # Nothing is published.
 on:
   push:
@@ -24,18 +27,24 @@ jobs:
         with:
           node-version-file: .node-version
           cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the standard OpenTelemetry Python exporter
+        run: python -m pip install -r examples/python-otel-direct/requirements.txt
       - run: pnpm install --frozen-lockfile
-      - run: pnpm dist:build
-      - run: pnpm dist:pack
-      # POSIX runners also rename the checkout during the smoke so the installed package
-      # cannot resolve anything from the workspace. Windows keeps files locked, so it skips that.
+      - run: pnpm test
+      # The release script hides its neutral checkout during the smoke on POSIX. Windows keeps
+      # files open, so it skips hiding; RUNNER_TEMP there is on D:, a different drive from the
+      # user profile, which also exercises the cross-drive build-tracing case.
       - if: runner.os != 'Windows'
-        run: node packages/cli/scripts/smoke-installed.mjs --hide-workspace
+        run: pnpm release:build --python python
       - if: runner.os == 'Windows'
-        run: node packages/cli/scripts/smoke-installed.mjs
+        shell: pwsh
+        run: pnpm release:build --python python --root "$env:RUNNER_TEMP"
       - if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: agentmap-packed-tarball
-          path: artifacts/*.tgz
+          path: artifacts/release/*.tgz
           retention-days: 7

@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   transpilePackages: [
+    "@visual-system/local-security",
     "@visual-system/schema",
     "@visual-system/graph",
     "@visual-system/replay",

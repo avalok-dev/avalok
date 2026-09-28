@@ -50,9 +50,11 @@ async function readMetadata(filePath: string) {
   }
 }
 
-export function defaultCodexSessionsDirectory() {
+// `home` is a parameter so Next's build-time file tracer cannot resolve this to the build
+// machine's real `~/.codex` (see clearAgentMapData in @visual-system/capabilities).
+export function defaultCodexSessionsDirectory(environment = process.env, home = homedir()) {
   const codexHome =
-    process.env.AI_VISUALIZER_CODEX_HOME || process.env.CODEX_HOME || join(homedir(), ".codex");
+    environment.AI_VISUALIZER_CODEX_HOME || environment.CODEX_HOME || join(home, ".codex");
   return join(codexHome, "sessions");
 }
 

@@ -63,7 +63,11 @@ const tracePayload = {
 describe("local collector", () => {
   it("ingests the built-in synthetic trace with unmistakable fixture labels", async () => {
     const { store, url } = await collector();
-    const response = await fetch(`${url}/v1/agentmap/test-trace`, { method: "POST" });
+    const response = await fetch(`${url}/v1/agentmap/test-trace`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ synthetic: true, fixture: "m7.2-test-trace" });
     const [run] = await store.list("telemetry");

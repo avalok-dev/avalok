@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "dist:build": "node packages/cli/scripts/build-distribution.mjs",
     "dist:pack": "node packages/cli/scripts/pack-distribution.mjs",
-    "dist:smoke": "node packages/cli/scripts/smoke-installed.mjs"
+    "dist:smoke": "node packages/cli/scripts/smoke-installed.mjs",
+    "release:build": "node packages/cli/scripts/release-build.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",

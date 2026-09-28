@@ -96,7 +96,11 @@ export function GettingStarted({
     setSending(true);
     setTestResult(undefined);
     try {
-      const response = await fetch("/api/telemetry/test", { method: "POST" });
+      const response = await fetch("/api/telemetry/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
       const body = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "Test trace failed.");
       setTestResult("Test trace received · synthetic fixture");

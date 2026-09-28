@@ -3,6 +3,17 @@ import { pathToFileURL } from "node:url";
 import { gunzipSync, inflateSync } from "node:zlib";
 import { normalizeClaudeHook } from "@visual-system/claude-adapter";
 import {
+  allowed,
+  forbiddenHost,
+  forbiddenOrigin,
+  isAllowedLoopbackHost,
+  isAllowedLoopbackOrigin,
+  isJsonMediaType,
+  mediaType,
+  unsupportedMediaType,
+  type GuardResult,
+} from "@visual-system/local-security";
+import {
   LocalRuntimeStore,
   OTLP_PROTOBUF_CONTENT_TYPE,
   OtlpProtobufDecodeError,
@@ -18,6 +29,8 @@ import {
 export const DEFAULT_OTLP_HOST = "127.0.0.1";
 export const DEFAULT_OTLP_PORT = 4318;
 export const DEFAULT_MAX_BODY_BYTES = 5 * 1024 * 1024;
+/** The synthetic test trace takes no input; its (ignored) body only needs room for `{}`. */
+export const TEST_TRACE_MAX_BODY_BYTES = 16 * 1024;
 
 const loopbackHosts = new Set(["127.0.0.1", "::1", "localhost"]);
 
@@ -54,13 +67,42 @@ class UnsupportedEncodingError extends Error {}
 
 /** Media types are case-insensitive and may carry parameters such as `charset`. */
 export function otlpEncoding(contentType: string | undefined) {
-  const mediaType = (contentType ?? "").split(";")[0]!.trim().toLowerCase();
-  if (mediaType === "application/json") return "json" as const;
+  const type = mediaType(contentType);
+  if (type === "application/json") return "json" as const;
   // `application/x-protobuf` is the OTLP/HTTP media type; `application/protobuf` is accepted
   // as the registered equivalent some clients send.
-  if (mediaType === OTLP_PROTOBUF_CONTENT_TYPE || mediaType === "application/protobuf")
+  if (type === OTLP_PROTOBUF_CONTENT_TYPE || type === "application/protobuf")
     return "protobuf" as const;
   return undefined;
+}
+
+/** Programmatic-only routes: Claude Code hooks and the dashboard's server-side test trace. */
+const programmaticRoutes = new Set(["/v1/claude/hooks", "/v1/agentmap/test-trace"]);
+
+/**
+ * Browser-abuse checks that run before any route. See docs/security/local-http.md.
+ *
+ * - Host must name this loopback server on the port the connection actually arrived on, which
+ *   defeats DNS rebinding (a rebound page sends `Host: attacker.example:4318`).
+ * - Claude hooks and the test trace are called only by non-browser clients, which never send
+ *   `Origin`; any Origin (including `null` and loopback pages) is rejected there.
+ * - Other routes (OTLP, health) never require Origin, but reject one that is not loopback.
+ */
+export function guardCollectorRequest(
+  request: { host: string | undefined; origin: string | undefined; localPort: number | undefined },
+  pathname: string,
+  options: { allowRemoteHosts?: boolean } = {},
+): GuardResult {
+  if (
+    !options.allowRemoteHosts &&
+    !isAllowedLoopbackHost(request.host, { port: request.localPort })
+  )
+    return forbiddenHost;
+  if (request.origin !== undefined) {
+    if (programmaticRoutes.has(pathname)) return forbiddenOrigin;
+    if (!isAllowedLoopbackOrigin(request.origin, { port: "any" })) return forbiddenOrigin;
+  }
+  return allowed;
 }
 
 function protobufResponse(response: ServerResponse, status: number, body: Uint8Array) {
@@ -100,12 +142,21 @@ function json(response: ServerResponse, status: number, body: unknown) {
 
 export interface CollectorOptions {
   store?: LocalRuntimeStore;
+  /** OTLP request limit, applied to both the received and the decompressed body. */
   maxBodyBytes?: number;
+  /** Claude hook request limit; defaults to `maxBodyBytes`. */
+  maxHookBodyBytes?: number;
+  /**
+   * Skip Host validation. Only for the explicit `AGENTMAP_ALLOW_REMOTE_OTLP=1` non-loopback
+   * bind of the standalone development collector; the product CLI never sets it.
+   */
+  allowRemoteHosts?: boolean;
 }
 
 export function createCollectorServer(options: CollectorOptions = {}) {
   const store = options.store ?? new LocalRuntimeStore();
   const maximum = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+  const hookMaximum = options.maxHookBodyBytes ?? maximum;
   const diagnostics: TelemetryIngestionDiagnostics = {
     spansReceived: 0,
     spansNormalized: 0,
@@ -150,6 +201,20 @@ export function createCollectorServer(options: CollectorOptions = {}) {
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
+      const guard = guardCollectorRequest(
+        {
+          host: request.headers.host,
+          origin: request.headers.origin,
+          localPort: request.socket.localPort,
+        },
+        url.pathname,
+        { allowRemoteHosts: options.allowRemoteHosts === true },
+      );
+      if (!guard.ok) {
+        // The body of a rejected request is never read.
+        json(response, guard.status, { error: guard.error });
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/health") {
         json(response, 200, { status: "ok", diagnostics, claude: claudeDiagnostics });
         return;
@@ -222,6 +287,13 @@ export function createCollectorServer(options: CollectorOptions = {}) {
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/agentmap/test-trace") {
+        // JSON is not a CORS-simple type, so a web page cannot send this without a preflight.
+        if (!isJsonMediaType(request.headers["content-type"])) {
+          const rejected = unsupportedMediaType("application/json");
+          json(response, rejected.status, { error: rejected.error });
+          return;
+        }
+        await readBody(request, TEST_TRACE_MAX_BODY_BYTES);
         const { snapshots } = await ingest(buildSyntheticTestTrace());
         json(response, 200, {
           status: "received",
@@ -232,9 +304,18 @@ export function createCollectorServer(options: CollectorOptions = {}) {
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/claude/hooks") {
+        // Claude Code HTTP hooks POST `Content-Type: application/json` (see
+        // docs/security/local-http.md). Rejecting text/plain, forms, and multipart means a web
+        // page cannot forge an observation with a CORS-simple request.
+        if (!isJsonMediaType(request.headers["content-type"])) {
+          claudeDiagnostics.errors += 1;
+          const rejected = unsupportedMediaType("application/json");
+          json(response, rejected.status, { error: rejected.error });
+          return;
+        }
         claudeDiagnostics.hooksReceived += 1;
         try {
-          const body = await readBody(request, maximum);
+          const body = await readBody(request, hookMaximum);
           let payload: unknown;
           try {
             payload = JSON.parse(body.toString("utf8"));
@@ -282,7 +363,7 @@ export function collectorConfiguration(environment = process.env) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { host, port } = collectorConfiguration();
-  createCollectorServer().listen(port, host, () => {
+  createCollectorServer({ allowRemoteHosts: !loopbackHosts.has(host) }).listen(port, host, () => {
     process.stdout.write(`AgentMap collector listening on http://${host}:${port}\n`);
   });
 }

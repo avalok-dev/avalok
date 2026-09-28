@@ -113,6 +113,8 @@ export function launchDashboard(options: {
       // machine name, so always pin the loopback host explicitly.
       HOSTNAME: options.host,
       PORT: String(options.port),
+      // The dashboard's Host/Origin guard validates requests against this exact port.
+      AGENTMAP_DASHBOARD_PORT: String(options.port),
       NEXT_TELEMETRY_DISABLED: "1",
       // Next's graceful close waits for open live-update streams (an open Live tab), which
       // stalls Ctrl+C until the SIGKILL fallback. The dashboard holds no state that needs

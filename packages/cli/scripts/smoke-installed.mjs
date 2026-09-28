@@ -24,6 +24,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -137,6 +138,31 @@ async function stop(running) {
     running.exited,
     new Promise((resolveTimeout) => setTimeout(() => resolveTimeout({ code: "timeout" }), 15_000)),
   ]);
+}
+
+// `fetch` cannot set Host, so browser-abuse checks use node:http with explicit headers.
+function raw(url, { method = "GET", headers = {}, body } = {}) {
+  const target = new URL(url);
+  return new Promise((resolveResponse, reject) => {
+    const request = httpRequest(
+      {
+        host: target.hostname,
+        port: target.port,
+        path: `${target.pathname}${target.search}`,
+        method,
+        headers: { Host: target.host, ...headers },
+        setHost: false,
+        agent: false,
+      },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolveResponse(response.statusCode));
+      },
+    );
+    request.once("error", reject);
+    if (body !== undefined) request.write(body);
+    request.end();
+  });
 }
 
 async function json(url, init) {
@@ -373,7 +399,11 @@ try {
       capabilities.body.telemetry?.protocol,
     );
 
-  const testTrace = await json(`${dashboard}/api/telemetry/test`, { method: "POST" });
+  const testTrace = await json(`${dashboard}/api/telemetry/test`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
   check("Send Test Trace", testTrace.status === 200 && testTrace.body.synthetic === true);
 
   const jsonResponse = await fetch(`${otlp}/v1/traces`, {
@@ -411,6 +441,133 @@ try {
       exported.stdout.trim() || exported.stderr.trim().split("\n").at(-1),
     );
   }
+  // Local HTTP security (M7.4A) against the installed production servers.
+  const foreignHost = (port) => ({ Host: `attacker.example:${port}` });
+  const hook = JSON.stringify({
+    hook_event_name: "UserPromptSubmit",
+    session_id: "smoke-security",
+    prompt: "smoke",
+  });
+  const securityChecks = [
+    [
+      "dashboard rejects a foreign Host",
+      `${dashboard}/api/repository`,
+      {},
+      403,
+      foreignHost(ports.dashboard),
+    ],
+    [
+      "dashboard rejects a rebound Host on Codex reads",
+      `${dashboard}/api/codex/sessions/smoke-id`,
+      {},
+      403,
+      foreignHost(ports.dashboard),
+    ],
+    [
+      "dashboard rejects localhost.attacker.example",
+      `${dashboard}/api/runtime/runs`,
+      {},
+      403,
+      { Host: `localhost.attacker.example:${ports.dashboard}` },
+    ],
+    [
+      "dashboard page rejects a foreign Host",
+      `${dashboard}/`,
+      {},
+      403,
+      foreignHost(ports.dashboard),
+    ],
+    [
+      "dashboard accepts localhost Host",
+      `${dashboard}/api/health`,
+      {},
+      200,
+      { Host: `localhost:${ports.dashboard}` },
+    ],
+    [
+      "settings rejects a foreign Origin",
+      `${dashboard}/api/settings`,
+      { method: "POST", body: '{"gettingStartedDismissed":false}' },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+    [
+      "settings rejects Origin null",
+      `${dashboard}/api/settings`,
+      { method: "POST", body: '{"gettingStartedDismissed":false}' },
+      403,
+      { Origin: "null", "Content-Type": "application/json" },
+    ],
+    [
+      "settings rejects text/plain",
+      `${dashboard}/api/settings`,
+      { method: "POST", body: '{"gettingStartedDismissed":false}' },
+      415,
+      { "Content-Type": "text/plain" },
+    ],
+    [
+      "settings accepts the dashboard origin",
+      `${dashboard}/api/settings`,
+      { method: "POST", body: '{"gettingStartedDismissed":false}' },
+      200,
+      { Origin: dashboard, "Content-Type": "application/json" },
+    ],
+    [
+      "test trace proxy rejects a foreign Origin",
+      `${dashboard}/api/telemetry/test`,
+      { method: "POST", body: "{}" },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+    ["collector rejects a foreign Host", `${otlp}/health`, {}, 403, foreignHost(ports.otlp)],
+    [
+      "OTLP rejects a foreign Host",
+      `${otlp}/v1/traces`,
+      { method: "POST", body: JSON.stringify(jsonPayload) },
+      403,
+      { ...foreignHost(ports.otlp), "Content-Type": "application/json" },
+    ],
+    [
+      "Claude hook rejects text/plain",
+      `${otlp}/v1/claude/hooks`,
+      { method: "POST", body: hook },
+      415,
+      { "Content-Type": "text/plain" },
+    ],
+    [
+      "Claude hook rejects a foreign Origin",
+      `${otlp}/v1/claude/hooks`,
+      { method: "POST", body: hook },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+    [
+      "Claude hook accepts the Claude Code request",
+      `${otlp}/v1/claude/hooks`,
+      { method: "POST", body: hook },
+      200,
+      { "Content-Type": "application/json" },
+    ],
+    [
+      "test trace rejects a bodiless simple POST",
+      `${otlp}/v1/agentmap/test-trace`,
+      { method: "POST" },
+      415,
+      {},
+    ],
+    [
+      "test trace rejects a foreign Origin",
+      `${otlp}/v1/agentmap/test-trace`,
+      { method: "POST", body: "{}" },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+  ];
+  for (const [name, url, init, expected, headers] of securityChecks) {
+    const status = await raw(url, { ...init, headers });
+    check(`security: ${name}`, status === expected, `HTTP ${status}`);
+  }
+
   const unsupported = await fetch(`${otlp}/v1/traces`, {
     method: "POST",
     headers: { "content-type": "text/plain" },
