@@ -7,6 +7,8 @@ Claude Code is integrated through current supported interfaces rather than depen
 1. Claude Code OpenTelemetry traces provide prompt-to-API/tool span hierarchy.
 2. HTTP lifecycle hooks provide immediate prompt, file, command, MCP, web, response, and error observations with the documented hook fields.
 
+The receiver accepts hook requests only as Claude Code sends them: `POST` with `Content-Type: application/json`, no browser `Origin`, and a loopback `Host`. `text/plain`, form, and multipart bodies return `415`, and any `Origin` returns `403`, so a web page cannot forge Claude observations (see [local HTTP security](../security/local-http.md)).
+
 Hook requests are observational. AgentMap responds successfully and never returns a permission decision, changes tool input/output, or blocks Claude Code.
 
 ## Enable traces

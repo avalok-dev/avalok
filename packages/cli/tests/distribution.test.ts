@@ -38,7 +38,8 @@ describe("identity and version", () => {
 });
 
 describe("packaged asset resolution", () => {
-  const installed = "/opt/My Tools/lib/node_modules/@visual-system/agentmap";
+  // resolve(): an absolute path on this platform (a drive letter on Windows).
+  const installed = resolve("/opt/My Tools/lib/node_modules/@visual-system/agentmap");
   const moduleUrl = pathToFileURL(join(installed, "lib", "cli.mjs")).href;
 
   it("resolves the bundled dashboard and samples from the installed module, not the cwd", () => {

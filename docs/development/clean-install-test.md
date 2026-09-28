@@ -21,12 +21,14 @@ The smoke test (`packages/cli/scripts/smoke-installed.mjs`):
 6. Runs `--version`, `--help`, `data path`, and `doctor` on every fixture.
 7. Starts the installed CLI (with a hostile `HOSTNAME=0.0.0.0`) and checks: dashboard HTML and a hashed static asset, target analysis, all packaged samples, rejection of unknown sample names, the capability report version and protocol, Send Test Trace, OTLP JSON, OTLP protobuf, optional Python exporter, 415 for unsupported types, and runs visible to the dashboard.
 8. Ctrl+C (SIGINT) → exit 0 and both ports released; restart → runs persisted; second shutdown clean.
+8a. **Local HTTP security** (17 checks against the installed production servers): foreign/rebound `Host` on dashboard APIs, Codex reads, runtime runs, and the HTML page → `403`; `localhost` Host → `200`; settings with a foreign or `null` Origin → `403`, `text/plain` → `415`, the dashboard's own Origin → `200`; the test-trace proxy with a foreign Origin → `403`; collector/OTLP foreign Host → `403`; Claude hook `text/plain` → `415`, foreign Origin → `403`, real Claude Code shape → `200`; bodiless test trace → `415`, foreign Origin → `403`.
 9. Force-kills the CLI → the dashboard watchdog exits and both ports are released (no orphan).
 10. `data clear --yes` → AgentMap runs removed; a sentinel outside the data root and the target repository are untouched.
 
-## Verified on this machine (2026-09-27)
+## Verified results
 
-macOS 26.x (Darwin 25.6, arm64), Node 24.19.0, npm 11: **43/43 checks passed** with `--hide-workspace --python` (Python 3.14.6, opentelemetry-exporter-otlp-proto-http 1.45.0).
+- M7.3 (2026-09-27), macOS arm64: 43/43 with `--hide-workspace --python`.
+- M7.4A (2026-09-28), macOS 26.x arm64, Node 24.19.0: **60/60** with `--hide-workspace --python` (Python 3.14.6, opentelemetry-exporter-otlp-proto-http 1.45.0), both in place and from the neutral-path release build (`pnpm release:build`). CI results per OS: [distribution CI](distribution-ci.md).
 
 ## How monorepo independence is proven
 

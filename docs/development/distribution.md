@@ -53,9 +53,9 @@ The CLI locates `dashboard/` and `samples/` relative to its own module file, nev
 | --------------------------- | ------- |
 | Packed tarball              | ≈1.8 MB |
 | Unpacked package            | ≈6.8 MB |
-| Installed with dependencies | ≈360 MB |
+| Installed with dependencies | ≈353 MB (M7.4A measurement) |
 
-Almost all installed size is Next.js's own dependency tree: its optional `@next/swc-<platform>` compiler binary (≈139 MB, unused at runtime), `next` itself (≈150 MB), `typescript` (≈23 MB, required by the analyzer), and sharp/libvips (≈18 MB, optional, unused). Vendoring Next's trace-minimized standalone `node_modules` via `bundleDependencies` could cut this substantially; it is recorded for M7.4 rather than done here.
+Almost all installed size is Next.js's own dependency tree: its optional `@next/swc-<platform>` compiler binary (≈139 MB, unused at runtime), `next` itself (≈150 MB), `typescript` (≈23 MB, required by the analyzer), and sharp/libvips (≈18 MB, optional, unused). Vendoring Next's trace-minimized standalone `node_modules` via `bundleDependencies` could cut this substantially. M7.4A re-measured (1.85 MB packed, 7.4 MB unpacked, 353 MB installed: `next` 153 MB, `@next/swc-*` 124 MB, `typescript` 23 MB, sharp/libvips ≈27 MB) and deliberately did not change packaging: the size is acceptable for a developer preview, and correctness and security came first.
 
 ## Development-only
 
@@ -65,4 +65,4 @@ Almost all installed size is Next.js's own dependency tree: its optional `@next/
 
 The build prints `The Next.js plugin was not detected in your ESLint configuration`. This predates M7.3, does not affect the production or standalone output, and lint passes.
 
-Next.js keeps build-time source file paths as module labels inside `.next/server` chunks. They are metadata, not loaded at runtime (the independence check and the hidden-workspace smoke test prove this), but they do reveal the build machine's checkout path. Release builds should run in CI from a neutral path (M7.4).
+Next.js keeps build-time source file paths as module labels inside `.next/server` chunks. They are metadata, not loaded at runtime (the independence check and the hidden-workspace smoke test prove this), but an in-place build reveals the build machine's checkout path (29 files). Release artifacts come from `pnpm release:build`, which builds from a neutral temporary path and fails on any home directory, username, or original checkout path in the package; see [release build](release-build.md).
