@@ -169,6 +169,13 @@ const sensitiveKey = (key: string) => {
     "password",
     "secret",
     "clientsecret",
+    "secretkey",
+    "secretaccesskey",
+    "privatekey",
+    "passwd",
+    "passphrase",
+    "credential",
+    "credentials",
     "databaseurl",
     "connectionstring",
   ].some((candidate) => normalized === candidate || normalized.endsWith(candidate));

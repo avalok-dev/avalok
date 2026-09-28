@@ -46,7 +46,9 @@ describe("repository analyzer", () => {
         ),
       );
     }
-  }, 15_000);
+    // Whole-repository analysis while every package's suite runs in parallel: ~12s on 2-core
+    // CI runners (under 1s alone), so give it headroom rather than a flaky limit.
+  }, 60_000);
 
   it("detects a Next.js route and evidence-backed integrations", async () => {
     const analysis = await analyzeRepository(fixture("next-app"), { force: true });
