@@ -17,12 +17,18 @@ if (!existsSync(join(distribution, "package.json"))) {
 }
 mkdirSync(destination, { recursive: true });
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-const result = spawnSync(npm, ["pack", "--json", "--pack-destination", destination], {
-  cwd: distribution,
-  encoding: "utf8",
-  shell: process.platform === "win32",
-  env: { ...process.env, npm_config_ignore_scripts: "true" },
-});
+// Windows runs npm.cmd through a shell, which would split an absolute destination containing
+// spaces; the relative path from the package directory has none.
+const result = spawnSync(
+  npm,
+  ["pack", "--json", "--pack-destination", relative(distribution, destination)],
+  {
+    cwd: distribution,
+    encoding: "utf8",
+    shell: process.platform === "win32",
+    env: { ...process.env, npm_config_ignore_scripts: "true" },
+  },
+);
 if (result.status !== 0) {
   process.stderr.write(result.stderr);
   process.exit(result.status ?? 1);

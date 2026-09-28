@@ -18,7 +18,7 @@ import {
 } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(cliRoot, "../..");
@@ -115,7 +115,10 @@ function buildDashboard() {
 
 async function bundleCli() {
   step("Bundling the CLI, collector, analyzer, and adapters");
-  const esbuild = await import(createRequire(join(cliRoot, "package.json")).resolve("esbuild"));
+  // import() needs a file URL: a bare `D:\…` path is rejected by the ESM loader on Windows.
+  const esbuild = await import(
+    pathToFileURL(createRequire(join(cliRoot, "package.json")).resolve("esbuild")).href
+  );
   const common = {
     bundle: true,
     platform: "node",

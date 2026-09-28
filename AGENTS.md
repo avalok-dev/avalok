@@ -22,6 +22,9 @@
 - In a non-interactive runner, prefix pnpm commands with `CI=true`.
 - Distribution (M7.3): `pnpm dist:build && pnpm dist:pack && pnpm dist:smoke --hide-workspace`. Run it after changes to the CLI, dashboard routes, collector, or anything the installed package loads; never publish.
 - Packages bundled into the dashboard must not call `path` functions through a conditional function value (e.g. `(a ? win32.join : posix.join)(…)`); Next's build-time file tracer crashes on it. Use explicit branches.
+- In dashboard-bundled code, take `homedir()` as a parameter default (`home = homedir()`), never inline inside a path expression, and do not build arrays of joined paths: Next's tracer evaluates them and, on Windows across drives, globs the home directory (`packages/cli/tests/build-tracing.test.ts` guards this).
+- Release artifacts come from `pnpm release:build` (neutral temp path, path-leak scan, packaged smoke), never an in-place `dist:build`.
+- Local HTTP (M7.4A): every dashboard request passes `apps/web/src/middleware.ts`; collector routes pass `guardCollectorRequest`. New mutation routes must accept JSON only; never add `Access-Control-*` headers. See `docs/security/local-http.md`.
 
 ## Architectural invariants
 
