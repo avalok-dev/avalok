@@ -30,9 +30,10 @@ async function fixture() {
 
 describe("legacy data migration", () => {
   it("uses ~/.agentmap/runtime as the provisional M7.1 location", () => {
+    // Host path semantics: the legacy directory lives beside the user's real home directory.
     expect(legacyAgentMapDataPaths("/home/test")).toEqual({
-      root: "/home/test/.agentmap",
-      runtime: "/home/test/.agentmap/runtime",
+      root: join("/home/test", ".agentmap"),
+      runtime: join("/home/test", ".agentmap", "runtime"),
     });
   });
 
