@@ -13,7 +13,8 @@ This is concise durable context for new coding tasks. `AGENTS.md` contains manda
 - **Milestone 7.1:** package-shaped `agentmap` CLI, current/explicit repository targeting, one-command dashboard and OTLP startup, loopback-only defaults, readiness checks, source status, browser opening, and coordinated shutdown.
 - **Milestone 7.2:** centralized capability/status reporting, a dismissible first-run/setup surface, actionable empty states, accurate OTLP/HTTP JSON guidance, a synthetic test trace, `agentmap doctor`, and platform-appropriate AgentMap-owned data controls.
 - **Milestone 7.3:** one installable package (bundled CLI/collector/analyzers, Next.js standalone dashboard, allowlisted samples), centralized identity/version, clean-install smoke outside the monorepo, OTLP/HTTP protobuf ingestion, safe migration from `~/.agentmap/runtime`, and cross-platform hardening.
-- Milestones 1-6 and M7.1-M7.3 are complete. Preserve their behavior rather than recreating it.
+- **Milestone 7.4A:** local HTTP hardening (loopback Host on the actual port, same-loopback Origin, JSON-only mutations/hooks/test trace, no CORS), tracer-safe home paths that fix the Windows build, neutral-path release builds with a path-leak scan, and a green macOS/Linux/Windows distribution CI.
+- Milestones 1-6 and M7.1-M7.4A are complete. Preserve their behavior rather than recreating it.
 
 ## Package map
 
@@ -31,6 +32,7 @@ This is concise durable context for new coding tasks. `AGENTS.md` contains manda
 | `apps/collector`                      | Loopback OTLP/HTTP protobuf + JSON and Claude hook receiver          |
 | `packages/cli`                        | Product CLI, lifecycle, identity, distribution build/pack/smoke      |
 | `packages/capabilities`               | Shared capability semantics, source status, local data/settings      |
+| `packages/local-security`             | Pure loopback Host/Origin/media-type validation for both servers     |
 | `packages/analyzer`                   | Bounded static repository inventory, parsing, detection, inference   |
 | `packages/reconcile`                  | Deterministic runtime-to-architecture matching and unified graph     |
 | `examples/demo-agent`                 | Stable simulated demonstration fixture                               |
@@ -65,14 +67,24 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 - Distribution is one package built by `pnpm dist:build` into `packages/cli/dist` and packed by `pnpm dist:pack` into `artifacts/`. Identity lives in `packages/cli/product.json`; the only version is `packages/cli/package.json#version` (`0.1.0-alpha.N`). The generated manifest is `private: true`; nothing is published before M7.4.
 - Installed assets resolve from the bundled module's location; the target is the cwd/argument; data is the platform root. The dashboard child is pinned to `127.0.0.1` and has Next telemetry disabled.
 - OTLP protobuf is decoded with `protobufjs` against vendored official opentelemetry-proto definitions into the OTLP/JSON shape, then shares the JSON pipeline. OTLP/gRPC is unsupported.
+- Loopback binding is not trusted on its own. Every dashboard request passes `apps/web/src/middleware.ts` and every collector request passes `guardCollectorRequest`: Host must be loopback on the actual port, a present Origin must be the same loopback server (`null` never), and mutations, Claude hooks, and the test trace require `application/json`. Missing Origin is allowed for non-browser clients. No `Access-Control-*` headers. See `docs/security/local-http.md` and `docs/security/threat-model.md`.
+- Dashboard-bundled code takes `homedir()` as a parameter default so Next's file tracer never globs the build machine's home directory (Windows cross-drive failure in M7.3). Release artifacts come only from `pnpm release:build` (neutral temp path, leak scan, packaged smoke).
 - The CLI defaults to `process.cwd()`, passes a canonical server-owned target to the dashboard, binds local services to `127.0.0.1`, and uses the platform AgentMap user-data root unless `AGENTMAP_DATA_DIR` is set.
+
+## Verified Milestone 7.4A state (2026-09-28)
+
+- `format:check`, lint, typecheck, 289 tests, the production build, `dist:build`, and `dist:pack` pass (1.85 MB tarball; 353 MB installed).
+- Installed smoke: 60/60 locally on macOS (hidden workspace, Python exporter) and via `pnpm release:build`, with zero home/username/checkout path leaks.
+- GitHub Actions actually ran (`m7.4a-local-security` @ `fab80b8`): ubuntu 60/60, macOS 60/60, Windows 57/57, 289/289 unit tests on each, `ci.yml` green.
+- Packaged manual checks: foreign Host → 403, foreign/`null` Origin mutations → 403, `text/plain` Claude hook → 415, legitimate UI/Claude/OTLP JSON+protobuf/Python exporter → 200; Ctrl+C in ≈80 ms with ports released.
+- Details: `docs/architecture/milestone-7-4a.md`, `docs/development/{distribution-ci,release-build}.md`.
 
 ## Verified Milestone 7.3 state (2026-09-27)
 
 - `format:check`, lint, typecheck, 148 tests, and the production build pass (baseline before M7.3: 105 tests).
 - `pnpm dist:build && pnpm dist:pack` produces a ≈1.8 MB tarball (≈6.8 MB unpacked, ≈360 MB installed with Next/TypeScript dependencies).
 - `pnpm dist:smoke --hide-workspace --python <venv python>` passed 43/43 on macOS arm64 with the checkout renamed away: JS/TS, Python, polyglot, infrastructure, and Unicode/spaced paths; dashboard assets; samples; test trace; OTLP JSON and protobuf; the standard Python exporter; restart persistence; Ctrl+C (≈50 ms) and force-kill orphan cleanup; safe data clearing.
-- Linux/Windows logic has unit coverage; `.github/workflows/distribution.yml` defines the OS matrix but has not been run yet.
+- Linux/Windows logic had unit coverage only (the matrix's first Windows run failed; fixed and green in M7.4A).
 - Details: `docs/architecture/milestone-7-3.md` and `docs/development/{distribution,clean-install-test,otlp-protobuf,data-migration,platform-support,upgrading}.md`.
 
 ## Verified Milestone 7.1 state (2026-09-26)
@@ -119,7 +131,8 @@ Exact counts may change as the repository changes; tests should assert meaningfu
 - Web/UI behavior has unit coverage through underlying packages plus browser verification, but no dedicated component suite yet.
 - Next.js build emits a non-blocking warning that its optional ESLint plugin is not detected in the shared configuration; lint still passes.
 - The receiver supports OTLP/HTTP protobuf and JSON traces, not OTLP/gRPC, metrics, or logs.
-- Installed size is dominated by Next.js's optional SWC binary and TypeScript; Next server chunks keep build-machine source paths as labels (build releases from a neutral CI path).
+- Installed size (≈353 MB) is dominated by Next.js, its optional SWC binary, and TypeScript. Next server output keeps the build path as labels, so only neutral-path `release:build` artifacts are releasable.
+- Third-party license notices are not yet shipped, and `elkjs` (EPL-2.0) is compiled into the dashboard; both are M7.4B release blockers.
 - OTLP exporters generally send completed spans; AgentMap does not fabricate span-start events.
 - Claude historical data includes observations persisted after hooks/telemetry are enabled; private transcript files are not parsed by default.
 
@@ -148,5 +161,8 @@ Exact counts may change as the repository changes; tests should assert meaningfu
 - `docs/architecture/resource-metrics.md`
 - `docs/architecture/roadmap.md`
 - `docs/architecture/codex-adapter.md`
+- `docs/architecture/milestone-7-4a.md`
+- `docs/security/local-http.md`
+- `docs/security/threat-model.md`
 
-The next stage is M7.4 public-preview readiness (naming, publication, release checklist, security/privacy review, real Linux/Windows CI results). Do not publish or finalize the name before then.
+The next stage is M7.4B public release candidate (final name and package identity, third-party notices and the EPL-2.0 decision, README/screenshots, capability matrix, privacy/security docs, CONTRIBUTING, issue templates, release checklist, publication preparation). Do not publish or finalize the name before then.
