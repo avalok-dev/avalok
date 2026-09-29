@@ -4,15 +4,15 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { RepositoryAnalysis } from "@visual-system/analyzer";
 import {
-  agentMapDataPaths,
+  sarvadrikDataPaths,
   buildCapabilityReport,
   checkDataDirectoryWritable,
-  clearAgentMapData,
+  clearSarvadrikData,
   executableAvailable,
   executableCandidates,
-  readAgentMapSettings,
+  readSarvadrikSettings,
   repositoryCapabilities,
-  writeAgentMapSettings,
+  writeSarvadrikSettings,
 } from "../src";
 
 function analysis(): RepositoryAnalysis {
@@ -97,7 +97,7 @@ describe("capability semantics", () => {
   ] as const)(
     "reports %s spans as %s while the receiver remains listening",
     async (spans, observation) => {
-      const root = await mkdtemp(join(tmpdir(), "agentmap-capabilities-"));
+      const root = await mkdtemp(join(tmpdir(), "sarvadrik-capabilities-"));
       const report = await buildCapabilityReport({
         analysis: analysis(),
         target: root,
@@ -116,7 +116,7 @@ describe("capability semantics", () => {
   );
 
   it("distinguishes Codex sessions from Codex not detected", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-codex-state-"));
+    const root = await mkdtemp(join(tmpdir(), "sarvadrik-codex-state-"));
     const codexHome = join(root, "codex");
     await mkdir(join(codexHome, "sessions"), { recursive: true });
     await writeFile(
@@ -137,7 +137,7 @@ describe("capability semantics", () => {
       count: 1,
     });
 
-    const absentRoot = await mkdtemp(join(tmpdir(), "agentmap-codex-absent-"));
+    const absentRoot = await mkdtemp(join(tmpdir(), "sarvadrik-codex-absent-"));
     const absent = await buildCapabilityReport({
       analysis: analysis(),
       target: absentRoot,
@@ -158,7 +158,7 @@ describe("capability semantics", () => {
   });
 
   it("distinguishes Claude hook readiness from available but unconfigured", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-claude-state-"));
+    const root = await mkdtemp(join(tmpdir(), "sarvadrik-claude-state-"));
     await mkdir(join(root, ".claude"));
     await writeFile(
       join(root, ".claude", "settings.json"),
@@ -193,64 +193,64 @@ describe("capability semantics", () => {
   });
 });
 
-describe("AgentMap-owned data", () => {
+describe("Sarvadrik-owned data", () => {
   it("uses platform-appropriate roots", () => {
-    expect(agentMapDataPaths({}, "darwin", "/Users/test").root).toBe(
-      "/Users/test/Library/Application Support/AgentMap",
+    expect(sarvadrikDataPaths({}, "darwin", "/Users/test").root).toBe(
+      "/Users/test/Library/Application Support/Sarvadrik",
     );
-    expect(agentMapDataPaths({}, "linux", "/home/test").root).toBe(
-      "/home/test/.local/share/agentmap",
+    expect(sarvadrikDataPaths({}, "linux", "/home/test").root).toBe(
+      "/home/test/.local/share/sarvadrik",
     );
-    expect(agentMapDataPaths({ LOCALAPPDATA: "C:\\Local" }, "win32", "C:\\Users\\test")).toEqual({
-      root: "C:\\Local\\AgentMap",
-      runtime: "C:\\Local\\AgentMap\\runtime",
-      settings: "C:\\Local\\AgentMap\\settings.json",
+    expect(sarvadrikDataPaths({ LOCALAPPDATA: "C:\\Local" }, "win32", "C:\\Users\\test")).toEqual({
+      root: "C:\\Local\\Sarvadrik",
+      runtime: "C:\\Local\\Sarvadrik\\runtime",
+      settings: "C:\\Local\\Sarvadrik\\settings.json",
     });
-    expect(agentMapDataPaths({}, "win32", "C:\\Users\\Test User").root).toBe(
-      "C:\\Users\\Test User\\AppData\\Local\\AgentMap",
+    expect(sarvadrikDataPaths({}, "win32", "C:\\Users\\Test User").root).toBe(
+      "C:\\Users\\Test User\\AppData\\Local\\Sarvadrik",
     );
-    expect(agentMapDataPaths({ XDG_DATA_HOME: "/xdg/data" }, "linux", "/home/test").root).toBe(
-      "/xdg/data/agentmap",
+    expect(sarvadrikDataPaths({ XDG_DATA_HOME: "/xdg/data" }, "linux", "/home/test").root).toBe(
+      "/xdg/data/sarvadrik",
     );
     // Relative XDG paths are invalid per the XDG Base Directory specification.
-    expect(agentMapDataPaths({ XDG_DATA_HOME: "relative" }, "linux", "/home/test").root).toBe(
-      "/home/test/.local/share/agentmap",
+    expect(sarvadrikDataPaths({ XDG_DATA_HOME: "relative" }, "linux", "/home/test").root).toBe(
+      "/home/test/.local/share/sarvadrik",
     );
-    expect(agentMapDataPaths({}, "darwin", "/Users/Test User").runtime).toBe(
-      "/Users/Test User/Library/Application Support/AgentMap/runtime",
+    expect(sarvadrikDataPaths({}, "darwin", "/Users/Test User").runtime).toBe(
+      "/Users/Test User/Library/Application Support/Sarvadrik/runtime",
     );
   });
 
   it("persists the first-run preference outside the repository", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-settings-"));
-    await writeAgentMapSettings({ gettingStartedDismissed: true }, pathsFor(root));
-    expect(await readAgentMapSettings(pathsFor(root))).toEqual({ gettingStartedDismissed: true });
-    await writeAgentMapSettings({ gettingStartedDismissed: false }, pathsFor(root));
-    expect(await readAgentMapSettings(pathsFor(root))).toEqual({ gettingStartedDismissed: false });
+    const root = await mkdtemp(join(tmpdir(), "sarvadrik-settings-"));
+    await writeSarvadrikSettings({ gettingStartedDismissed: true }, pathsFor(root));
+    expect(await readSarvadrikSettings(pathsFor(root))).toEqual({ gettingStartedDismissed: true });
+    await writeSarvadrikSettings({ gettingStartedDismissed: false }, pathsFor(root));
+    expect(await readSarvadrikSettings(pathsFor(root))).toEqual({ gettingStartedDismissed: false });
   });
 
   it("clears only runtime and settings, leaving external targets untouched", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-clear-"));
-    const external = await mkdtemp(join(tmpdir(), "agentmap-external-"));
+    const root = await mkdtemp(join(tmpdir(), "sarvadrik-clear-"));
+    const external = await mkdtemp(join(tmpdir(), "sarvadrik-external-"));
     const paths = pathsFor(root);
     await mkdir(paths.runtime);
     await writeFile(join(paths.runtime, "run.json"), "{}\n");
     await writeFile(paths.settings, "{}\n");
     await writeFile(join(external, "codex-session.jsonl"), "keep\n");
     await symlink(external, join(root, "external-codex"));
-    await clearAgentMapData(paths);
+    await clearSarvadrikData(paths);
     expect(await readFile(join(external, "codex-session.jsonl"), "utf8")).toBe("keep\n");
   });
 
   it("reports an invalid data root as unwritable", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-unwritable-"));
+    const root = await mkdtemp(join(tmpdir(), "sarvadrik-unwritable-"));
     const file = join(root, "file");
     await writeFile(file, "not a directory");
     expect(await checkDataDirectoryWritable(pathsFor(file))).toBe(false);
   });
 
   it("refuses broad home-directory clearing", async () => {
-    await expect(clearAgentMapData(pathsFor(homedir()))).rejects.toThrow("Refusing");
+    await expect(clearSarvadrikData(pathsFor(homedir()))).rejects.toThrow("Refusing");
   });
 });
 
@@ -280,7 +280,7 @@ describe("cross-platform executable discovery", () => {
       ["/usr/bin/codex", "/opt/My Tools/bin/codex"],
     );
     if (process.platform === "win32") return;
-    const directory = await mkdtemp(join(tmpdir(), "agentmap path lookup "));
+    const directory = await mkdtemp(join(tmpdir(), "sarvadrik path lookup "));
     await writeFile(join(directory, "codex"), "#!/bin/sh\n", { mode: 0o755 });
     expect(await executableAvailable("codex", { PATH: directory })).toBe(true);
     expect(await executableAvailable("missing", { PATH: directory })).toBe(false);

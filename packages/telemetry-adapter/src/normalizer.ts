@@ -221,8 +221,8 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
   const kind = sourceKind(spans);
   const synthetic = spans.some(
     (span) =>
-      span.resource["agentmap.synthetic"] === true ||
-      span.attributes["agentmap.synthetic"] === true,
+      span.resource["sarvadrik.synthetic"] === true ||
+      span.attributes["sarvadrik.synthetic"] === true,
   );
   const entities = new Map<string, Entity>();
   const edges = new Map<string, GraphEdge>();
@@ -324,7 +324,7 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
         inputTokens,
         outputTokens,
         serviceName: text(span.resource["service.name"]) ?? serviceName,
-        ...(synthetic ? { synthetic: true, fixture: "AgentMap test trace" } : {}),
+        ...(synthetic ? { synthetic: true, fixture: "Sarvadrik test trace" } : {}),
         ...(classification.openInferenceKind
           ? { openInferenceSpanKind: classification.openInferenceKind }
           : {}),

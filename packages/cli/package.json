@@ -1,16 +1,16 @@
 {
   "name": "@visual-system/cli",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "private": true,
   "type": "module",
   "bin": {
-    "agentmap": "./agentmap.mjs"
+    "sarvadrik": "./sarvadrik.mjs"
   },
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "agentmap": "node agentmap.mjs",
+    "sarvadrik": "node sarvadrik.mjs",
     "build": "tsc --noEmit",
     "lint": "eslint src tests",
     "test": "vitest run",

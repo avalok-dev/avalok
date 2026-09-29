@@ -223,7 +223,11 @@ export function VisualizerWorkspace() {
     const payload = (await response.json()) as { runs?: PublicSessionSummary[] };
     const session =
       payload.runs?.find(
-        (item) => item.source === "telemetry" && item.serviceName === "AgentMap Synthetic Fixture",
+        (item) =>
+          item.source === "telemetry" &&
+          // Runs migrated from AgentMap-era data keep the fixture's former service name.
+          (item.serviceName === "Sarvadrik Synthetic Fixture" ||
+            item.serviceName === "AgentMap Synthetic Fixture"),
       ) ?? payload.runs?.find((item) => item.source === "telemetry");
     if (session) selectSession(session);
     setMode("live");
@@ -316,7 +320,7 @@ export function VisualizerWorkspace() {
               <RadioTower className="mx-auto size-5 text-cyan-300" />
               <h2 className="mt-3 text-sm font-semibold text-slate-100">Nothing live yet</h2>
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                AgentMap is ready. Select an available local agent session or connect your
+                Sarvadrik is ready. Select an available local agent session or connect your
                 application with telemetry.
               </p>
               <Button size="sm" className="mt-4" onClick={connectTelemetry}>

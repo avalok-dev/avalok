@@ -15,7 +15,7 @@ import {
 const fixture = (name: string) => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 
 describe("repository analyzer", () => {
-  it("discovers the AgentMap workspace without repository-specific analyzer rules", async () => {
+  it("discovers the Sarvadrik workspace without repository-specific analyzer rules", async () => {
     const root = fileURLToPath(new URL("../../..", import.meta.url));
     const analysis = await analyzeRepository(root, { force: true });
     const names = analysis.graph.entities.map((entity) => entity.name);
@@ -86,7 +86,7 @@ describe("repository analyzer", () => {
   });
 
   it("detects Anthropic usage and a meaningful literal external HTTP service", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-python-integrations-"));
+    const root = await mkdtemp(join(tmpdir(), "sarvadrik-python-integrations-"));
     await writeFile(
       join(root, "pyproject.toml"),
       [
@@ -243,7 +243,7 @@ describe("repository analyzer", () => {
   });
 
   it("ignores Python environments and external symlinks", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-python-safety-"));
+    const root = await mkdtemp(join(tmpdir(), "sarvadrik-python-safety-"));
     await writeFile(join(root, "requirements.txt"), "fastapi\n", "utf8");
     await writeFile(
       join(root, "main.py"),
@@ -298,7 +298,7 @@ describe("repository analyzer", () => {
 
   it("keeps the architecture cache warm for documentation-only edits", async () => {
     clearAnalysisCache();
-    const root = await mkdtemp(join(tmpdir(), "agentmap-doc-cache-"));
+    const root = await mkdtemp(join(tmpdir(), "sarvadrik-doc-cache-"));
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({ name: "doc-cache", type: "module" }),

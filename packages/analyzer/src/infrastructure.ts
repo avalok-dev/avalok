@@ -149,7 +149,7 @@ export async function analyzeInfrastructure(
   for (const ingress of analysis.resources.filter(
     (item) => item.infrastructureKind === "ingress",
   )) {
-    const loadBalancerName = ingress.labels["agentmap.dev/load-balancer"];
+    const loadBalancerName = ingress.labels["sarvadrik.com/load-balancer"];
     if (!loadBalancerName) continue;
     const matches = loadBalancers.filter((loadBalancer) =>
       [loadBalancer.name, loadBalancer.details.name]
@@ -165,7 +165,7 @@ export async function analyzeInfrastructure(
         {
           kind: "infrastructure-reconciliation",
           file: ingress.file,
-          description: `Ingress label agentmap.dev/load-balancer exactly matches ${matches[0]!.address}`,
+          description: `Ingress label sarvadrik.com/load-balancer exactly matches ${matches[0]!.address}`,
           weight: 0.97,
         },
         0.99,
@@ -178,7 +178,7 @@ export async function analyzeInfrastructure(
   );
   const namespaces = analysis.resources.filter((item) => item.infrastructureKind === "namespace");
   for (const namespace of namespaces) {
-    const clusterName = namespace.labels["agentmap.dev/cluster"];
+    const clusterName = namespace.labels["sarvadrik.com/cluster"];
     if (!clusterName) continue;
     const matches = clusters.filter((cluster) =>
       [cluster.name, cluster.details.name, cluster.details.cluster_name]
@@ -195,7 +195,7 @@ export async function analyzeInfrastructure(
         {
           kind: "infrastructure-reconciliation",
           file: namespace.file,
-          description: `Namespace annotation agentmap.dev/cluster exactly matches ${matches[0]!.address}`,
+          description: `Namespace annotation sarvadrik.com/cluster exactly matches ${matches[0]!.address}`,
           weight: 0.97,
         },
         0.99,

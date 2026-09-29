@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ .Values.namespace }}
-  labels: { agentmap.dev/cluster: research-platform }
+  labels: { sarvadrik.com/cluster: research-platform }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -62,7 +62,7 @@ kind: Ingress
 metadata:
   name: research
   namespace: {{ .Values.namespace }}
-  labels: { agentmap.dev/load-balancer: research-alb }
+  labels: { sarvadrik.com/load-balancer: research-alb }
 spec:
   rules:
     - http:

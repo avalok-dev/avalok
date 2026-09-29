@@ -126,8 +126,8 @@ function scanForLeaks(directory, { forbidden, reported }) {
 // than the user profile); the default is the OS temporary directory.
 const parent = resolve(option("--root") ?? tmpdir());
 mkdirSync(parent, { recursive: true });
-const scratch = mkdtempSync(join(parent, "agentmap-release-"));
-const neutralRoot = join(scratch, "AgentMap Release Test");
+const scratch = mkdtempSync(join(parent, "sarvadrik-release-"));
+const neutralRoot = join(scratch, "Sarvadrik Release Test");
 const source = join(neutralRoot, "source");
 try {
   const home = resolve(homedir());

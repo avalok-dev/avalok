@@ -3,8 +3,9 @@ import "@xyflow/react/dist/style.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI System Visualizer",
-  description: "Explore AI application architecture and observable runtime execution.",
+  title: "Sarvadrik — See your whole system",
+  description:
+    "A local-first visual system for understanding how your code, infrastructure, agents, and runtime connect and execute.",
   icons: { icon: "/favicon.svg" },
 };
 

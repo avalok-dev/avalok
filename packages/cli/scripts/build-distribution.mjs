@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Builds the installable AgentMap package into `packages/cli/dist/`.
+// Builds the installable Sarvadrik package into `packages/cli/dist/`.
 //
 // The result is a self-contained npm package directory: a bundled CLI (`lib/`), a Next.js
 // standalone dashboard (`dashboard/`), allowlisted sample repositories (`samples/`), a small
@@ -9,6 +9,7 @@ import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   cpSync,
+  mkdtempSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -17,14 +18,26 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  collectPackages,
+  mergePackages,
+  readModuleManifests,
+  renderNotices,
+} from "./third-party-notices.mjs";
 
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(cliRoot, "../..");
 const webRoot = join(repositoryRoot, "apps", "web");
 const output = join(cliRoot, "dist");
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
+// `--publishable` (release workflow only) omits `private: true` so the exact artifact that was
+// built and smoke-tested is the one a later, explicitly approved `npm publish` would upload.
+const publishable = process.argv.includes("--publishable");
+const moduleManifests = mkdtempSync(join(tmpdir(), "sarvadrik-modules-"));
+let cliInputs = [];
 
 const cliManifest = readJson(join(cliRoot, "package.json"));
 const rootManifest = readJson(join(repositoryRoot, "package.json"));
@@ -52,6 +65,7 @@ const excludedSampleEntries = new Set([
   ".pytest_cache",
   ".DS_Store",
   ".agentmap",
+  ".sarvadrik",
   ".terraform",
 ]);
 
@@ -65,7 +79,7 @@ function run(command, arguments_, options) {
     throw new Error(`${basename(command)} ${arguments_.join(" ")} failed (${result.status}).`);
 }
 
-function installedVersion(name) {
+function installedManifest(name) {
   const require = createRequire(join(webRoot, "package.json"));
   let directory = dirname(require.resolve(name));
   while (
@@ -73,7 +87,11 @@ function installedVersion(name) {
     readJson(join(directory, "package.json")).name !== name
   )
     directory = dirname(directory);
-  return readJson(join(directory, "package.json")).version;
+  return readJson(join(directory, "package.json"));
+}
+
+function installedVersion(name) {
+  return installedManifest(name).version;
 }
 
 function buildDashboard() {
@@ -83,7 +101,8 @@ function buildDashboard() {
     cwd: webRoot,
     env: {
       ...process.env,
-      AGENTMAP_DASHBOARD_STANDALONE: "1",
+      SARVADRIK_DASHBOARD_STANDALONE: "1",
+      SARVADRIK_MODULE_MANIFEST: moduleManifests,
       NEXT_TELEMETRY_DISABLED: "1",
       NODE_ENV: "production",
     },
@@ -105,7 +124,7 @@ function buildDashboard() {
   });
   if (existsSync(join(webRoot, "public")))
     cpSync(join(webRoot, "public"), join(destination, "public"), { recursive: true });
-  cpSync(join(cliRoot, "src", "dashboard-launcher.cjs"), join(destination, "agentmap-launch.cjs"));
+  cpSync(join(cliRoot, "src", "dashboard-launcher.cjs"), join(destination, "sarvadrik-launch.cjs"));
   // The package root is ESM; the standalone server is CommonJS.
   writeFileSync(
     join(destination, "package.json"),
@@ -127,16 +146,18 @@ async function bundleCli() {
     legalComments: "linked",
     logLevel: "warning",
   };
-  await esbuild.build({
+  const cli = await esbuild.build({
     ...common,
+    metafile: true,
     entryPoints: [join(cliRoot, "src", "bin.ts")],
     outfile: join(output, "lib", "cli.mjs"),
     external: externalRuntime,
     // Some bundled CommonJS dependencies call require() for Node built-ins.
     banner: {
-      js: 'import { createRequire as __agentmapCreateRequire } from "node:module";\nconst require = __agentmapCreateRequire(import.meta.url);',
+      js: 'import { createRequire as __sarvadrikCreateRequire } from "node:module";\nconst require = __sarvadrikCreateRequire(import.meta.url);',
     },
   });
+  cliInputs = Object.keys(cli.metafile.inputs).map((input) => resolve(process.cwd(), input));
   // The launcher loads this before anything else, so keep it tiny and syntax-conservative.
   await esbuild.build({
     ...common,
@@ -148,7 +169,7 @@ async function bundleCli() {
 
 function writeLauncher() {
   step("Writing the launcher");
-  const launcher = join(output, "bin", "agentmap.mjs");
+  const launcher = join(output, "bin", `${product.cliName}.mjs`);
   mkdirSync(dirname(launcher), { recursive: true });
   writeFileSync(
     launcher,
@@ -163,7 +184,7 @@ if (support === "unsupported") {
   );
   process.exit(1);
 }
-if (support === "untested-newer" && process.env.AGENTMAP_QUIET_NODE_WARNING !== "1")
+if (support === "untested-newer" && process.env.SARVADRIK_QUIET_NODE_WARNING !== "1")
   process.stderr.write(
     "Warning: Node.js " + process.versions.node + " is newer than the tested range " + supportedNodeRange + ".\\n",
   );
@@ -191,41 +212,89 @@ function copySamples() {
     });
 }
 
+function writeNotices() {
+  step("Generating third-party notices from bundled packages");
+  const manifests = readModuleManifests(moduleManifests);
+  const dashboardFiles = [...manifests.values()].flat();
+  if (cliInputs.length === 0 || dashboardFiles.length === 0)
+    throw new Error("Bundled module lists are missing; cannot generate third-party notices.");
+  const packages = new Map();
+  mergePackages(packages, collectPackages(cliInputs), "cli");
+  mergePackages(packages, collectPackages(dashboardFiles), "dashboard");
+  const runtimeDependencies = externalRuntime.map((name) => {
+    const manifest = installedManifest(name);
+    return { name, version: manifest.version, license: manifest.license ?? "UNKNOWN" };
+  });
+  const { text, missingText, count } = renderNotices(packages, { product, runtimeDependencies });
+  const unknown = [...packages.values()].filter((entry) => entry.license === "UNKNOWN");
+  if (unknown.length)
+    throw new Error(
+      `Packages without license metadata: ${unknown.map((entry) => entry.name).join(", ")}`,
+    );
+  writeFileSync(join(output, "THIRD_PARTY_NOTICES.md"), text);
+  rmSync(moduleManifests, { recursive: true, force: true });
+  step(
+    `THIRD_PARTY_NOTICES.md: ${count} packages` +
+      (missingText.length
+        ? `; ${missingText.length} publish no license file (identifier recorded): ${missingText.map((entry) => entry.name).join(", ")}`
+        : ""),
+  );
+}
+
 function writeManifest() {
-  step("Writing the package manifest");
+  step(`Writing the package manifest${publishable ? " (publishable)" : " (private)"}`);
   const manifest = {
     name: product.packageName,
     version: cliManifest.version,
     description: product.description,
-    // Private until naming and release decisions are made (M7.4): `npm publish` refuses it.
-    private: true,
+    // Everyday builds are private so `npm publish` refuses them; only the release workflow's
+    // `--publishable` build (smoke-tested as-is) can be published, after explicit approval.
+    ...(publishable ? {} : { private: true }),
     license: rootManifest.license,
+    homepage: product.homepage,
+    ...(product.repository
+      ? {
+          repository: { type: "git", url: `git+${product.repository}.git` },
+          bugs: { url: `${product.repository}/issues` },
+        }
+      : {}),
+    keywords: product.keywords,
     type: "module",
-    bin: { [product.cliName]: "bin/agentmap.mjs" },
+    bin: { [product.cliName]: `bin/${product.cliName}.mjs` },
     engines: { node: rootManifest.engines.node },
-    files: ["bin", "lib", "dashboard", "samples"],
+    files: ["bin", "lib", "dashboard", "samples", "THIRD_PARTY_NOTICES.md"],
     dependencies: Object.fromEntries(externalRuntime.map((name) => [name, installedVersion(name)])),
   };
   writeFileSync(join(output, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   cpSync(join(repositoryRoot, "LICENSE"), join(output, "LICENSE"));
   writeFileSync(
     join(output, "README.md"),
-    `# ${product.displayName} (developer preview, working name)
+    `# ${product.displayName}
+
+**${product.tagline}**
 
 ${product.description}
+
+Developer preview. Website: ${product.homepage}
 
 \`\`\`sh
 ${product.cliName} [path]            # analyze a repository and open the local dashboard
 ${product.cliName} doctor [path]     # diagnose the local setup without starting services
-${product.cliName} data path         # show AgentMap-owned local data
-${product.cliName} data clear        # clear AgentMap-owned local data
+${product.cliName} data path         # show Sarvadrik-owned local data
+${product.cliName} data clear        # clear Sarvadrik-owned local data
 \`\`\`
 
-Requires Node.js ${rootManifest.engines.node}. Everything runs locally and binds to 127.0.0.1.
-OTLP/HTTP traces (JSON or protobuf) are accepted at http://127.0.0.1:4318/v1/traces.
+Requires Node.js ${rootManifest.engines.node}. Everything runs locally; both servers bind to 127.0.0.1.
+OTLP/HTTP traces (protobuf or JSON) are accepted at http://127.0.0.1:4318/v1/traces.
 
-Uninstalling the package does not delete AgentMap's local data; run \`${product.cliName} data path\`
+Terraform, Kubernetes, Helm, and AWS support analyzes configuration files in your repository;
+${product.displayName} does not connect to cloud or cluster APIs.
+
+Uninstalling the package does not delete Sarvadrik's local data; run \`${product.cliName} data path\`
 to find it and \`${product.cliName} data clear\` before uninstalling if you want it removed.
+
+Licensed under Apache-2.0. Bundled third-party components and their licenses are listed in
+THIRD_PARTY_NOTICES.md.
 `,
   );
 }
@@ -263,7 +332,7 @@ function verifyIndependence() {
       problems.push(`${relativeFile} loads an internal workspace package at runtime`);
   }
   const forbidden =
-    /^(\.env(\..*)?|node_modules|\.git|\.agentmap|coverage|\.turbo|\.venv|__pycache__|.*\.tfstate|.*\.tfvars)$/;
+    /^(\.env(\..*)?|node_modules|\.git|\.agentmap|\.sarvadrik|coverage|\.turbo|\.venv|__pycache__|.*\.tfstate|.*\.tfvars)$/;
   for (const file of files(output))
     for (const part of relative(output, file).split(sep))
       if (forbidden.test(part)) problems.push(`artifact contains ${relative(output, file)}`);
@@ -277,6 +346,7 @@ buildDashboard();
 await bundleCli();
 writeLauncher();
 copySamples();
+writeNotices();
 writeManifest();
 verifyIndependence();
 step(`Distribution ready: ${relative(repositoryRoot, output)}`);

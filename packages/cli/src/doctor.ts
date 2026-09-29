@@ -1,13 +1,13 @@
 import { basename } from "node:path";
 import { analyzeRepository } from "@visual-system/analyzer";
 import {
-  agentMapDataPaths,
+  sarvadrikDataPaths,
   buildCapabilityReport,
   checkDataDirectoryWritable,
   compactUserPath,
   inspectLegacyData,
-  legacyAgentMapDataPaths,
-  readMigrationRecord,
+  legacyDataSources,
+  readMigrationFile,
   type CapabilityReport,
 } from "@visual-system/capabilities";
 import { resolveDashboardLayout } from "./dashboard.ts";
@@ -25,7 +25,7 @@ export interface DoctorResult {
 const line = (state: "ok" | "warning" | "error", message: string) =>
   `${state === "ok" ? "✓" : state === "warning" ? "!" : "✗"} ${message}`;
 
-async function agentMapCollectorListening(endpoint: string) {
+async function sarvadrikCollectorListening(endpoint: string) {
   try {
     const response = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(750) });
     const body = (await response.json()) as { status?: string };
@@ -36,44 +36,48 @@ async function agentMapCollectorListening(endpoint: string) {
 }
 
 async function legacyDataLines(
-  paths: ReturnType<typeof agentMapDataPaths>,
+  paths: ReturnType<typeof sarvadrikDataPaths>,
   environment: NodeJS.ProcessEnv,
   legacyHome?: string,
 ) {
-  const legacy = legacyAgentMapDataPaths(legacyHome);
-  const [inspection, record] = await Promise.all([
-    inspectLegacyData(legacy),
-    readMigrationRecord(paths),
-  ]);
-  const label = compactUserPath(legacy.runtime);
-  if (record?.status === "completed")
-    return [
-      line(
-        "ok",
-        `Earlier data migrated from ${label} (${record.copied} copied, ${record.skippedExisting} already present)${inspection.present ? "; original kept" : ""}`,
-      ),
-    ];
-  if (!inspection.present) return [line("ok", `No earlier data at ${label}`)];
-  if (environment.AGENTMAP_DATA_ROOT || environment.AGENTMAP_DATA_DIR)
-    return [
-      line(
-        "warning",
-        `Earlier data at ${label} (${inspection.snapshots} runs) is not migrated while AGENTMAP_DATA_DIR is set`,
-      ),
-    ];
-  if (record?.status === "failed")
-    return [
-      line(
-        "warning",
-        `Migration from ${label} failed: ${record.error ?? "unknown error"}; original untouched, retried on next start`,
-      ),
-    ];
-  return [
-    line(
-      "warning",
-      `Earlier data at ${label} (${inspection.snapshots} runs) will be copied on next start; the original is kept`,
-    ),
-  ];
+  const file = await readMigrationFile(paths);
+  const lines: string[] = [];
+  for (const source of legacyDataSources(environment, process.platform, legacyHome)) {
+    const [inspection, record] = [await inspectLegacyData(source), file.sources[source.key]];
+    const label = source.label;
+    if (record?.status === "completed") {
+      lines.push(
+        line(
+          "ok",
+          `Earlier AgentMap data migrated from ${label} (${record.copied} copied, ${record.skippedExisting} already present${record.settingsCopied ? ", settings copied" : ""})${inspection.present ? "; original kept" : ""}`,
+        ),
+      );
+      continue;
+    }
+    if (!inspection.present) continue;
+    if (environment.SARVADRIK_DATA_ROOT || environment.SARVADRIK_DATA_DIR)
+      lines.push(
+        line(
+          "warning",
+          `Earlier AgentMap data at ${label} (${inspection.snapshots} runs) is not migrated while SARVADRIK_DATA_DIR is set`,
+        ),
+      );
+    else if (record?.status === "failed")
+      lines.push(
+        line(
+          "warning",
+          `Migration from ${label} failed: ${record.error ?? "unknown error"}; original untouched, retried on next start`,
+        ),
+      );
+    else
+      lines.push(
+        line(
+          "warning",
+          `Earlier AgentMap data at ${label} (${inspection.snapshots} runs) will be copied on next start; the original is kept`,
+        ),
+      );
+  }
+  return lines.length ? lines : [line("ok", "No earlier AgentMap data to migrate")];
 }
 
 export async function runDoctor(
@@ -82,7 +86,7 @@ export async function runDoctor(
 ): Promise<DoctorResult> {
   const environment = configuration.environment ?? process.env;
   const sections: string[] = [
-    "AgentMap Doctor",
+    "Sarvadrik Doctor",
     "",
     "Version",
     line("ok", productIdentity.version),
@@ -111,7 +115,7 @@ export async function runDoctor(
       line("error", `Node ${process.versions.node} unsupported; use ${supportedNodeRange}`),
     );
   }
-  sections.push(line("ok", "pnpm is not required after AgentMap starts"));
+  sections.push(line("ok", "pnpm is not required after Sarvadrik starts"));
 
   let target: string;
   try {
@@ -184,7 +188,7 @@ export async function runDoctor(
   }
 
   const endpoint = `http://127.0.0.1:${options.otlpPort}`;
-  const paths = agentMapDataPaths(environment);
+  const paths = sarvadrikDataPaths(environment);
   const report = await buildCapabilityReport({
     analysis,
     target,
@@ -210,8 +214,8 @@ export async function runDoctor(
   const otlpAvailable = await isPortAvailable(options.otlpPort, "127.0.0.1");
   if (otlpAvailable)
     sections.push(line("ok", `127.0.0.1:${options.otlpPort} available for the OTLP receiver`));
-  else if (await agentMapCollectorListening(endpoint))
-    sections.push(line("ok", `AgentMap OTLP receiver listening on 127.0.0.1:${options.otlpPort}`));
+  else if (await sarvadrikCollectorListening(endpoint))
+    sections.push(line("ok", `Sarvadrik OTLP receiver listening on 127.0.0.1:${options.otlpPort}`));
   else {
     blocking = true;
     sections.push(line("error", `OTLP port ${options.otlpPort} is occupied by another process`));

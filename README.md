@@ -1,6 +1,6 @@
 # AI System Visualizer
 
-AgentMap visualizes detected repository architecture alongside observable local execution from Codex, Claude Code, and OpenTelemetry/OpenInference. Repository analysis is local, static, deterministic, and read-only: it never executes target code, reads secret values, sends source to a network service, or uses an LLM.
+Sarvadrik visualizes detected repository architecture alongside observable local execution from Codex, Claude Code, and OpenTelemetry/OpenInference. Repository analysis is local, static, deterministic, and read-only: it never executes target code, reads secret values, sends source to a network service, or uses an LLM.
 
 Use the source selector to switch between the built-in demo, the current repository, and discovered local runtime runs. Analyze the repository first and then choose a runtime run to enable the unified execution overlay.
 
@@ -41,13 +41,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Installable preview package (local only)
 
-AgentMap can be built into a single npm package and installed without this repository or pnpm. Nothing is published; the tarball is for local testing.
+Sarvadrik can be built into a single npm package and installed without this repository or pnpm. Nothing is published; the tarball is for local testing.
 
 ```bash
 pnpm dist:build
-pnpm dist:pack                      # → artifacts/visual-system-agentmap-<version>.tgz
-npm install -g ./artifacts/visual-system-agentmap-*.tgz
-agentmap /path/to/repository
+pnpm dist:pack                      # → artifacts/visual-system-sarvadrik-<version>.tgz
+npm install -g ./artifacts/visual-system-sarvadrik-*.tgz
+sarvadrik /path/to/repository
 ```
 
 OTLP/HTTP traces (protobuf or JSON) are accepted at `http://127.0.0.1:4318/v1/traces`. See `docs/development/distribution.md`.
@@ -97,4 +97,4 @@ See [the architecture overview](docs/architecture/overview.md), [Milestone 6 des
 
 ## License
 
-The AgentMap open-source core is available under the [Apache License 2.0](LICENSE). Future enterprise-only modules should be kept separate and may use different terms.
+The Sarvadrik open-source core is available under the [Apache License 2.0](LICENSE). Future enterprise-only modules should be kept separate and may use different terms.

@@ -51,7 +51,7 @@ async function readMetadata(filePath: string) {
 }
 
 // `home` is a parameter so Next's build-time file tracer cannot resolve this to the build
-// machine's real `~/.codex` (see clearAgentMapData in @visual-system/capabilities).
+// machine's real `~/.codex` (see clearSarvadrikData in @visual-system/capabilities).
 export function defaultCodexSessionsDirectory(environment = process.env, home = homedir()) {
   const codexHome =
     environment.AI_VISUALIZER_CODEX_HOME || environment.CODEX_HOME || join(home, ".codex");

@@ -1,5 +1,5 @@
 {
-  "name": "ai-system-visualizer",
+  "name": "sarvadrik-monorepo",
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
@@ -8,7 +8,7 @@
     "node": ">=24.19.0 <25"
   },
   "scripts": {
-    "agentmap": "node packages/cli/agentmap.mjs",
+    "sarvadrik": "node packages/cli/sarvadrik.mjs",
     "build": "turbo run build",
     "dev": "turbo run dev --filter=@visual-system/web --filter=@visual-system/collector",
     "lint": "turbo run lint",

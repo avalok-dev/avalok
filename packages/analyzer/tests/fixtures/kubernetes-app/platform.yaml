@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: research
   labels:
-    agentmap.dev/cluster: agentmap-platform
+    sarvadrik.com/cluster: sarvadrik-platform
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -38,7 +38,7 @@ spec:
       serviceAccountName: backend
       containers:
         - name: api
-          image: ghcr.io/agentmap/backend:1.2.3
+          image: ghcr.io/sarvadrik/backend:1.2.3
           ports: [{ containerPort: 8000 }]
           resources:
             requests: { cpu: 250m, memory: 256Mi }

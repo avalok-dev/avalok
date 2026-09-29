@@ -10,7 +10,7 @@
  * Pure functions only (no Node APIs), so the Next.js middleware can use them too.
  */
 
-/** The loopback hostnames AgentMap answers to. IPv6 is only the canonical `::1`. */
+/** The loopback hostnames Sarvadrik answers to. IPv6 is only the canonical `::1`. */
 export const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"]);
 
 export interface ParsedAuthority {
@@ -95,7 +95,7 @@ export function isAllowedLoopbackOrigin(
   options: LoopbackOriginOptions,
 ) {
   const origin = parseOrigin(value);
-  // AgentMap only serves plain HTTP on loopback; an https loopback origin is another server.
+  // Sarvadrik only serves plain HTTP on loopback; an https loopback origin is another server.
   if (!origin || origin.scheme !== "http" || !LOOPBACK_HOSTNAMES.has(origin.hostname)) return false;
   return options.port === "any" || effectivePort(origin) === options.port;
 }
@@ -107,7 +107,7 @@ export function mediaType(contentType: string | null | undefined) {
 
 /**
  * JSON is not a CORS-safelisted request content type, so a cross-origin browser page cannot
- * send it without a preflight, which AgentMap never approves.
+ * send it without a preflight, which Sarvadrik never approves.
  */
 export function isJsonMediaType(contentType: string | null | undefined) {
   return mediaType(contentType) === "application/json";
@@ -126,7 +126,7 @@ export const allowed: GuardResult = { ok: true };
 export const forbiddenHost: GuardRejection = {
   ok: false,
   status: 403,
-  error: "Forbidden: AgentMap only accepts requests addressed to its loopback host.",
+  error: "Forbidden: Sarvadrik only accepts requests addressed to its loopback host.",
 };
 
 export const forbiddenOrigin: GuardRejection = {

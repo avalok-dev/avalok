@@ -9,33 +9,67 @@ import type {
 } from "@visual-system/runtime-adapter";
 import type { ArchitectureGraph, Run, RuntimeEvent } from "@visual-system/schema";
 
-export function defaultAgentMapDataRoot(
+export interface PlatformDirectoryNames {
+  /** `%LOCALAPPDATA%\<windows>` */
+  windows: string;
+  /** `~/Library/Application Support/<darwin>` */
+  darwin: string;
+  /** `$XDG_DATA_HOME/<linux>` or `~/.local/share/<linux>` */
+  linux: string;
+}
+
+export const sarvadrikDirectoryNames: PlatformDirectoryNames = {
+  windows: "Sarvadrik",
+  darwin: "Sarvadrik",
+  linux: "sarvadrik",
+};
+
+/** Where development builds named AgentMap (M7.2–M7.4A) kept data; a migration source only. */
+export const legacyAgentMapDirectoryNames: PlatformDirectoryNames = {
+  windows: "AgentMap",
+  darwin: "AgentMap",
+  linux: "agentmap",
+};
+
+/**
+ * The platform user-data directory for `names`, using the target platform's path semantics so
+ * the rules are exact (and unit-testable) regardless of the host running them.
+ */
+export function platformDataRoot(
+  names: PlatformDirectoryNames,
   environment: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
   home = homedir(),
 ) {
-  const configured = environment.AGENTMAP_DATA_ROOT ?? environment.AGENTMAP_DATA_DIR;
-  if (configured) return resolve(configured);
-  // Use the target platform's path semantics so the rules are exact (and unit-testable)
-  // regardless of the host running them.
   if (platform === "win32") {
     const local = environment.LOCALAPPDATA;
     return win32.join(
       local && win32.isAbsolute(local) ? local : win32.join(home, "AppData", "Local"),
-      "AgentMap",
+      names.windows,
     );
   }
-  if (platform === "darwin") return posix.join(home, "Library", "Application Support", "AgentMap");
+  if (platform === "darwin")
+    return posix.join(home, "Library", "Application Support", names.darwin);
   // XDG Base Directory: a relative XDG_DATA_HOME is invalid and must be ignored.
   const xdg = environment.XDG_DATA_HOME;
   return posix.join(
     xdg && posix.isAbsolute(xdg) ? xdg : posix.join(home, ".local", "share"),
-    "agentmap",
+    names.linux,
   );
 }
 
+export function defaultSarvadrikDataRoot(
+  environment: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  home = homedir(),
+) {
+  const configured = environment.SARVADRIK_DATA_ROOT ?? environment.SARVADRIK_DATA_DIR;
+  if (configured) return resolve(configured);
+  return platformDataRoot(sarvadrikDirectoryNames, environment, platform, home);
+}
+
 export function defaultRuntimeDataDirectory(environment: NodeJS.ProcessEnv = process.env) {
-  return join(defaultAgentMapDataRoot(environment), "runtime");
+  return join(defaultSarvadrikDataRoot(environment), "runtime");
 }
 
 const snapshotKey = (source: RuntimeSourceKind, id: string) =>

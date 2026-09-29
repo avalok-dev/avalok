@@ -2,9 +2,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const port = Number(process.env.AGENTMAP_OTLP_PORT || 4318);
+  const port = Number(process.env.SARVADRIK_OTLP_PORT || 4318);
   try {
-    const response = await fetch(`http://127.0.0.1:${port}/v1/agentmap/test-trace`, {
+    const response = await fetch(`http://127.0.0.1:${port}/v1/sarvadrik/test-trace`, {
       method: "POST",
       // The receiver only accepts JSON here so a web page cannot trigger it with a simple POST.
       headers: { "Content-Type": "application/json" },

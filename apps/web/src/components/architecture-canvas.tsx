@@ -153,7 +153,7 @@ function CanvasGraph() {
       maxZoom={1.65}
       nodesFocusable
       edgesFocusable
-      aria-label="AI system architecture graph"
+      aria-label="System architecture graph"
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#263142" />
       <Controls

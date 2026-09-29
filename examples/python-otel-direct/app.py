@@ -1,7 +1,7 @@
-"""Send one OpenInference-shaped trace to AgentMap with the standard OTLP/HTTP protobuf exporter.
+"""Send one OpenInference-shaped trace to Sarvadrik with the standard OTLP/HTTP protobuf exporter.
 
-No AgentMap exporter, no JSON workaround, no Collector. Configuration uses the standard
-OpenTelemetry environment variables; the default endpoint is AgentMap's local receiver.
+No Sarvadrik exporter, no JSON workaround, no Collector. Configuration uses the standard
+OpenTelemetry environment variables; the default endpoint is Sarvadrik's local receiver.
 Run inside an isolated virtual environment (see README.md). No model or network API is called.
 """
 
@@ -37,7 +37,7 @@ def main() -> int:
     exporter = RecordingExporter()  # http/protobuf is this exporter's only encoding.
     provider = TracerProvider(resource=Resource.create({"service.name": SERVICE}))
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider.get_tracer("agentmap.examples.python-otel-direct", "0.1.0")
+    tracer = provider.get_tracer("sarvadrik.examples.python-otel-direct", "0.1.0")
 
     with tracer.start_as_current_span(
         "answer question", attributes={"openinference.span.kind": "AGENT"}

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Clean-install smoke test for the packed AgentMap artifact.
+// Clean-install smoke test for the packed Sarvadrik artifact.
 //
 //   pnpm dist:smoke [--tarball <path>] [--hide-workspace] [--keep]
 //
 // 1. Copies the tarball and external fixture repositories into a fresh temporary directory
 //    whose path contains spaces (and a Unicode repository name).
 // 2. Installs the tarball with plain `npm install` — no links, no workspace protocol, no NODE_PATH.
-// 3. Optionally renames the AgentMap source checkout for the rest of the run so the installed
+// 3. Optionally renames the Sarvadrik source checkout for the rest of the run so the installed
 //    package cannot silently resolve anything from it (restored in `finally`).
 // 4. Drives the installed CLI: --version/--help, doctor per fixture, startup, dashboard assets,
 //    repository/sample analysis, capabilities, test trace, OTLP JSON + protobuf, restart
@@ -79,7 +79,7 @@ function runSync(command, arguments_, options = {}) {
   return spawnSync(command, arguments_, { encoding: "utf8", ...options });
 }
 
-function startAgentMap(bin, target, ports, environment) {
+function startSarvadrik(bin, target, ports, environment) {
   const child = spawn(
     process.execPath,
     [
@@ -113,7 +113,7 @@ function startAgentMap(bin, target, ports, environment) {
     });
     void exited.then(({ code }) => {
       clearTimeout(timer);
-      reject(new Error(`AgentMap exited during startup (${code}).\n${stdout}\n${stderr}`));
+      reject(new Error(`Sarvadrik exited during startup (${code}).\n${stdout}\n${stderr}`));
     });
   });
   return { child, exited, ready, output: () => ({ stdout, stderr }) };
@@ -172,12 +172,12 @@ async function json(url, init) {
 
 const tarballSource = resolve(option("--tarball") ?? newestTarball());
 const expectedVersion = JSON.parse(readFileSync(join(cliRoot, "package.json"), "utf8")).version;
-const scratch = mkdtempSync(join(tmpdir(), "agentmap smoke "));
+const scratch = mkdtempSync(join(tmpdir(), "sarvadrik smoke "));
 const install = join(scratch, "Install Dir With Spaces");
 const repositories = join(scratch, "External Repos");
-const dataRoot = join(scratch, "AgentMap Data");
-const outsideSentinel = join(scratch, "not-agentmap-data", "keep.txt");
-const hiddenWorkspace = `${repositoryRoot}.hidden-by-agentmap-smoke`;
+const dataRoot = join(scratch, "Sarvadrik Data");
+const outsideSentinel = join(scratch, "not-sarvadrik-data", "keep.txt");
+const hiddenWorkspace = `${repositoryRoot}.hidden-by-sarvadrik-smoke`;
 let workspaceHidden = false;
 
 // Load everything needed from the workspace *before* it may be hidden.
@@ -200,7 +200,7 @@ const jsonPayload = {
       },
       scopeSpans: [
         {
-          scope: { name: "agentmap-smoke" },
+          scope: { name: "sarvadrik-smoke" },
           spans: [
             {
               traceId: "5b8efff798038103d269b633813fc60c",
@@ -260,7 +260,7 @@ try {
   cpSync(tarballSource, join(install, basename(tarballSource)));
   writeFileSync(
     join(install, "package.json"),
-    JSON.stringify({ name: "agentmap-smoke-host", private: true }),
+    JSON.stringify({ name: "sarvadrik-smoke-host", private: true }),
   );
   if (flag("--hide-workspace")) {
     if (existsSync(hiddenWorkspace))
@@ -285,13 +285,13 @@ try {
     installResult.status === 0,
     installResult.stderr.trim().split("\n").at(-1),
   );
-  const packageRoot = join(install, "node_modules", "@visual-system", "agentmap");
-  const bin = join(packageRoot, "bin", "agentmap.mjs");
+  const packageRoot = join(install, "node_modules", "@visual-system", "sarvadrik");
+  const bin = join(packageRoot, "bin", "sarvadrik.mjs");
   const shim = join(
     install,
     "node_modules",
     ".bin",
-    process.platform === "win32" ? "agentmap.cmd" : "agentmap",
+    process.platform === "win32" ? "sarvadrik.cmd" : "sarvadrik",
   );
   check(
     "installed as a real directory (no link)",
@@ -305,14 +305,14 @@ try {
 
   const environment = {
     ...process.env,
-    AGENTMAP_DATA_DIR: dataRoot,
-    AGENTMAP_QUIET_NODE_WARNING: "1",
+    SARVADRIK_DATA_DIR: dataRoot,
+    SARVADRIK_QUIET_NODE_WARNING: "1",
     NODE_PATH: "",
     // A shell HOSTNAME must never widen the dashboard bind.
     HOSTNAME: "0.0.0.0",
   };
-  delete environment.AGENTMAP_DASHBOARD_DIR;
-  delete environment.AGENTMAP_SAMPLES_DIR;
+  delete environment.SARVADRIK_DASHBOARD_DIR;
+  delete environment.SARVADRIK_SAMPLES_DIR;
 
   // The npm-generated shim is exercised directly on POSIX. On Windows it is a .cmd file that
   // needs a shell, and shell argument joining would break this intentionally spaced path, so
@@ -320,11 +320,11 @@ try {
   const version = windows
     ? runSync(process.execPath, [bin, "--version"], { env: environment })
     : runSync(shim, ["--version"], { env: environment });
-  check("agentmap --version", version.stdout.trim() === expectedVersion, version.stdout.trim());
+  check("sarvadrik --version", version.stdout.trim() === expectedVersion, version.stdout.trim());
   const help = runSync(process.execPath, [bin, "--help"], { env: environment });
-  check("agentmap --help", help.status === 0 && help.stdout.includes("agentmap doctor"));
+  check("sarvadrik --help", help.status === 0 && help.stdout.includes("sarvadrik doctor"));
   const path = runSync(process.execPath, [bin, "data", "path"], { env: environment });
-  check("agentmap data path", path.stdout.trim() === dataRoot, path.stdout.trim());
+  check("sarvadrik data path", path.stdout.trim() === dataRoot, path.stdout.trim());
 
   const expectations = {
     "Simple JS App": /typescript/,
@@ -351,7 +351,7 @@ try {
 
   const ports = { dashboard: await freePort(), otlp: await freePort() };
   const target = join(repositories, "Polyglot Project");
-  let running = startAgentMap(bin, target, ports, environment);
+  let running = startSarvadrik(bin, target, ports, environment);
   await running.ready;
   const dashboard = `http://127.0.0.1:${ports.dashboard}`;
   const otlp = `http://127.0.0.1:${ports.otlp}`;
@@ -550,14 +550,14 @@ try {
     ],
     [
       "test trace rejects a bodiless simple POST",
-      `${otlp}/v1/agentmap/test-trace`,
+      `${otlp}/v1/sarvadrik/test-trace`,
       { method: "POST" },
       415,
       {},
     ],
     [
       "test trace rejects a foreign Origin",
-      `${otlp}/v1/agentmap/test-trace`,
+      `${otlp}/v1/sarvadrik/test-trace`,
       { method: "POST", body: "{}" },
       403,
       { Origin: "https://attacker.example", "Content-Type": "application/json" },
@@ -591,7 +591,7 @@ try {
   if (!windows) check("Ctrl+C exits cleanly", stopped.code === 0, JSON.stringify(stopped));
   check("dashboard and OTLP ports released", await portsReleased(ports));
 
-  running = startAgentMap(bin, target, ports, environment);
+  running = startSarvadrik(bin, target, ports, environment);
   await running.ready;
   const persisted = await json(`${dashboard}/api/runtime/runs`);
   check(
@@ -603,7 +603,7 @@ try {
   if (!windows) check("second shutdown clean", stopped.code === 0);
   check("ports released after restart", await portsReleased(ports));
 
-  running = startAgentMap(bin, target, ports, environment);
+  running = startSarvadrik(bin, target, ports, environment);
   await running.ready;
   running.child.kill("SIGKILL");
   await running.exited;
@@ -611,8 +611,8 @@ try {
 
   const clear = runSync(process.execPath, [bin, "data", "clear", "--yes"], { env: environment });
   check("data clear", clear.status === 0);
-  check("AgentMap runs removed", !existsSync(join(dataRoot, "runtime")));
-  check("non-AgentMap data untouched", existsSync(outsideSentinel));
+  check("Sarvadrik runs removed", !existsSync(join(dataRoot, "runtime")));
+  check("non-Sarvadrik data untouched", existsSync(outsideSentinel));
   check("target repository untouched", existsSync(join(target, "docker-compose.yml")));
 } finally {
   if (workspaceHidden) {

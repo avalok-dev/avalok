@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { join, parse, posix, resolve, sep, win32 } from "node:path";
 import type { RepositoryAnalysis } from "@visual-system/analyzer";
 import { discoverCodexSessions } from "@visual-system/codex-adapter";
-import { defaultAgentMapDataRoot, LocalRuntimeStore } from "@visual-system/telemetry-adapter";
+import { defaultSarvadrikDataRoot, LocalRuntimeStore } from "@visual-system/telemetry-adapter";
 
 export * from "./migration.ts";
 
@@ -58,18 +58,18 @@ export interface CapabilityReport {
   dataPath: string;
 }
 
-export interface AgentMapDataPaths {
+export interface SarvadrikDataPaths {
   root: string;
   runtime: string;
   settings: string;
 }
 
-export function agentMapDataPaths(
+export function sarvadrikDataPaths(
   environment: NodeJS.ProcessEnv = process.env,
   platform = process.platform,
   home = homedir(),
-): AgentMapDataPaths {
-  const root = defaultAgentMapDataRoot(environment, platform, home);
+): SarvadrikDataPaths {
+  const root = defaultSarvadrikDataRoot(environment, platform, home);
   // Explicit branches (not a conditional function value): Next's build-time file tracer
   // statically evaluates path calls and cannot evaluate `(a ? win32.join : posix.join)(...)`.
   if (platform === "win32")
@@ -93,28 +93,30 @@ export function compactUserPath(path: string, home = homedir()) {
       : path;
 }
 
-export interface AgentMapSettings {
+export interface SarvadrikSettings {
   gettingStartedDismissed: boolean;
 }
 
-export async function readAgentMapSettings(paths = agentMapDataPaths()): Promise<AgentMapSettings> {
+export async function readSarvadrikSettings(
+  paths = sarvadrikDataPaths(),
+): Promise<SarvadrikSettings> {
   try {
-    const value = JSON.parse(await readFile(paths.settings, "utf8")) as Partial<AgentMapSettings>;
+    const value = JSON.parse(await readFile(paths.settings, "utf8")) as Partial<SarvadrikSettings>;
     return { gettingStartedDismissed: value.gettingStartedDismissed === true };
   } catch {
     return { gettingStartedDismissed: false };
   }
 }
 
-export async function writeAgentMapSettings(
-  settings: AgentMapSettings,
-  paths = agentMapDataPaths(),
+export async function writeSarvadrikSettings(
+  settings: SarvadrikSettings,
+  paths = sarvadrikDataPaths(),
 ) {
   await mkdir(paths.root, { recursive: true });
   await writeFile(paths.settings, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 });
 }
 
-function safeOwnedPath(path: string, paths: AgentMapDataPaths) {
+function safeOwnedPath(path: string, paths: SarvadrikDataPaths) {
   const normalized = resolve(path);
   const root = resolve(paths.root);
   return normalized !== root && normalized.startsWith(`${root}${sep}`) && root !== parse(root).root;
@@ -123,7 +125,7 @@ function safeOwnedPath(path: string, paths: AgentMapDataPaths) {
 // `home` is a parameter (not an inline `homedir()` call) on purpose: Next's build-time file
 // tracer evaluates inline `os.homedir()` paths and, on Windows when the checkout is on another
 // drive, then globs the whole home directory. See docs/development/release-build.md.
-export async function clearAgentMapData(paths = agentMapDataPaths(), home = homedir()) {
+export async function clearSarvadrikData(paths = sarvadrikDataPaths(), home = homedir()) {
   const root = resolve(paths.root);
   if (
     root === resolve(home) ||
@@ -131,7 +133,7 @@ export async function clearAgentMapData(paths = agentMapDataPaths(), home = home
     !safeOwnedPath(paths.runtime, paths) ||
     !safeOwnedPath(paths.settings, paths)
   )
-    throw new Error("Refusing to clear data outside the AgentMap data directory.");
+    throw new Error("Refusing to clear data outside the Sarvadrik data directory.");
   await Promise.all([
     rm(paths.runtime, { recursive: true, force: true }),
     rm(paths.settings, { force: true }),
@@ -325,13 +327,13 @@ export async function buildCapabilityReport(options: {
   analysis: RepositoryAnalysis;
   target: string;
   endpoint: string;
-  dataPaths?: AgentMapDataPaths;
+  dataPaths?: SarvadrikDataPaths;
   environment?: NodeJS.ProcessEnv;
   fetchHealth?: (url: string) => Promise<CollectorHealth>;
   version?: string;
 }): Promise<CapabilityReport> {
   const environment = options.environment ?? process.env;
-  const dataPaths = options.dataPaths ?? agentMapDataPaths(environment);
+  const dataPaths = options.dataPaths ?? sarvadrikDataPaths(environment);
   const store = new LocalRuntimeStore(dataPaths.runtime);
   let codexAvailability: AvailabilityState = "not-detected";
   let codexError: string | undefined;
@@ -390,7 +392,7 @@ export async function buildCapabilityReport(options: {
             ? `${codexSessions.length} local session${codexSessions.length === 1 ? "" : "s"} available`
             : codexAvailability === "available"
               ? "Available; no local sessions found"
-              : "Not detected; AgentMap is still usable",
+              : "Not detected; Sarvadrik is still usable",
       ...(codexSessions[0]?.modifiedAt ? { latestActivity: codexSessions[0].modifiedAt } : {}),
       ...(codexError ? { error: codexError } : {}),
     },
@@ -481,12 +483,12 @@ export async function buildCapabilityReport(options: {
   };
 }
 
-export async function checkDataDirectoryWritable(paths = agentMapDataPaths()) {
+export async function checkDataDirectoryWritable(paths = sarvadrikDataPaths()) {
   const token = `.doctor-${process.pid}-${Date.now()}`;
   const target = join(paths.root, token);
   try {
     await mkdir(paths.root, { recursive: true });
-    await writeFile(target, "AgentMap doctor write probe\n", { mode: 0o600 });
+    await writeFile(target, "Sarvadrik doctor write probe\n", { mode: 0o600 });
     await rm(target, { force: true });
     return true;
   } catch {
@@ -495,7 +497,7 @@ export async function checkDataDirectoryWritable(paths = agentMapDataPaths()) {
   }
 }
 
-export async function listAgentMapData(paths = agentMapDataPaths()) {
+export async function listSarvadrikData(paths = sarvadrikDataPaths()) {
   try {
     return await readdir(paths.root);
   } catch {

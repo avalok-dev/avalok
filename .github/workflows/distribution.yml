@@ -46,6 +46,6 @@ jobs:
       - if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: agentmap-packed-tarball
+          name: sarvadrik-packed-tarball
           path: artifacts/release/*.tgz
           retention-days: 7

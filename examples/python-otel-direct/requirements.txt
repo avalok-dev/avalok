@@ -1,4 +1,4 @@
-# Standard, maintained OpenTelemetry packages only. No AgentMap-specific exporter.
+# Standard, maintained OpenTelemetry packages only. No Sarvadrik-specific exporter.
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-exporter-otlp-proto-http

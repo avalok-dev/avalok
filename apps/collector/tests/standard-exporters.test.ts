@@ -25,7 +25,7 @@ afterEach(async () =>
 );
 
 async function exportWith(kind: "protobuf" | "json") {
-  const store = new LocalRuntimeStore(await mkdtemp(join(tmpdir(), "agentmap-exporter-")));
+  const store = new LocalRuntimeStore(await mkdtemp(join(tmpdir(), "sarvadrik-exporter-")));
   const server = createCollectorServer({ store });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -43,7 +43,7 @@ async function exportWith(kind: "protobuf" | "json") {
     resource: resourceFromAttributes({ "service.name": `node-${kind}-exporter` }),
     spanProcessors: [new SimpleSpanProcessor(exporter)],
   });
-  const tracer = provider.getTracer("agentmap.standard-exporter-test");
+  const tracer = provider.getTracer("sarvadrik.standard-exporter-test");
   tracer.startActiveSpan(
     "agent run",
     { attributes: { "openinference.span.kind": "AGENT" } },

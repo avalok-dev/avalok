@@ -1,7 +1,7 @@
 import {
-  agentMapDataPaths,
-  readAgentMapSettings,
-  writeAgentMapSettings,
+  sarvadrikDataPaths,
+  readSarvadrikSettings,
+  writeSarvadrikSettings,
 } from "@visual-system/capabilities";
 import { readJsonBody, RequestBodyError } from "@/lib/request-body";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json(await readAgentMapSettings(agentMapDataPaths()), {
+  return Response.json(await readSarvadrikSettings(sarvadrikDataPaths()), {
     headers: { "Cache-Control": "no-store" },
   });
 }
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     if (typeof body?.gettingStartedDismissed !== "boolean")
       return Response.json({ error: "Invalid settings value." }, { status: 400 });
     const settings = { gettingStartedDismissed: body.gettingStartedDismissed };
-    await writeAgentMapSettings(settings, agentMapDataPaths());
+    await writeSarvadrikSettings(settings, sarvadrikDataPaths());
     return Response.json(settings);
   } catch (error) {
     if (error instanceof RequestBodyError)

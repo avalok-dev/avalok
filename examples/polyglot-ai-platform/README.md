@@ -1,10 +1,10 @@
 # Polyglot AI platform
 
-This deterministic fixture demonstrates AgentMap's TypeScript + Python + Docker Compose static
+This deterministic fixture demonstrates Sarvadrik's TypeScript + Python + Docker Compose static
 analysis and Python OTLP runtime reconciliation. The default live server uses only Python's standard
 library. No Docker daemon, paid model, credentials, or dependency installation is required.
 
-From the AgentMap repository root:
+From the Sarvadrik repository root:
 
 ```bash
 pnpm dev
@@ -25,4 +25,4 @@ examples/polyglot-ai-platform/.venv/bin/uvicorn app.main:app \
   --app-dir examples/polyglot-ai-platform/backend --port 4320
 ```
 
-The Compose file is analysis input. AgentMap does not run it.
+The Compose file is analysis input. Sarvadrik does not run it.

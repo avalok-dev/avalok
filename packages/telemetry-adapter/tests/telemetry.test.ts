@@ -197,7 +197,7 @@ describe("OTLP JSON ingestion", () => {
 
 describe("local runtime storage", () => {
   it("persists and concurrently merges batches for refresh-safe replay", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "agentmap-runtime-"));
+    const directory = await mkdtemp(join(tmpdir(), "sarvadrik-runtime-"));
     const store = new LocalRuntimeStore(directory);
     const first = normalizeTraces(
       parseOtlpJson(

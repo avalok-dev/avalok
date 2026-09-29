@@ -17,8 +17,8 @@ createServer(async (request, response) => {
     await exportTrace(
       buildTracePayload(prompt, {
         ...(process.env.OTEL_SERVICE_NAME ? { serviceName: process.env.OTEL_SERVICE_NAME } : {}),
-        ...(typeof request.headers["x-agentmap-fake-secret"] === "string"
-          ? { authorization: request.headers["x-agentmap-fake-secret"] }
+        ...(typeof request.headers["x-sarvadrik-fake-secret"] === "string"
+          ? { authorization: request.headers["x-sarvadrik-fake-secret"] }
           : {}),
       }),
       collector,

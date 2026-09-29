@@ -77,7 +77,7 @@ export function otlpEncoding(contentType: string | undefined) {
 }
 
 /** Programmatic-only routes: Claude Code hooks and the dashboard's server-side test trace. */
-const programmaticRoutes = new Set(["/v1/claude/hooks", "/v1/agentmap/test-trace"]);
+const programmaticRoutes = new Set(["/v1/claude/hooks", "/v1/sarvadrik/test-trace"]);
 
 /**
  * Browser-abuse checks that run before any route. See docs/security/local-http.md.
@@ -147,7 +147,7 @@ export interface CollectorOptions {
   /** Claude hook request limit; defaults to `maxBodyBytes`. */
   maxHookBodyBytes?: number;
   /**
-   * Skip Host validation. Only for the explicit `AGENTMAP_ALLOW_REMOTE_OTLP=1` non-loopback
+   * Skip Host validation. Only for the explicit `SARVADRIK_ALLOW_REMOTE_OTLP=1` non-loopback
    * bind of the standalone development collector; the product CLI never sets it.
    */
   allowRemoteHosts?: boolean;
@@ -286,7 +286,7 @@ export function createCollectorServer(options: CollectorOptions = {}) {
           );
         return;
       }
-      if (request.method === "POST" && url.pathname === "/v1/agentmap/test-trace") {
+      if (request.method === "POST" && url.pathname === "/v1/sarvadrik/test-trace") {
         // JSON is not a CORS-simple type, so a web page cannot send this without a preflight.
         if (!isJsonMediaType(request.headers["content-type"])) {
           const rejected = unsupportedMediaType("application/json");
@@ -351,19 +351,19 @@ export function createCollectorServer(options: CollectorOptions = {}) {
 }
 
 export function collectorConfiguration(environment = process.env) {
-  const host = environment.AGENTMAP_OTLP_HOST || DEFAULT_OTLP_HOST;
-  const port = Number(environment.AGENTMAP_OTLP_PORT || DEFAULT_OTLP_PORT);
-  if (!loopbackHosts.has(host) && environment.AGENTMAP_ALLOW_REMOTE_OTLP !== "1") {
-    throw new Error("Refusing a non-loopback OTLP bind without AGENTMAP_ALLOW_REMOTE_OTLP=1.");
+  const host = environment.SARVADRIK_OTLP_HOST || DEFAULT_OTLP_HOST;
+  const port = Number(environment.SARVADRIK_OTLP_PORT || DEFAULT_OTLP_PORT);
+  if (!loopbackHosts.has(host) && environment.SARVADRIK_ALLOW_REMOTE_OTLP !== "1") {
+    throw new Error("Refusing a non-loopback OTLP bind without SARVADRIK_ALLOW_REMOTE_OTLP=1.");
   }
   if (!Number.isInteger(port) || port < 1 || port > 65_535)
-    throw new Error("AGENTMAP_OTLP_PORT must be a valid TCP port.");
+    throw new Error("SARVADRIK_OTLP_PORT must be a valid TCP port.");
   return { host, port };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { host, port } = collectorConfiguration();
   createCollectorServer({ allowRemoteHosts: !loopbackHosts.has(host) }).listen(port, host, () => {
-    process.stdout.write(`AgentMap collector listening on http://${host}:${port}\n`);
+    process.stdout.write(`Sarvadrik collector listening on http://${host}:${port}\n`);
   });
 }
