@@ -1,5 +1,7 @@
 # Milestone 6 — Infrastructure Intelligence
 
+> **Historical record.** Written while the product's working name was AgentMap; the product is now **Sarvadrik** (CLI `sarvadrik`, environment variables `SARVADRIK_*`). Commands and names below are as they were at the time.
+
 ## Status and intent
 
 Milestone 6 extends AgentMap from application and runtime understanding into infrastructure understanding. The implementation remains a bounded, local, static analysis pipeline. It reads repository files, records evidence, and infers relationships; it never runs Terraform, Helm, kubectl, cloud CLIs, provider plugins, provisioners, or user code.

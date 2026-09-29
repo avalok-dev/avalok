@@ -1,5 +1,7 @@
 # Milestone 4: universal local runtime observability
 
+> **Historical record.** Written while the product's working name was AgentMap; the product is now **Sarvadrik** (CLI `sarvadrik`, environment variables `SARVADRIK_*`). Commands and names below are as they were at the time.
+
 ## Baseline and verified starting point
 
 AgentMap enters this milestone with three working layers that must remain separate:

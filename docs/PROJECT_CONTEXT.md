@@ -1,4 +1,4 @@
-# AgentMap project context
+# Sarvadrik project context
 
 This is concise durable context for new coding tasks. `AGENTS.md` contains mandatory rules; this file records current product state and decisions.
 
@@ -10,8 +10,8 @@ This is concise durable context for new coding tasks. `AGENTS.md` contains manda
 - **Milestone 4:** loopback OTLP/HTTP JSON ingestion, OpenInference and conservative generic OpenTelemetry normalization, opt-in Claude Code hooks/telemetry, a shared runtime adapter contract, persisted runtime runs, live updates, trace hierarchy, privacy/size policy, and expanded reconciliation.
 - **Milestone 5:** safe Python analysis, Dockerfile and Compose parsing, polyglot service discovery, service-level architecture inference, cross-language reconciliation, and a runnable TypeScript/Python/worker fixture.
 - **Milestone 6:** static Terraform, Kubernetes, Helm, and AWS infrastructure intelligence; application/deployment/runtime reconciliation; hierarchy/layer views; and resource metric/cost foundations.
-- **Milestone 7.1:** package-shaped `agentmap` CLI, current/explicit repository targeting, one-command dashboard and OTLP startup, loopback-only defaults, readiness checks, source status, browser opening, and coordinated shutdown.
-- **Milestone 7.2:** centralized capability/status reporting, a dismissible first-run/setup surface, actionable empty states, accurate OTLP/HTTP JSON guidance, a synthetic test trace, `agentmap doctor`, and platform-appropriate AgentMap-owned data controls.
+- **Milestone 7.1:** package-shaped `sarvadrik` CLI, current/explicit repository targeting, one-command dashboard and OTLP startup, loopback-only defaults, readiness checks, source status, browser opening, and coordinated shutdown.
+- **Milestone 7.2:** centralized capability/status reporting, a dismissible first-run/setup surface, actionable empty states, accurate OTLP/HTTP JSON guidance, a synthetic test trace, `sarvadrik doctor`, and platform-appropriate Sarvadrik-owned data controls.
 - **Milestone 7.3:** one installable package (bundled CLI/collector/analyzers, Next.js standalone dashboard, allowlisted samples), centralized identity/version, clean-install smoke outside the monorepo, OTLP/HTTP protobuf ingestion, safe migration from `~/.agentmap/runtime`, and cross-platform hardening.
 - **Milestone 7.4A:** local HTTP hardening (loopback Host on the actual port, same-loopback Origin, JSON-only mutations/hooks/test trace, no CORS), tracer-safe home paths that fix the Windows build, neutral-path release builds with a path-leak scan, and a green macOS/Linux/Windows distribution CI.
 - Milestones 1-6 and M7.1-M7.4A are complete. Preserve their behavior rather than recreating it.
@@ -60,7 +60,7 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 - The browser may analyze only the server-selected current repository. It must not accept an unchecked arbitrary filesystem path.
 - Repository analysis stays local: no LLM, cloud, telemetry, or source upload.
 - Runtime sources declare capabilities; unsupported features are not represented as fake empty implementations.
-- The collector binds to `127.0.0.1:4318`, requires explicit opt-in for public binding, bounds payloads, and persists only sanitized normalized snapshots below AgentMap's platform user-data `runtime/` directory.
+- The collector binds to `127.0.0.1:4318`, requires explicit opt-in for public binding, bounds payloads, and persists only sanitized normalized snapshots below Sarvadrik's platform user-data `runtime/` directory.
 - OTLP/OpenInference, Claude, and Codex all reach the existing vendor-neutral `Run.events`, graph, replay, and reconciliation paths.
 - Generic service/HTTP/database spans remain conservative; arbitrary telemetry is not labeled as agent activity.
 - Runtime deployment context follows one direct `deployed-as` edge; it is not recursively claimed on cloud/cluster/network entities.
@@ -69,7 +69,7 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 - OTLP protobuf is decoded with `protobufjs` against vendored official opentelemetry-proto definitions into the OTLP/JSON shape, then shares the JSON pipeline. OTLP/gRPC is unsupported.
 - Loopback binding is not trusted on its own. Every dashboard request passes `apps/web/src/middleware.ts` and every collector request passes `guardCollectorRequest`: Host must be loopback on the actual port, a present Origin must be the same loopback server (`null` never), and mutations, Claude hooks, and the test trace require `application/json`. Missing Origin is allowed for non-browser clients. No `Access-Control-*` headers. See `docs/security/local-http.md` and `docs/security/threat-model.md`.
 - Dashboard-bundled code takes `homedir()` as a parameter default so Next's file tracer never globs the build machine's home directory (Windows cross-drive failure in M7.3). Release artifacts come only from `pnpm release:build` (neutral temp path, leak scan, packaged smoke).
-- The CLI defaults to `process.cwd()`, passes a canonical server-owned target to the dashboard, binds local services to `127.0.0.1`, and uses the platform AgentMap user-data root unless `AGENTMAP_DATA_DIR` is set.
+- The CLI defaults to `process.cwd()`, passes a canonical server-owned target to the dashboard, binds local services to `127.0.0.1`, and uses the platform Sarvadrik user-data root unless `SARVADRIK_DATA_DIR` is set.
 
 ## Verified Milestone 7.4A state (2026-09-28)
 
@@ -89,7 +89,7 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 
 ## Verified Milestone 7.1 state (2026-09-26)
 
-- The local product command is `pnpm agentmap [path]`; help, version, `--no-open`, `--port`, and `--otlp-port` are supported.
+- The local product command is `pnpm sarvadrik [path]`; help, version, `--no-open`, `--port`, and `--otlp-port` are supported.
 - Dashboard port `4737` falls forward through a bounded local range; the standardized OTLP port `4318` fails clearly on conflict. Both services bind only to loopback.
 - The real production dashboard and collector were started through the CLI against `examples/polyglot-ai-platform`; both health endpoints passed, the repository API returned the intended canonical target and six architecture entities, Ctrl+C exited zero, and both ports were released.
 - Focused CLI coverage includes argument parsing, default/explicit/invalid targets, ports, loopback startup, analyzer target propagation, non-fatal discovery, browser failure, signals, and a temporary external-repository integration path.
@@ -102,7 +102,7 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 - The web source selector exposes Terraform, Kubernetes, Helm, and the unified golden fixture. All/Application/Infrastructure/Runtime filters preserve the established canvas and inspector.
 - `format:check`, lint, typecheck, all 78 tests, and the production build pass across the workspace.
 - A clean browser session loaded the golden fixture, exercised All/Infrastructure/Runtime filtering, inspected configured deployment metrics and evidence, and reported no console errors.
-- The real AgentMap repository analyzed 240 files (176 parsed), 25 services, 28 entities, and 65 edges in `528ms` in the isolated verification run. Focused fixture test-body measurements were: polyglot `8ms`, Terraform AWS `34ms`, Kubernetes `9ms`, and golden unified infrastructure `20ms`. These are local development measurements, not hard performance guarantees.
+- The real Sarvadrik repository analyzed 240 files (176 parsed), 25 services, 28 entities, and 65 edges in `528ms` in the isolated verification run. Focused fixture test-body measurements were: polyglot `8ms`, Terraform AWS `34ms`, Kubernetes `9ms`, and golden unified infrastructure `20ms`. These are local development measurements, not hard performance guarantees.
 
 ## Verified Milestone 5 state (2026-09-25)
 
@@ -110,7 +110,7 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 - `lint`, `typecheck`, 63 tests, formatting, and production build pass.
 - Tests cover the original Demo/Codex/analyzer/replay behavior plus OTLP, OpenInference, Claude fixtures, Python/FastAPI/Flask/Django analysis, relative imports, Docker/Compose, malformed input recovery, inventory-only languages, service inference, polyglot runtime reconciliation, redaction, truncation, concurrent persistence, public-bind refusal, and a 2,000-span normalization case.
 - Browser verification covers the FastAPI and polyglot fixture selectors, service-level graph, language/port/route inspector detail, and compact-width access to the source picker.
-- The real AgentMap repository analyzed in about `0.8s` in isolation (`3.0s` under the fully parallel test workload); the polyglot fixture analyzed in about `61ms`. These are local development measurements, not hard performance guarantees.
+- The real Sarvadrik repository analyzed in about `0.8s` in isolation (`3.0s` under the fully parallel test workload); the polyglot fixture analyzed in about `61ms`. These are local development measurements, not hard performance guarantees.
 - The credential-free polyglot fixture emitted a completed seven-event `research-api · POST /chat` OTLP run through the loopback collector and appeared in the source selector.
 - The nvm default is Node `24.19.0`; Corepack resolves pnpm `11.19.0`. Existing Node versions were retained.
 
@@ -133,7 +133,7 @@ Exact counts may change as the repository changes; tests should assert meaningfu
 - The receiver supports OTLP/HTTP protobuf and JSON traces, not OTLP/gRPC, metrics, or logs.
 - Installed size (≈353 MB) is dominated by Next.js, its optional SWC binary, and TypeScript. Next server output keeps the build path as labels, so only neutral-path `release:build` artifacts are releasable.
 - Third-party license notices are not yet shipped, and `elkjs` (EPL-2.0) is compiled into the dashboard; both are M7.4B release blockers.
-- OTLP exporters generally send completed spans; AgentMap does not fabricate span-start events.
+- OTLP exporters generally send completed spans; Sarvadrik does not fabricate span-start events.
 - Claude historical data includes observations persisted after hooks/telemetry are enabled; private transcript files are not parsed by default.
 
 ## Source-of-truth documents

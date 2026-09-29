@@ -1,5 +1,7 @@
 # Milestone 7: public developer preview
 
+> **Historical record.** Written while the product's working name was AgentMap; the product is now **Sarvadrik** (CLI `sarvadrik`, environment variables `SARVADRIK_*`). Commands and names below are as they were at the time.
+
 Milestone 7 turns the completed local AgentMap system into a developer-preview product without changing the static-analysis, runtime, reconciliation, or UI foundations delivered in Milestones 1-6. The product name remains provisional and no public package name, account, release, or irreversible branding dependency is created in this milestone.
 
 ## Staged delivery

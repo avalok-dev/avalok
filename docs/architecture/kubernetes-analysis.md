@@ -6,4 +6,4 @@ Supported resources include workloads, containers, Services, Ingress, ConfigMap,
 
 Configured replicas, CPU/memory requests, and CPU/memory limits are metrics with `configured` provenance. Secret payloads never enter analysis; only key names/counts and reference relationships are retained.
 
-Invalid documents create diagnostics without aborting valid sibling documents or files. AgentMap does not contact a cluster and cannot infer admission, controller output, or live state.
+Invalid documents create diagnostics without aborting valid sibling documents or files. Sarvadrik does not contact a cluster and cannot infer admission, controller output, or live state.

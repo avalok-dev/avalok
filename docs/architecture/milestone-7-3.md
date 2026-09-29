@@ -1,5 +1,7 @@
 # Milestone 7.3 — installable distribution and clean-machine reliability
 
+> **Historical record.** Written while the product's working name was AgentMap; the product is now **Sarvadrik** (CLI `sarvadrik`, environment variables `SARVADRIK_*`). Commands and names below are as they were at the time.
+
 M7.3 turns the M7.1/M7.2 source-workspace product into one installable Node package that runs without the AgentMap repository, pnpm workspace links, TypeScript source, or a development server. Nothing is published. The package is private, carries a reversible internal name, and is only ever packed to a local tarball.
 
 ## Baseline (before M7.3 changes)

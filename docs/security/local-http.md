@@ -1,6 +1,6 @@
 # Local HTTP security
 
-AgentMap runs two HTTP servers on the user's machine:
+Sarvadrik runs two HTTP servers on the user's machine:
 
 | Server    | Default                | Serves                                                                         |
 | --------- | ---------------------- | ------------------------------------------------------------------------------ |
@@ -8,7 +8,7 @@ AgentMap runs two HTTP servers on the user's machine:
 |           | `127.0.0.1:3000` (dev) |                                                                                |
 | Collector | `127.0.0.1:4318`       | OTLP/HTTP `/v1/traces`, Claude hooks `/v1/claude/hooks`, test trace, `/health` |
 
-Both bind to loopback only. **That is not enough on its own.** Any web page open in the user's browser can send requests to `127.0.0.1`, and DNS rebinding can make a foreign hostname resolve to `127.0.0.1` so a page can _read_ responses. AgentMap therefore treats every browser-controlled input as untrusted: `Host`, `Origin`, `Content-Type`, path, query, headers, and bodies.
+Both bind to loopback only. **That is not enough on its own.** Any web page open in the user's browser can send requests to `127.0.0.1`, and DNS rebinding can make a foreign hostname resolve to `127.0.0.1` so a page can _read_ responses. Sarvadrik therefore treats every browser-controlled input as untrusted: `Host`, `Origin`, `Content-Type`, path, query, headers, and bodies.
 
 ## Rules
 
@@ -19,23 +19,23 @@ Validation lives in one small package, `@visual-system/local-security` (pure fun
 - Allowed hostnames: `127.0.0.1`, `localhost` (case-insensitive), and `[::1]`. Anything else is rejected with `403`: foreign names, LAN addresses, `0.0.0.0`, other `127.x` addresses, IPv4-mapped or expanded IPv6 forms, trailing-dot names, userinfo, paths, malformed ports, and a missing Host.
 - The port must be the port the server actually listens on. A Host without a port means `:80` and is rejected.
   - **Collector:** the socket's local port (`request.socket.localPort`), so `--otlp-port` and ephemeral test ports work automatically.
-  - **Dashboard:** `AGENTMAP_DASHBOARD_PORT` (set by the CLI), otherwise `PORT`. `next dev` and `next start` publish the bound port, including after `next dev` falls forward to another port. If neither is known, only the hostname is checked.
+  - **Dashboard:** `SARVADRIK_DASHBOARD_PORT` (set by the CLI), otherwise `PORT`. `next dev` and `next start` publish the bound port, including after `next dev` falls forward to another port. If neither is known, only the hostname is checked.
 
 This check is what stops DNS rebinding. A rebound page sends `Host: attacker.example:4737`, so it cannot read repository analysis, Codex sessions, runtime runs, capabilities, or even the HTML.
 
 ### Origin
 
-| Where                                                   | Missing Origin | Same loopback server | Other loopback port | Foreign / `null` |
-| ------------------------------------------------------- | -------------- | -------------------- | ------------------- | ---------------- |
-| Dashboard, every path and method                        | allowed        | allowed              | 403                 | 403              |
-| Collector `/v1/claude/hooks`, `/v1/agentmap/test-trace` | allowed        | 403                  | 403                 | 403              |
-| Collector `/v1/traces`, `/health`                       | allowed        | allowed              | allowed             | 403              |
+| Where                                                    | Missing Origin | Same loopback server | Other loopback port | Foreign / `null` |
+| -------------------------------------------------------- | -------------- | -------------------- | ------------------- | ---------------- |
+| Dashboard, every path and method                         | allowed        | allowed              | 403                 | 403              |
+| Collector `/v1/claude/hooks`, `/v1/sarvadrik/test-trace` | allowed        | 403                  | 403                 | 403              |
+| Collector `/v1/traces`, `/health`                        | allowed        | allowed              | allowed             | 403              |
 
-- "Same loopback server" means `http://` plus an allowed loopback hostname plus the dashboard's own port. `http://localhost:4737` and `http://127.0.0.1:4737` are both the same AgentMap dashboard; `https://127.0.0.1:4737` is not.
+- "Same loopback server" means `http://` plus an allowed loopback hostname plus the dashboard's own port. `http://localhost:4737` and `http://127.0.0.1:4737` are both the same Sarvadrik dashboard; `https://127.0.0.1:4737` is not.
 - **Missing Origin is allowed.** Browsers send `Origin` on every `POST` (and on cross-origin `fetch`), so the browser threat always carries one. Clients that omit it are the CLI, curl, OTLP exporters, and Claude Code. Those are local programs, which this layer does not try to stop (see the [threat model](threat-model.md)). Requiring Origin would break OTLP exporters and Claude Code without adding protection.
-- **`Origin: null` is always rejected.** Browsers send it from sandboxed iframes, `file:` pages, `data:` URLs, and some cross-origin redirects. AgentMap has no legitimate use for it.
+- **`Origin: null` is always rejected.** Browsers send it from sandboxed iframes, `file:` pages, `data:` URLs, and some cross-origin redirects. Sarvadrik has no legitimate use for it.
 - Claude Code and the dashboard's server-side test-trace proxy never send `Origin`, so on those two collector routes any Origin, even a loopback page, means a browser and is refused.
-- OTLP exporters normally send no Origin; an exporter running in a local web page would send a loopback Origin, which is allowed. It still needs a CORS preflight that AgentMap never approves.
+- OTLP exporters normally send no Origin; an exporter running in a local web page would send a loopback Origin, which is allowed. It still needs a CORS preflight that Sarvadrik never approves.
 
 ### Content-Type
 
@@ -43,14 +43,14 @@ This check is what stops DNS rebinding. A rebound page sends `Host: attacker.exa
 | --------------------------------------------------- | -------------------------------------------------------------------- | --------- |
 | Dashboard `/api/*` mutations (non-GET/HEAD/OPTIONS) | `application/json` (parameters allowed)                              | 415       |
 | Collector `/v1/claude/hooks`                        | `application/json`                                                   | 415       |
-| Collector `/v1/agentmap/test-trace`                 | `application/json` (body ignored, ≤ 16 KiB)                          | 415       |
+| Collector `/v1/sarvadrik/test-trace`                | `application/json` (body ignored, ≤ 16 KiB)                          | 415       |
 | Collector `/v1/traces`                              | `application/json`, `application/x-protobuf`, `application/protobuf` | 415       |
 
-`text/plain`, `application/x-www-form-urlencoded`, and `multipart/form-data` are the CORS-safelisted types: a page can send them cross-origin with no preflight (for example from an HTML form or `fetch(..., { mode: "no-cors" })`). Requiring JSON forces a preflight, which AgentMap never answers with CORS approval. The Origin check stops the request server-side regardless.
+`text/plain`, `application/x-www-form-urlencoded`, and `multipart/form-data` are the CORS-safelisted types: a page can send them cross-origin with no preflight (for example from an HTML form or `fetch(..., { mode: "no-cors" })`). Requiring JSON forces a preflight, which Sarvadrik never answers with CORS approval. The Origin check stops the request server-side regardless.
 
 ### Claude Code hook content type: evidence
 
-Claude Code's hooks reference documents HTTP hooks as follows: Claude Code "sends the hook's JSON input as the POST request body with `Content-Type: application/json`" (code.claude.com/docs/en/hooks, checked 2026-09-27). AgentMap's documented configuration (`docs/architecture/claude-code.md`) uses `"type": "http"` hooks, and all existing fixtures are JSON. No legitimate Claude Code path sends `text/plain`, so only `application/json` is accepted.
+Claude Code's hooks reference documents HTTP hooks as follows: Claude Code "sends the hook's JSON input as the POST request body with `Content-Type: application/json`" (code.claude.com/docs/en/hooks, checked 2026-09-27). Sarvadrik's documented configuration (`docs/architecture/claude-code.md`) uses `"type": "http"` hooks, and all existing fixtures are JSON. No legitimate Claude Code path sends `text/plain`, so only `application/json` is accepted.
 
 ### CORS
 
@@ -80,7 +80,7 @@ Other dashboard routes are GET-only and read no body. The 5 MiB limit matches co
 
 ## Remote binding
 
-`AGENTMAP_ALLOW_REMOTE_OTLP=1` with a non-loopback `AGENTMAP_OTLP_HOST` is a pre-existing escape hatch for the standalone development collector only. It disables the Host check (remote exporters send the machine's address); the Origin and content-type rules still apply. The product CLI always binds `127.0.0.1` and never sets it. Remote/LAN access is not a supported product mode.
+`SARVADRIK_ALLOW_REMOTE_OTLP=1` with a non-loopback `SARVADRIK_OTLP_HOST` is a pre-existing escape hatch for the standalone development collector only. It disables the Host check (remote exporters send the machine's address); the Origin and content-type rules still apply. The product CLI always binds `127.0.0.1` and never sets it. Remote/LAN access is not a supported product mode.
 
 ## Verification
 

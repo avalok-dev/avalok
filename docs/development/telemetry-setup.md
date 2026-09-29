@@ -1,6 +1,6 @@
 # Local telemetry setup
 
-AgentMap listens on loopback and accepts **trace** payloads over **OTLP/HTTP**, encoded as either protobuf or JSON:
+Sarvadrik listens on loopback and accepts **trace** payloads over **OTLP/HTTP**, encoded as either protobuf or JSON:
 
 ```text
 http://127.0.0.1:4318/v1/traces
@@ -18,11 +18,11 @@ The signal-specific endpoint includes `/v1/traces` and is used as-is. A base `OT
 export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
 ```
 
-No OpenTelemetry Collector is required. A Collector remains an optional bridge, for example for gRPC-only exporters: receive gRPC in the Collector and export `otlphttp` to AgentMap.
+No OpenTelemetry Collector is required. A Collector remains an optional bridge, for example for gRPC-only exporters: receive gRPC in the Collector and export `otlphttp` to Sarvadrik.
 
 ## Python
 
-The standard, maintained `opentelemetry-exporter-otlp-proto-http` exporter sends protobuf directly to AgentMap. Always install into an isolated environment:
+The standard, maintained `opentelemetry-exporter-otlp-proto-http` exporter sends protobuf directly to Sarvadrik. Always install into an isolated environment:
 
 ```sh
 python3 -m venv .venv
@@ -43,8 +43,8 @@ npm install @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-proto
 
 ## OpenInference
 
-OpenInference is a semantic convention layered on OpenTelemetry, so it works over either encoding. AgentMap normalizes agent, chain, LLM/model, tool, retriever, embedding, reranker, prompt, guardrail, evaluator, GenAI, and token attributes. Unknown span kinds are preserved as generic activity with a diagnostic. See [OpenInference](https://arize-ai.github.io/openinference/).
+OpenInference is a semantic convention layered on OpenTelemetry, so it works over either encoding. Sarvadrik normalizes agent, chain, LLM/model, tool, retriever, embedding, reranker, prompt, guardrail, evaluator, GenAI, and token attributes. Unknown span kinds are preserved as generic activity with a diagnostic. See [OpenInference](https://arize-ai.github.io/openinference/).
 
 ## Immediate local proof
 
-Open **Setup → Connect Telemetry → Send Test Trace**. AgentMap sends five deterministic-shape spans directly to its own loopback collector. No API key, model call, internet request, or external AI is involved. Every visible service/entity/run/span is labeled Synthetic Fixture/Test. Select **View in Live** to open it.
+Open **Setup → Connect Telemetry → Send Test Trace**. Sarvadrik sends five deterministic-shape spans directly to its own loopback collector. No API key, model call, internet request, or external AI is involved. Every visible service/entity/run/span is labeled Synthetic Fixture/Test. Select **View in Live** to open it.

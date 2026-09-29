@@ -9,11 +9,11 @@ Claude Code is integrated through current supported interfaces rather than depen
 
 The receiver accepts hook requests only as Claude Code sends them: `POST` with `Content-Type: application/json`, no browser `Origin`, and a loopback `Host`. `text/plain`, form, and multipart bodies return `415`, and any `Origin` returns `403`, so a web page cannot forge Claude observations (see [local HTTP security](../security/local-http.md)).
 
-Hook requests are observational. AgentMap responds successfully and never returns a permission decision, changes tool input/output, or blocks Claude Code.
+Hook requests are observational. Sarvadrik responds successfully and never returns a permission decision, changes tool input/output, or blocks Claude Code.
 
 ## Enable traces
 
-Start AgentMap first with `pnpm dev`, then launch Claude Code from a shell with:
+Start Sarvadrik first with `pnpm dev`, then launch Claude Code from a shell with:
 
 ```bash
 export CLAUDE_CODE_ENABLE_TELEMETRY=1
@@ -26,7 +26,7 @@ claude
 
 `http/protobuf` also works since M7.3; either OTLP/HTTP encoding reaches the same pipeline.
 
-Claude tracing is a Claude Code beta feature and may change. AgentMap treats missing attributes defensively.
+Claude tracing is a Claude Code beta feature and may change. Sarvadrik treats missing attributes defensively.
 
 ## Enable hooks
 
@@ -88,6 +88,6 @@ This repository does not install hooks automatically because hook scope and priv
 
 Supported hook observations include user prompts, successful and failed tools, Read/Edit/Write file paths, Bash/PowerShell commands, MCP tool identity, web activity, stop/response, and session boundaries. Prompt/response content is bounded and raw data is sanitized before persistence. Thinking/reasoning content is never reconstructed or displayed.
 
-Hook events do not provide token usage. Tokens and model/API hierarchy appear only when Claude's OpenTelemetry trace export provides them. Historical runs are the observations AgentMap has already persisted; AgentMap does not ingest private historical transcript contents by default.
+Hook events do not provide token usage. Tokens and model/API hierarchy appear only when Claude's OpenTelemetry trace export provides them. Historical runs are the observations Sarvadrik has already persisted; Sarvadrik does not ingest private historical transcript contents by default.
 
 The collector health response includes a `claude` section with hook, normalization, unsupported-event, error, live-status, and last-received counters. See the [Milestone 4 acceptance guide](../development/milestone-4-acceptance.md) for a harmless prompt and expected nodes.

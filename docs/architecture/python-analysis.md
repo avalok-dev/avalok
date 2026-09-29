@@ -1,6 +1,6 @@
 # Python repository analysis
 
-AgentMap analyzes Python statically inside `@visual-system/analyzer`. It never invokes Python,
+Sarvadrik analyzes Python statically inside `@visual-system/analyzer`. It never invokes Python,
 imports a target module, creates an environment, installs a dependency, or evaluates project
 configuration.
 

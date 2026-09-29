@@ -9,13 +9,13 @@ Two workflows run on every push and pull request. Nothing is published by either
 
 `release:build` ([release build](release-build.md)) copies the source to a neutral temporary path with spaces, builds and packs there, scans the package for build-machine paths, installs the tarball into a separate temporary directory with plain `npm install` (no links, workspace protocol, or `NODE_PATH`), and runs the installed-product smoke test:
 
-- `agentmap --version`, `--help`, `data path`, and `doctor` on five external fixtures (JS/TS, Python, polyglot, infrastructure, Unicode name)
+- `sarvadrik --version`, `--help`, `data path`, and `doctor` on five external fixtures (JS/TS, Python, polyglot, infrastructure, Unicode name)
 - startup with a hostile `HOSTNAME=0.0.0.0`; dashboard HTML and static assets; repository and sample analysis
 - dashboard and OTLP health; capabilities; the UI test trace; OTLP JSON and protobuf; the standard Python protobuf exporter
 - 17 local-security checks against the production servers
 - shutdown with port release; restart persistence; force-kill orphan cleanup; safe `data clear`
 
-The Linux job uploads the neutral tarball as the `agentmap-packed-tarball` artifact (7 days).
+The Linux job uploads the neutral tarball as the `sarvadrik-packed-tarball` artifact (7 days).
 
 ## Platform notes
 

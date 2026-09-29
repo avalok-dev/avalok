@@ -1,5 +1,7 @@
 # Milestone 2: local Codex session ingestion
 
+> **Historical record.** Written while the product's working name was AgentMap; the product is now **Sarvadrik** (CLI `sarvadrik`, environment variables `SARVADRIK_*`). Commands and names below are as they were at the time.
+
 Milestone 2 adds a real, read-only runtime source without changing the Milestone 1 schema-first architecture. The demo fixture remains available. A user can switch to a discovered local Codex JSONL session, replay its history, inspect normalized and underlying records, and continue following appended records live.
 
 ## Boundaries

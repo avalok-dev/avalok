@@ -10,4 +10,4 @@ Terraform `aws_*` resources map into a small, reusable ontology:
 
 An AWS provider boundary groups system-level resources. VPC, ALB, EKS, managed data services, queues, and functions remain visible by default; subnet, IAM, listener, target-group, and similar fan-out defaults to detail visibility.
 
-Only explicit Terraform traversals, literal properties, and exact repository annotations create relationships. AgentMap does not call AWS APIs, resolve ARNs, inspect accounts, or claim a deployed/live state.
+Only explicit Terraform traversals, literal properties, and exact repository annotations create relationships. Sarvadrik does not call AWS APIs, resolve ARNs, inspect accounts, or claim a deployed/live state.

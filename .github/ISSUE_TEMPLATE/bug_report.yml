@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in Sarvadrik does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do **not** report security vulnerabilities here; see SECURITY.md.
+        Do not paste private source code, session transcripts, or credentials.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: A minimal repository layout or sample file helps a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: sarvadrik doctor output
+      description: Run `sarvadrik doctor` in the affected repository. Review it before posting (it contains local paths).
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Sarvadrik version
+      description: Output of `sarvadrik --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Linux, Windows, Other]
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: Output of `node --version`

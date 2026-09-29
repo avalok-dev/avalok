@@ -1,5 +1,7 @@
 # Milestone 6 manual acceptance plan
 
+> **Historical record.** Written while the product's working name was AgentMap; the product is now **Sarvadrik** (CLI `sarvadrik`, environment variables `SARVADRIK_*`). Commands and names below are as they were at the time.
+
 From the repository root, install the locked dependencies and start AgentMap:
 
 ```bash
