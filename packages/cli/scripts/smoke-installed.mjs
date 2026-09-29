@@ -172,6 +172,9 @@ async function json(url, init) {
 
 const tarballSource = resolve(option("--tarball") ?? newestTarball());
 const expectedVersion = JSON.parse(readFileSync(join(cliRoot, "package.json"), "utf8")).version;
+const product = JSON.parse(readFileSync(join(cliRoot, "product.json"), "utf8"));
+// Former working name; must not appear in anything a user sees.
+const legacyBrand = /agentmap/i;
 const scratch = mkdtempSync(join(tmpdir(), "sarvadrik smoke "));
 const install = join(scratch, "Install Dir With Spaces");
 const repositories = join(scratch, "External Repos");
@@ -285,19 +288,44 @@ try {
     installResult.status === 0,
     installResult.stderr.trim().split("\n").at(-1),
   );
-  const packageRoot = join(install, "node_modules", "@visual-system", "sarvadrik");
-  const bin = join(packageRoot, "bin", "sarvadrik.mjs");
+  const packageRoot = join(install, "node_modules", ...product.packageName.split("/"));
+  const bin = join(packageRoot, "bin", `${product.cliName}.mjs`);
   const shim = join(
     install,
     "node_modules",
     ".bin",
-    process.platform === "win32" ? "sarvadrik.cmd" : "sarvadrik",
+    process.platform === "win32" ? `${product.cliName}.cmd` : product.cliName,
   );
   check(
     "installed as a real directory (no link)",
     existsSync(bin) && !lstatSync(packageRoot).isSymbolicLink(),
   );
   check("bin shim created", existsSync(shim));
+  const installedManifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
+  check(
+    "package identity",
+    installedManifest.name === product.packageName &&
+      installedManifest.version === expectedVersion &&
+      installedManifest.homepage === product.homepage,
+    `${installedManifest.name}@${installedManifest.version}${installedManifest.private ? " (private)" : " (publishable)"}`,
+  );
+  check(
+    "LICENSE shipped",
+    /Apache License/.test(readFileSync(join(packageRoot, "LICENSE"), "utf8")),
+  );
+  const packageReadme = readFileSync(join(packageRoot, "README.md"), "utf8");
+  check(
+    "README shipped with product branding",
+    packageReadme.includes(product.displayName) && !legacyBrand.test(packageReadme),
+  );
+  const notices = readFileSync(join(packageRoot, "THIRD_PARTY_NOTICES.md"), "utf8");
+  check(
+    "third-party notices shipped (elkjs EPL-2.0 text and source)",
+    /\| elkjs \| [\d.]+ \| EPL-2\.0 \|/.test(notices) &&
+      notices.includes("Eclipse Public License - v 2.0") &&
+      notices.includes("github.com/kieler/elkjs"),
+    `${(notices.match(/^\| /gm) ?? []).length - 2} packages`,
+  );
   check(
     "no workspace node_modules shipped",
     !existsSync(join(packageRoot, "dashboard", "node_modules")),
@@ -322,7 +350,13 @@ try {
     : runSync(shim, ["--version"], { env: environment });
   check("sarvadrik --version", version.stdout.trim() === expectedVersion, version.stdout.trim());
   const help = runSync(process.execPath, [bin, "--help"], { env: environment });
-  check("sarvadrik --help", help.status === 0 && help.stdout.includes("sarvadrik doctor"));
+  check(
+    `${product.cliName} --help`,
+    help.status === 0 &&
+      help.stdout.includes(`${product.cliName} doctor`) &&
+      help.stdout.includes(product.displayName) &&
+      !legacyBrand.test(help.stdout),
+  );
   const path = runSync(process.execPath, [bin, "data", "path"], { env: environment });
   check("sarvadrik data path", path.stdout.trim() === dataRoot, path.stdout.trim());
 
@@ -356,10 +390,19 @@ try {
   const dashboard = `http://127.0.0.1:${ports.dashboard}`;
   const otlp = `http://127.0.0.1:${ports.otlp}`;
   check("startup summary names the target", running.output().stdout.includes("Polyglot Project"));
+  check(
+    "startup banner shows the product name only",
+    running.output().stdout.startsWith(product.displayName) &&
+      !legacyBrand.test(running.output().stdout),
+  );
 
   const page = await fetch(dashboard);
   const html = await page.text();
   check("dashboard HTML served", page.status === 200 && html.includes("<html"));
+  check(
+    "dashboard branding",
+    html.includes(`<title>${product.displayName}`) && !legacyBrand.test(html),
+  );
   const asset = html.match(/\/_next\/static\/[^"']+\.js/)?.[0];
   const assetResponse = asset ? await fetch(`${dashboard}${asset}`) : undefined;
   check("dashboard static asset served", assetResponse?.status === 200, asset);

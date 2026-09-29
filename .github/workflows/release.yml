@@ -1,0 +1,88 @@
+name: Release
+
+# Manual only. Builds the release artifact through the canonical `pnpm release:build --publishable`
+# path (neutral temporary checkout, path-leak scan, installed-product smoke test, SHA-256 and
+# provenance record) and uploads it. Publishing is a separate job that runs only when the
+# `publish` input is true, requires approval of the protected `npm-publish` environment, and
+# uploads exactly the tarball built and tested here after verifying its checksum.
+# See docs/releases/developer-preview.md before running it.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the verified tarball to npm (needs npm-publish environment approval)"
+        type: boolean
+        default: false
+      dist-tag:
+        description: "npm dist-tag"
+        type: string
+        default: latest
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install the standard OpenTelemetry Python exporter
+        run: python -m pip install -r examples/python-otel-direct/requirements.txt
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm release:build --publishable --python python
+      - name: Check provenance
+        run: >
+          node -e 'const p = require("./artifacts/release/release-provenance.json");
+          if (!p.publishable || p.gitDirty || p.installedSmoke !== "passed" || p.pathLeakScan !== "passed")
+          { console.error(p); process.exit(1); } console.log(JSON.stringify(p, null, 2));'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sarvadrik-release
+          path: |
+            artifacts/release/*.tgz
+            artifacts/release/*.sha256
+            artifacts/release/release-provenance.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: build
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    # Configure required reviewers for this environment before the first run.
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write # npm provenance / trusted publishing
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: sarvadrik-release
+          path: release
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+      - name: Verify checksum
+        working-directory: release
+        run: sha256sum --check ./*.sha256
+      - name: Publish the verified tarball
+        working-directory: release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIST_TAG: ${{ inputs.dist-tag }}
+        run: npm publish ./*.tgz --provenance --access public --tag "$DIST_TAG"

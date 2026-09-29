@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 // Neutral-path release build.
 //
-//   pnpm release:build [--root <directory>] [--python <python>] [--skip-smoke] [--keep]
+//   pnpm release:build [--root <directory>] [--python <python>] [--publishable] [--skip-smoke] [--keep]
+//
+// This is the only supported source of release artifacts. `--publishable` (the release workflow)
+// omits `private: true`; the resulting tarball is smoke-tested as-is, hashed before and after the
+// smoke test, and described by artifacts/release/release-provenance.json.
 //
 // 1. Copies the checkout's source (tracked files plus untracked, non-ignored files, so local
 //    work is included; never node_modules/dist/.next/artifacts) into a fresh temporary
@@ -16,6 +20,7 @@
 //    the neutral tarball, hiding the neutral checkout on POSIX.
 // 5. Copies the tarball to <checkout>/artifacts/release/ and prints a summary.
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   cpSync,
   existsSync,
@@ -25,6 +30,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
 import { homedir, tmpdir, userInfo } from "node:os";
 import { basename, dirname, extname, join, resolve, sep } from "node:path";
@@ -40,6 +46,7 @@ const option = (name) => {
 const windows = process.platform === "win32";
 
 const log = (message) => process.stdout.write(`• ${message}\n`);
+const sha256 = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
 
 // Prefer the pnpm that launched this script (works without a shell on every OS).
 function pnpm(arguments_, cwd) {
@@ -144,7 +151,7 @@ try {
   log(`Copied ${files.length} source files (tracked + untracked, never ignored output)`);
 
   pnpm(["install", "--frozen-lockfile", "--prefer-offline"], source);
-  pnpm(["dist:build"], source);
+  pnpm(["dist:build", ...(flag("--publishable") ? ["--publishable"] : [])], source);
   pnpm(["dist:pack"], source);
 
   const packageDirectory = join(source, "packages", "cli", "dist");
@@ -178,8 +185,11 @@ try {
   const tarball = readdirSync(artifacts).find((name) => name.endsWith(".tgz"));
   if (!tarball) throw new Error("No tarball was produced.");
   const released = join(checkout, "artifacts", "release");
+  // Only this build's artifact may sit in artifacts/release.
+  rmSync(released, { recursive: true, force: true });
   mkdirSync(released, { recursive: true });
   cpSync(join(artifacts, tarball), join(released, tarball));
+  const digest = sha256(join(released, tarball));
   log(
     `Tarball: ${join("artifacts", "release", tarball)} (${(statSync(join(released, tarball)).size / 1024 / 1024).toFixed(2)} MB)`,
   );
@@ -195,7 +205,38 @@ try {
     ];
     const smoke = spawnSync(process.execPath, smokeArguments, { cwd: scratch, stdio: "inherit" });
     if (smoke.status !== 0) throw new Error("Installed-product smoke test failed.");
+    if (sha256(join(released, tarball)) !== digest)
+      throw new Error("The tarball changed during the smoke test; refusing to record it.");
   }
+  const manifest = JSON.parse(readFileSync(join(packageDirectory, "package.json"), "utf8"));
+  const git = (...arguments_) =>
+    spawnSync("git", arguments_, { cwd: checkout, encoding: "utf8" }).stdout?.trim() ?? "";
+  writeFileSync(join(released, `${tarball}.sha256`), `${digest}  ${tarball}\n`);
+  writeFileSync(
+    join(released, "release-provenance.json"),
+    `${JSON.stringify(
+      {
+        package: manifest.name,
+        version: manifest.version,
+        publishable: manifest.private !== true,
+        tarball,
+        sha256: digest,
+        sizeBytes: statSync(join(released, tarball)).size,
+        gitCommit: git("rev-parse", "HEAD"),
+        gitDirty: git("status", "--porcelain").length > 0,
+        builtAt: new Date().toISOString(),
+        builder: `release:build on ${process.platform}-${process.arch}, Node ${process.versions.node}`,
+        buildRoot: "neutral temporary directory (see docs/development/release-build.md)",
+        pathLeakScan: "passed",
+        installedSmoke: flag("--skip-smoke") ? "skipped" : "passed",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  log(
+    `SHA-256 ${digest}${manifest.private === true ? " (private build)" : " (publishable build)"}`,
+  );
   log("Neutral-path release build passed");
 } finally {
   if (flag("--keep")) log(`Kept: ${neutralRoot}`);
