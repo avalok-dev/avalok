@@ -6,6 +6,9 @@ Two workflows run on every push and pull request. Nothing is published by either
 | ------------------ | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `ci.yml`           | `ubuntu-latest`                                   | frozen install → `format:check` → `lint` → `typecheck` → `test` → `build`                                      |
 | `distribution.yml` | `ubuntu-latest`, `macos-latest`, `windows-latest` | frozen install → standard Python OTel exporter → `pnpm test --continue` → `pnpm release:build --python python` |
+| `release.yml`      | `ubuntu-latest` (manual `workflow_dispatch`)      | full checks → `pnpm release:build --publishable` → provenance gate → artifact; optional gated `publish` job    |
+
+All actions run on Node 24 majors: `actions/checkout@v7`, `pnpm/action-setup@v6`, `actions/setup-node@v7`, `actions/setup-python@v7`, `actions/upload-artifact@v7`, `actions/download-artifact@v8` (M7.4B; the Node 20 deprecation warning is gone). `release.yml` can be dispatched only after it exists on the default branch; it has not been run.
 
 `release:build` ([release build](release-build.md)) copies the source to a neutral temporary path with spaces, builds and packs there, scans the package for build-machine paths, installs the tarball into a separate temporary directory with plain `npm install` (no links, workspace protocol, or `NODE_PATH`), and runs the installed-product smoke test:
 
@@ -27,24 +30,21 @@ The Linux job uploads the neutral tarball as the `sarvadrik-packed-tarball` arti
 
 No step uses `continue-on-error`. `pnpm test --continue` only makes turbo run every package before failing, so one run reports all failures on an OS.
 
-## Results (branch `m7.4a-local-security`, 2026-09-28)
+## Results
 
-**Actually run** on GitHub-hosted runners (Node 24.19.0 from `.node-version`, pnpm 11.19.0, Python 3.12):
+### M7.4B (branch `m7.4b-sarvadrik-rc` @ `40f1780`, 2026-09-29), actually run
 
-| Job                        | Commit    | Unit tests                                  | Neutral build + leak scan                                    | Installed smoke              | Duration |
-| -------------------------- | --------- | ------------------------------------------- | ------------------------------------------------------------ | ---------------------------- | -------- |
-| `ubuntu-latest`            | `fab80b8` | 289/289                                     | pass; 0 leaks; neutral root in 29 label files                | **60/60** (workspace hidden) | 2m36s    |
-| `macos-latest` (arm64)     | `fab80b8` | 289/289                                     | pass; 0 leaks; neutral root in 29 label files                | **60/60** (workspace hidden) | 1m37s    |
-| `windows-latest`           | `fab80b8` | 289/289                                     | pass; 0 leaks; neutral root `D:\a\_temp\…` in 29 label files | **57/57**                    | 6m58s    |
-| `ci.yml` (`ubuntu-latest`) | `fab80b8` | format, lint, typecheck, tests, build: pass | —                                                            | —                            | 2m53s    |
+| Job                        | Unit tests                                  | Neutral build + leak scan           | Installed smoke              | Duration |
+| -------------------------- | ------------------------------------------- | ----------------------------------- | ---------------------------- | -------- |
+| `ubuntu-latest`            | 293/293                                     | pass; 0 leaks; notices 49 packages  | **66/66** (workspace hidden) | 3m36s    |
+| `macos-latest` (arm64)     | 293/293                                     | pass; 0 leaks; notices 49 packages  | **66/66** (workspace hidden) | 1m45s    |
+| `windows-latest`           | 293/293                                     | pass; 0 leaks; neutral root on `D:` | **63/63**                    | 5m23s    |
+| `ci.yml` (`ubuntu-latest`) | format, lint, typecheck, tests, build: pass | —                                   | —                            | ≈3m      |
 
-Windows and Linux bugs found and fixed while getting there:
+The smoke test now also checks package identity (`sarvadrik@0.1.0-alpha.1`), `LICENSE`, the package README, `THIRD_PARTY_NOTICES.md` (elkjs, EPL-2.0 text, source link), and the absence of AgentMap branding in `--help`, the startup banner, and the dashboard HTML. Remaining annotations are GitHub notices only (Ubuntu 26 label migration, macOS capacity).
 
-1. **Windows `next build` crashed** (M7.3's red run): Next's file tracer globbed `C:\Users\runneradmin` across drives and hit `EPERM … Application Data`. Home paths are now opaque to the tracer; see the release-build doc and `build-tracing.test.ts`.
-2. **Windows CRLF checkout** broke the shebang OTLP-descriptor generator under Vite. Fixed with `.gitattributes` (`* text=auto eol=lf`).
-3. **Windows ESM:** `dist:build` passed a `D:\…` path to `import()`. It now uses `pathToFileURL`, and so does the generator's main-module check.
-4. **Windows shell quoting:** `dist:pack` passed an absolute destination with spaces to `npm.cmd` through a shell. It is now a relative path.
-5. **Test assumptions:** a legacy-path test hard-coded POSIX separators, and a layout test used a drive-less absolute path.
-6. **Linux load:** the whole-repository analyzer test took about 12 s under parallel turbo on 2 cores against a 15 s limit; its budget is now 60 s.
+Builds are not byte-for-byte reproducible across machines: Next.js embeds the random neutral build path as module labels, so each OS's SHA-256 differs. Publication therefore uses the single CI-built tarball whose checksum and provenance the release workflow records.
 
-Earlier runs on the same branch (`bc6ec04`, `990dbd4`, `bd2ebbe`, `03afa85`) failed on items 2–6 in turn; `b3e06d9` reached the Windows release build and failed on items 3–4.
+### M7.4A (branch `m7.4a-local-security` @ `fab80b8`, 2026-09-28)
+
+ubuntu 60/60, macOS 60/60, Windows 57/57 installed smoke; 289/289 unit tests on each. Bugs fixed on the way: Next's file tracer globbing the Windows home directory across drives, CRLF checkouts, Windows ESM `import()` of drive paths, shell quoting of paths with spaces, and POSIX-only test assumptions.

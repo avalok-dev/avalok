@@ -1,6 +1,6 @@
 # Sarvadrik project context
 
-This is concise durable context for new coding tasks. `AGENTS.md` contains mandatory rules; this file records current product state and decisions.
+Sarvadrik ("See your whole system.") was developed under the working name AgentMap; documents named `milestone-*` are historical and use that name. This is concise durable context for new coding tasks. `AGENTS.md` contains mandatory rules; this file records current product state and decisions.
 
 ## Current state
 
@@ -14,7 +14,8 @@ This is concise durable context for new coding tasks. `AGENTS.md` contains manda
 - **Milestone 7.2:** centralized capability/status reporting, a dismissible first-run/setup surface, actionable empty states, accurate OTLP/HTTP JSON guidance, a synthetic test trace, `sarvadrik doctor`, and platform-appropriate Sarvadrik-owned data controls.
 - **Milestone 7.3:** one installable package (bundled CLI/collector/analyzers, Next.js standalone dashboard, allowlisted samples), centralized identity/version, clean-install smoke outside the monorepo, OTLP/HTTP protobuf ingestion, safe migration from `~/.agentmap/runtime`, and cross-platform hardening.
 - **Milestone 7.4A:** local HTTP hardening (loopback Host on the actual port, same-loopback Origin, JSON-only mutations/hooks/test trace, no CORS), tracer-safe home paths that fix the Windows build, neutral-path release builds with a path-leak scan, and a green macOS/Linux/Windows distribution CI.
-- Milestones 1-6 and M7.1-M7.4A are complete. Preserve their behavior rather than recreating it.
+- **Milestone 7.4B:** Sarvadrik identity (CLI `sarvadrik`, package `sarvadrik`, `0.1.0-alpha.1`, `SARVADRIK_*`), AgentMap → Sarvadrik data migration, generated third-party notices (elkjs EPL-2.0 reviewed), Next.js telemetry disabled everywhere, release provenance and a gated release workflow, Node 24 GitHub Actions, public README/CONTRIBUTING/SECURITY/privacy docs, and a release checklist. Release candidate; not published.
+- Milestones 1-6 and M7.1-M7.4B are complete. Preserve their behavior rather than recreating it.
 
 ## Package map
 
@@ -64,12 +65,22 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 - OTLP/OpenInference, Claude, and Codex all reach the existing vendor-neutral `Run.events`, graph, replay, and reconciliation paths.
 - Generic service/HTTP/database spans remain conservative; arbitrary telemetry is not labeled as agent activity.
 - Runtime deployment context follows one direct `deployed-as` edge; it is not recursively claimed on cloud/cluster/network entities.
-- Distribution is one package built by `pnpm dist:build` into `packages/cli/dist` and packed by `pnpm dist:pack` into `artifacts/`. Identity lives in `packages/cli/product.json`; the only version is `packages/cli/package.json#version` (`0.1.0-alpha.N`). The generated manifest is `private: true`; nothing is published before M7.4.
+- Distribution is one package built by `pnpm dist:build` into `packages/cli/dist` and packed by `pnpm dist:pack` into `artifacts/`. Identity lives in `packages/cli/product.json`; the only version is `packages/cli/package.json#version` (`0.1.0-alpha.N`). Everyday manifests are `private: true`; only `pnpm release:build --publishable` (release workflow) omits it, and that exact smoke-tested, checksummed tarball is what a gated publish job uploads.
+- Public configuration uses the Sarvadrik names only: `SARVADRIK_*` environment variables, `.sarvadrikignore`, and the Kubernetes mapping labels `sarvadrik.com/cluster` and `sarvadrik.com/load-balancer`; there are no AgentMap aliases. AgentMap-era data (the AgentMap platform root and `~/.agentmap/runtime`) is copied once into the Sarvadrik root and never modified.
+- `THIRD_PARTY_NOTICES.md` is generated from exactly the bundled modules (esbuild metafile plus a webpack module recorder enabled by `SARVADRIK_MODULE_MANIFEST`) and shipped in the package.
+- `apps/web/next.config.ts` forces `NEXT_TELEMETRY_DISABLED`; the packaged product makes no non-loopback connections. `next dev` still checks registry.npmjs.org for Next's version (contributors only).
 - Installed assets resolve from the bundled module's location; the target is the cwd/argument; data is the platform root. The dashboard child is pinned to `127.0.0.1` and has Next telemetry disabled.
 - OTLP protobuf is decoded with `protobufjs` against vendored official opentelemetry-proto definitions into the OTLP/JSON shape, then shares the JSON pipeline. OTLP/gRPC is unsupported.
 - Loopback binding is not trusted on its own. Every dashboard request passes `apps/web/src/middleware.ts` and every collector request passes `guardCollectorRequest`: Host must be loopback on the actual port, a present Origin must be the same loopback server (`null` never), and mutations, Claude hooks, and the test trace require `application/json`. Missing Origin is allowed for non-browser clients. No `Access-Control-*` headers. See `docs/security/local-http.md` and `docs/security/threat-model.md`.
 - Dashboard-bundled code takes `homedir()` as a parameter default so Next's file tracer never globs the build machine's home directory (Windows cross-drive failure in M7.3). Release artifacts come only from `pnpm release:build` (neutral temp path, leak scan, packaged smoke).
 - The CLI defaults to `process.cwd()`, passes a canonical server-owned target to the dashboard, binds local services to `127.0.0.1`, and uses the platform Sarvadrik user-data root unless `SARVADRIK_DATA_DIR` is set.
+
+## Verified Milestone 7.4B state (2026-09-29)
+
+- `format:check`, lint, typecheck, 293 tests, build, `dist:build`, and `dist:pack` pass; tarball `sarvadrik-0.1.0-alpha.1.tgz` ≈1.87 MB (165 files).
+- GitHub Actions (`m7.4b-sarvadrik-rc` @ `40f1780`): ubuntu 66/66, macOS 66/66, Windows 63/63 installed smoke; 293/293 unit tests on each; `ci.yml` green; no Node 20 deprecation warnings.
+- Packaged acceptance (neutral directory with spaces): version/help/doctor, Infra Platform (26 entities, Terraform/Kubernetes/Helm/AWS), polyglot sample, test trace, OTLP JSON and protobuf, standard Python exporter, Claude hook, Codex discovery (128 sessions, counts only), migration of a copy of real AgentMap data, security probe, zero outbound connections, clean Ctrl+C.
+- Details: `docs/architecture/milestone-7-4b.md`, `docs/releases/developer-preview.md`.
 
 ## Verified Milestone 7.4A state (2026-09-28)
 
@@ -132,7 +143,7 @@ Exact counts may change as the repository changes; tests should assert meaningfu
 - Next.js build emits a non-blocking warning that its optional ESLint plugin is not detected in the shared configuration; lint still passes.
 - The receiver supports OTLP/HTTP protobuf and JSON traces, not OTLP/gRPC, metrics, or logs.
 - Installed size (≈353 MB) is dominated by Next.js, its optional SWC binary, and TypeScript. Next server output keeps the build path as labels, so only neutral-path `release:build` artifacts are releasable.
-- Third-party license notices are not yet shipped, and `elkjs` (EPL-2.0) is compiled into the dashboard; both are M7.4B release blockers.
+- Release builds are not byte-for-byte reproducible across machines (Next.js embeds the random neutral build path as labels); publication relies on the single CI-built tarball's checksum and provenance record.
 - OTLP exporters generally send completed spans; Sarvadrik does not fabricate span-start events.
 - Claude historical data includes observations persisted after hooks/telemetry are enabled; private transcript files are not parsed by default.
 
@@ -162,7 +173,11 @@ Exact counts may change as the repository changes; tests should assert meaningfu
 - `docs/architecture/roadmap.md`
 - `docs/architecture/codex-adapter.md`
 - `docs/architecture/milestone-7-4a.md`
+- `docs/architecture/milestone-7-4b.md`
+- `docs/releases/developer-preview.md`
+- `docs/privacy.md`
+- `docs/development/third-party-notices.md`
 - `docs/security/local-http.md`
 - `docs/security/threat-model.md`
 
-The next stage is M7.4B public release candidate (final name and package identity, third-party notices and the EPL-2.0 decision, README/screenshots, capability matrix, privacy/security docs, CONTRIBUTING, issue templates, release checklist, publication preparation). Do not publish or finalize the name before then.
+The next stage is publication of the developer preview, which requires explicit maintainer approval: follow `docs/releases/developer-preview.md` (repository identity, npm account and environment, private vulnerability reporting, merge, tag, release workflow). Never publish without that approval.
