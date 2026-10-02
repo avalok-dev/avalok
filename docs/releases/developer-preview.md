@@ -34,9 +34,9 @@ Status: **release candidate, not published.** Checked boxes were verified during
 
 ## Verification
 
-- [x] macOS: M7.4C local neutral-path `release:build` 66/66 installed smoke + 303 unit tests (M7.4B CI: 66/66 + 293)
-- [x] Linux: M7.4B CI 66/66 installed smoke + 293 unit tests; Avalok branch CI runs on push (see [distribution CI](../development/distribution-ci.md))
-- [x] Windows: M7.4B CI 63/63 installed smoke + 293 unit tests (cross-drive neutral build); Avalok branch CI runs on push
+- [x] macOS: M7.4C CI 68/68 installed smoke + 303 unit tests; local neutral-path `release:build` 66/66
+- [x] Linux: M7.4C CI 68/68 installed smoke + 303 unit tests ([distribution CI](../development/distribution-ci.md))
+- [x] Windows: M7.4C CI 65/65 installed smoke + 303 unit tests (cross-drive neutral build)
 - [x] OTLP protobuf
 - [x] Standard Python exporter (direct, no Collector, protobuf)
 - [x] Codex: packaged discovery of local sessions (counts only reported)

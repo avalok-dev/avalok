@@ -32,6 +32,17 @@ No step uses `continue-on-error`. `pnpm test --continue` only makes turbo run ev
 
 ## Results
 
+### M7.4C (branch `m7.4c-avalok` @ `64e7cda`, 2026-10-02), actually run
+
+| Job                        | Unit tests                                  | Installed smoke              | Duration |
+| -------------------------- | ------------------------------------------- | ---------------------------- | -------- |
+| `ubuntu-latest`            | 303/303                                     | **68/68** (workspace hidden) | 3m13s    |
+| `macos-latest` (arm64)     | 303/303                                     | **68/68** (workspace hidden) | 2m11s    |
+| `windows-latest`           | 303/303                                     | **65/65**                    | 6m20s    |
+| `ci.yml` (`ubuntu-latest`) | format, lint, typecheck, tests, build: pass | —                            | ≈3m      |
+
+New since M7.4B: the offline OpenAI trace import and idempotent reimport checks, and rejection of both former names (AgentMap, Sarvadrik) in user-visible output. No Node 20 deprecation warnings.
+
 ### M7.4B (branch `m7.4b-sarvadrik-rc` @ `40f1780`, 2026-09-29), actually run
 
 | Job                        | Unit tests                                  | Neutral build + leak scan           | Installed smoke              | Duration |
@@ -41,7 +52,7 @@ No step uses `continue-on-error`. `pnpm test --continue` only makes turbo run ev
 | `windows-latest`           | 293/293                                     | pass; 0 leaks; neutral root on `D:` | **63/63**                    | 5m23s    |
 | `ci.yml` (`ubuntu-latest`) | format, lint, typecheck, tests, build: pass | —                                   | —                            | ≈3m      |
 
-The smoke test now also checks package identity (`avalok@0.1.0-alpha.1`), `LICENSE`, the package README, `THIRD_PARTY_NOTICES.md` (elkjs, EPL-2.0 text, source link), and the absence of AgentMap branding in `--help`, the startup banner, and the dashboard HTML. Remaining annotations are GitHub notices only (Ubuntu 26 label migration, macOS capacity).
+The smoke test now also checks package identity (`sarvadrik@0.1.0-alpha.1` at the time), `LICENSE`, the package README, `THIRD_PARTY_NOTICES.md` (elkjs, EPL-2.0 text, source link), and the absence of AgentMap branding in `--help`, the startup banner, and the dashboard HTML. Remaining annotations are GitHub notices only (Ubuntu 26 label migration, macOS capacity).
 
 Builds are not byte-for-byte reproducible across machines: Next.js embeds the random neutral build path as module labels, so each OS's SHA-256 differs. Publication therefore uses the single CI-built tarball whose checksum and provenance the release workflow records.
 

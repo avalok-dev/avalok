@@ -81,6 +81,7 @@ Dependency direction stays toward reusable data packages; analysis and reconcili
 ## Verified Milestone 7.4C state (2026-10-02)
 
 - `format:check`, lint, typecheck, 303 tests, build, and `release:build` (neutral path, 0 leaks, 66/66 installed smoke) pass; tarball `avalok-0.1.0-alpha.1.tgz` 1.87 MB (165 files).
+- GitHub Actions (`m7.4c-avalok` @ `64e7cda`): ubuntu 68/68, macOS 68/68, Windows 65/65 installed smoke; 303/303 unit tests on each; `ci.yml` green.
 - Packaged acceptance under a fake home: version/help/doctor, Infra Platform (26 entities), test trace, OTLP JSON, standard Python protobuf exporter, Claude hook, Codex discovery (counts only, no file paths), AgentMap migration, security probe (403/415, no CORS, old `/v1/sarvadrik/test-trace` 404), zero outbound connections, Ctrl+C with ports released.
 
 ## Verified Milestone 7.4B state (2026-09-29)
