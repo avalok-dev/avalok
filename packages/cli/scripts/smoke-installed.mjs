@@ -38,6 +38,7 @@ const option = (name) => {
   const index = argumentsList.indexOf(name);
   return index === -1 ? undefined : argumentsList[index + 1];
 };
+const product = JSON.parse(readFileSync(join(cliRoot, "product.json"), "utf8"));
 
 const results = [];
 function check(name, condition, detail = "") {
@@ -49,7 +50,9 @@ function check(name, condition, detail = "") {
 function newestTarball() {
   const directory = join(repositoryRoot, "artifacts");
   const candidates = existsSync(directory)
-    ? readdirSync(directory).filter((name) => name.endsWith(".tgz"))
+    ? readdirSync(directory).filter(
+        (name) => name.startsWith(`${product.packageName}-`) && name.endsWith(".tgz"),
+      )
     : [];
   if (!candidates.length)
     throw new Error("No tarball found. Run `pnpm dist:build && pnpm dist:pack`.");
@@ -172,7 +175,6 @@ async function json(url, init) {
 
 const tarballSource = resolve(option("--tarball") ?? newestTarball());
 const expectedVersion = JSON.parse(readFileSync(join(cliRoot, "package.json"), "utf8")).version;
-const product = JSON.parse(readFileSync(join(cliRoot, "product.json"), "utf8"));
 // Former working name; must not appear in anything a user sees.
 const legacyBrand = /agentmap/i;
 const scratch = mkdtempSync(join(tmpdir(), "sarvadrik smoke "));
@@ -359,6 +361,42 @@ try {
   );
   const path = runSync(process.execPath, [bin, "data", "path"], { env: environment });
   check("sarvadrik data path", path.stdout.trim() === dataRoot, path.stdout.trim());
+
+  const importPage = join(scratch, "saved trace page.json");
+  const importRoot = join(scratch, "Import Data");
+  writeFileSync(
+    importPage,
+    JSON.stringify({
+      object: "list",
+      data: [
+        {
+          object: "agent.session.trace",
+          id: "turn_smoke",
+          session_id: "sess_smoke",
+          otlp: jsonPayload,
+        },
+      ],
+      first_id: "turn_smoke",
+      last_id: "turn_smoke",
+      has_more: false,
+    }),
+  );
+  const importEnvironment = { ...environment, SARVADRIK_DATA_DIR: importRoot };
+  const imported = runSync(process.execPath, [bin, "import", "openai", importPage], {
+    env: importEnvironment,
+  });
+  check(
+    "installed offline OpenAI trace import",
+    imported.status === 0 && imported.stdout.includes("1 distinct spans"),
+    imported.stderr.trim(),
+  );
+  const reimported = runSync(process.execPath, [bin, "import", "openai", importPage], {
+    env: importEnvironment,
+  });
+  check(
+    "installed trace reimport is idempotent",
+    reimported.status === 0 && readdirSync(join(importRoot, "runtime")).length === 1,
+  );
 
   const expectations = {
     "Simple JS App": /typescript/,

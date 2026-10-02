@@ -8,6 +8,7 @@ import type {
   RuntimeSourceKind,
 } from "@visual-system/runtime-adapter";
 import type { ArchitectureGraph, Run, RuntimeEvent } from "@visual-system/schema";
+import { aggregateRunObservability } from "./observability.ts";
 
 export interface PlatformDirectoryNames {
   /** `%LOCALAPPDATA%\<windows>` */
@@ -100,9 +101,59 @@ export function mergeRuntimeSnapshots(
 ): RuntimeSnapshot {
   const previousStart = Date.parse(previous.run.startedAt);
   const currentStart = Date.parse(current.run.startedAt);
-  const eventsById = new Map(
-    [...previous.run.events, ...current.run.events].map((event) => [event.id, event]),
+  const eventsById = new Map(previous.run.events.map((event) => [event.id, event]));
+  for (const event of current.run.events) {
+    const old = eventsById.get(event.id);
+    const oldEnd = old?.metadata?.absoluteEndMs;
+    const newEnd = event.metadata?.absoluteEndMs;
+    const preferOldStatus = old?.metadata?.status === "error" && event.metadata?.status !== "error";
+    eventsById.set(
+      event.id,
+      old
+        ? {
+            ...old,
+            ...event,
+            category: preferOldStatus ? old.category : event.category,
+            action: preferOldStatus ? old.action : event.action,
+            durationMs:
+              typeof oldEnd === "number" && typeof newEnd === "number" && oldEnd > newEnd
+                ? old.durationMs
+                : event.durationMs,
+            sourceEntityId: event.sourceEntityId ?? old.sourceEntityId,
+            metadata: {
+              ...old.metadata,
+              ...event.metadata,
+              ...(["inputTokens", "outputTokens"] as const).reduce<Record<string, number>>(
+                (kept, key) => {
+                  const prior = old.metadata?.[key];
+                  const latest = event.metadata?.[key];
+                  if (typeof prior === "number" && typeof latest === "number" && prior > latest)
+                    kept[key] = prior;
+                  return kept;
+                },
+                {},
+              ),
+              ...(preferOldStatus ? { status: "error" } : {}),
+              ...(typeof oldEnd === "number" && typeof newEnd === "number" && oldEnd > newEnd
+                ? { absoluteEndMs: oldEnd }
+                : {}),
+            },
+          }
+        : event,
+    );
+  }
+  // Imported child spans can precede their parents in a partial export.
+  const parentTargets = new Map(
+    [...eventsById.values()]
+      .filter((event) => event.spanId && event.targetEntityId)
+      .map((event) => [event.spanId!, event.targetEntityId!]),
   );
+  for (const [id, event] of eventsById) {
+    if (event.metadata?.imported !== true || !event.parentSpanId) continue;
+    const sourceEntityId = parentTargets.get(event.parentSpanId);
+    if (sourceEntityId && sourceEntityId !== event.sourceEntityId)
+      eventsById.set(id, { ...event, sourceEntityId });
+  }
   const origin = Math.min(
     ...[...eventsById.values()].map((event) =>
       absoluteStart(event, event.id in current.rawEvents ? currentStart : previousStart),
@@ -134,14 +185,23 @@ export function mergeRuntimeSnapshots(
       total + (typeof event.metadata?.outputTokens === "number" ? event.metadata.outputTokens : 0),
     0,
   );
+  const observed = aggregateRunObservability({ ...current.run, events });
   const run: Run = {
     ...previous.run,
     ...current.run,
     startedAt: new Date(origin).toISOString(),
     endedAt: current.run.status === "running" ? undefined : new Date(end).toISOString(),
     totalDurationMs: Math.max(0, end - origin),
-    inputTokens: input > 0 ? input : null,
-    outputTokens: output > 0 ? output : null,
+    inputTokens: events.some((event) => event.metadata?.imported === true)
+      ? observed.run.inputTokens
+      : input > 0
+        ? input
+        : null,
+    outputTokens: events.some((event) => event.metadata?.imported === true)
+      ? observed.run.outputTokens
+      : output > 0
+        ? output
+        : null,
     toolCallCount: events.filter((event) =>
       ["tool", "mcp", "retrieval", "database", "web", "file"].includes(event.category),
     ).length,
@@ -149,9 +209,28 @@ export function mergeRuntimeSnapshots(
     status: events.some((event) => event.category === "error") ? "error" : current.run.status,
     events,
   };
+  const architecture = mergeGraphs(previous.architecture, current.architecture);
+  for (const event of events) {
+    if (
+      event.metadata?.imported !== true ||
+      !event.sourceEntityId ||
+      !event.targetEntityId ||
+      event.sourceEntityId === event.targetEntityId
+    )
+      continue;
+    const id = `edge:${event.sourceEntityId}:${event.targetEntityId}`;
+    if (!architecture.edges.some((edge) => edge.id === id))
+      architecture.edges.push({
+        id,
+        source: event.sourceEntityId,
+        target: event.targetEntityId,
+        kind: "runtime",
+        label: String(event.metadata?.observedCategory ?? event.category),
+      });
+  }
   return {
     ...current,
-    architecture: mergeGraphs(previous.architecture, current.architecture),
+    architecture,
     run,
     session: {
       ...previous.session,
@@ -162,7 +241,14 @@ export function mergeRuntimeSnapshots(
       eventCount: events.length,
     },
     rawEvents: { ...previous.rawEvents, ...current.rawEvents },
-    diagnostics: [...previous.diagnostics, ...current.diagnostics].slice(-200),
+    diagnostics: [
+      ...new Map(
+        [...previous.diagnostics, ...current.diagnostics].map((item) => [
+          JSON.stringify(item),
+          item,
+        ]),
+      ).values(),
+    ].slice(-200),
   };
 }
 
@@ -192,6 +278,16 @@ export class LocalRuntimeStore {
       await mkdir(this.directory, { recursive: true });
       const existing = await this.load(incoming.source.id, incoming.session.id);
       result = existing ? mergeRuntimeSnapshots(existing, incoming) : incoming;
+      if (existing) {
+        const comparable = {
+          ...result,
+          session: { ...result.session, modifiedAt: existing.session.modifiedAt },
+        };
+        if (JSON.stringify(comparable) === JSON.stringify(existing)) {
+          result = existing;
+          return;
+        }
+      }
       const target = this.path(result.source.id, result.session.id);
       const temporary = `${target}.${process.pid}.tmp`;
       await writeFile(temporary, `${JSON.stringify(result)}\n`, { mode: 0o600 });

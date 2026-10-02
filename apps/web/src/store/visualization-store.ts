@@ -82,7 +82,10 @@ function engineFor(run: Run, tailPadding = 0) {
 }
 
 function graphIdentity(graph: ArchitectureGraph) {
-  return `${graph.entities.map((entity) => entity.id).join("|")}::${graph.edges.map((edge) => edge.id).join("|")}`;
+  return JSON.stringify([
+    graph.entities.map((entity) => entity.id),
+    graph.edges.map((edge) => [edge.id, edge.source, edge.target]),
+  ]);
 }
 
 function emptyRepositoryRun(repository: RepositoryAnalysis): Run {
@@ -145,6 +148,7 @@ interface VisualizationState {
   mode: VisualizerMode;
   dataset: VisualizationDataset;
   selectedEntityId: string | undefined;
+  selectedConnectionId: string | undefined;
   snapshot: ReplaySnapshot;
   autoFollow: boolean;
   liveFollowing: boolean;
@@ -155,6 +159,7 @@ interface VisualizationState {
   layerFilter: ArchitectureLayerFilter;
   setMode: (mode: VisualizerMode) => void;
   selectEntity: (entityId: string | undefined) => void;
+  selectConnection: (connectionId: string | undefined) => void;
   togglePlayback: () => void;
   reset: () => void;
   seek: (timestamp: number) => void;
@@ -177,6 +182,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
   mode: "map",
   dataset: initialDataset,
   selectedEntityId: "agent",
+  selectedConnectionId: undefined,
   snapshot: engine.snapshot(),
   autoFollow: false,
   liveFollowing: false,
@@ -188,25 +194,53 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
   setMode: (mode) => {
     if (mode === "live") {
       const snapshot = engine.play();
-      set({ mode, snapshot, autoFollow: true });
+      set({ mode, snapshot, autoFollow: true, selectedConnectionId: undefined });
     } else {
       if (mode === "map") engine.pause();
       set({ mode, snapshot: engine.snapshot(), autoFollow: false });
     }
   },
-  selectEntity: (selectedEntityId) => set({ selectedEntityId, autoFollow: false }),
+  selectEntity: (selectedEntityId) =>
+    set({ selectedEntityId, selectedConnectionId: undefined, autoFollow: false }),
+  selectConnection: (selectedConnectionId) => {
+    if (!selectedConnectionId) {
+      set({ selectedConnectionId: undefined });
+      return;
+    }
+    const state = get();
+    const telemetry =
+      state.dataset.source === "telemetry" || state.dataset.session?.source === "telemetry";
+    const visible = displayedArchitecture(state).edges.some(
+      (edge) => edge.id === selectedConnectionId,
+    );
+    if (!telemetry || !visible) return;
+    set({ selectedConnectionId, selectedEntityId: undefined, autoFollow: false });
+  },
   togglePlayback: () => {
     const isPlaying = get().snapshot.isPlaying;
     const snapshot = isPlaying ? engine.pause() : engine.play();
-    set({ mode: "live", snapshot, autoFollow: !isPlaying, liveFollowing: false });
+    set({
+      mode: "live",
+      snapshot,
+      autoFollow: !isPlaying,
+      liveFollowing: false,
+      selectedConnectionId: undefined,
+    });
   },
-  reset: () => set({ snapshot: engine.reset(), autoFollow: false, liveFollowing: false }),
+  reset: () =>
+    set({
+      snapshot: engine.reset(),
+      autoFollow: false,
+      liveFollowing: false,
+      selectedConnectionId: undefined,
+    }),
   seek: (timestamp) =>
     set({
       mode: "live",
       snapshot: engine.seek(timestamp),
       autoFollow: false,
       liveFollowing: false,
+      selectedConnectionId: undefined,
     }),
   setSpeed: (speed) => set({ snapshot: engine.setSpeed(speed) }),
   tick: (deltaMs) => {
@@ -227,7 +261,13 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
       dataset.source === "repository"
         ? dataset.architecture.entities[0]?.id
         : dataset.architecture.entities.find((entity) => entity.kind === "user")?.id;
-    set({ mode: "live", snapshot: engine.play(), selectedEntityId, autoFollow: true });
+    set({
+      mode: "live",
+      snapshot: engine.play(),
+      selectedEntityId,
+      selectedConnectionId: undefined,
+      autoFollow: true,
+    });
   },
   loadDataset: (incoming, followLive = false) => {
     const current = get().dataset;
@@ -250,6 +290,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
         dataset.source === "repository"
           ? dataset.architecture.entities[0]?.id
           : dataset.architecture.entities.find((entity) => entity.kind === "agent")?.id,
+      selectedConnectionId: undefined,
       autoFollow: followLive,
       liveFollowing: followLive,
       showExecution: dataset.source === "repository" && Boolean(dataset.session),
@@ -279,6 +320,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
       mode: "map",
       snapshot: engine.snapshot(),
       selectedEntityId: dataset.architecture.entities[0]?.id,
+      selectedConnectionId: undefined,
       autoFollow: false,
       liveFollowing: false,
       showExecution: Boolean(dataset.session),
@@ -338,12 +380,28 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
     if (state.liveFollowing) engine.play();
     const snapshot = engine.snapshot();
     const activeEntityId = activeEntityForEvent(snapshot.currentEvent);
+    const previousConnection = displayedArchitecture(state).edges.find(
+      (edge) => edge.id === state.selectedConnectionId,
+    );
+    const nextConnection = displayedArchitecture({ ...state, dataset }).edges.find(
+      (edge) => edge.id === state.selectedConnectionId,
+    );
+    const selectedConnectionId =
+      previousConnection &&
+      nextConnection &&
+      previousConnection.source === nextConnection.source &&
+      previousConnection.target === nextConnection.target
+        ? state.selectedConnectionId
+        : undefined;
     set({
       dataset,
       snapshot,
       selectedEntityId:
-        state.liveFollowing && activeEntityId ? activeEntityId : state.selectedEntityId,
-      autoFollow: state.liveFollowing,
+        state.autoFollow && state.liveFollowing && activeEntityId
+          ? activeEntityId
+          : state.selectedEntityId,
+      selectedConnectionId,
+      autoFollow: state.liveFollowing && state.autoFollow,
     });
   },
   jumpToLive: () => {
@@ -351,10 +409,18 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
     engine = engineFor(state.dataset.run, 800);
     engine.seek(state.dataset.run.events.at(-1)?.timestamp ?? state.dataset.run.totalDurationMs);
     engine.play();
-    set({ snapshot: engine.snapshot(), mode: "live", liveFollowing: true, autoFollow: true });
+    set({
+      snapshot: engine.snapshot(),
+      mode: "live",
+      liveFollowing: true,
+      autoFollow: true,
+      selectedConnectionId: undefined,
+    });
   },
-  toggleExecutionOverlay: () => set((state) => ({ showExecution: !state.showExecution })),
-  setLayerFilter: (layerFilter) => set({ layerFilter, selectedEntityId: undefined }),
+  toggleExecutionOverlay: () =>
+    set((state) => ({ showExecution: !state.showExecution, selectedConnectionId: undefined })),
+  setLayerFilter: (layerFilter) =>
+    set({ layerFilter, selectedEntityId: undefined, selectedConnectionId: undefined }),
   viewEntityEvents: (entityId) => {
     const state = get();
     const activity = state.dataset.reconciliation?.activities[entityId];
@@ -366,6 +432,7 @@ export const useVisualizationStore = create<VisualizationState>((set, get) => ({
       mode: "live",
       snapshot: engine.seek(event.timestamp),
       selectedEntityId: entityId,
+      selectedConnectionId: undefined,
       autoFollow: false,
       liveFollowing: false,
       showExecution: true,

@@ -13,8 +13,10 @@ export function SignalEdge(props: EdgeProps<GraphEdgeModel>) {
   const state = props.data?.state ?? "idle";
   const dimmed = props.data?.dimmed ?? false;
   const runtime = props.data?.runtime ?? false;
-  const color =
-    state === "active"
+  const selected = props.selected ?? false;
+  const color = selected
+    ? "#a5e5ef"
+    : state === "active"
       ? "#67e8f9"
       : state === "completed"
         ? runtime
@@ -28,11 +30,12 @@ export function SignalEdge(props: EdgeProps<GraphEdgeModel>) {
     <>
       <BaseEdge
         path={path}
+        {...(props.interactionWidth ? { interactionWidth: props.interactionWidth } : {})}
         {...(props.markerEnd ? { markerEnd: props.markerEnd } : {})}
         style={{
           stroke: color,
-          strokeWidth: state === "active" ? 2 : runtime ? 1.4 : 1,
-          opacity: dimmed ? 0.18 : runtime ? 0.92 : 0.68,
+          strokeWidth: selected ? 2.2 : state === "active" ? 2 : runtime ? 1.4 : 1,
+          opacity: selected ? 0.95 : dimmed ? 0.18 : runtime ? 0.92 : 0.68,
           strokeDasharray: runtime && state !== "active" ? "5 5" : undefined,
           transition: "stroke 220ms ease, opacity 220ms ease, stroke-width 220ms ease",
         }}

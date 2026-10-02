@@ -7,8 +7,9 @@ export const cliDefaults = Object.freeze({
 });
 
 export interface CliOptions {
-  command: "start" | "doctor" | "data-path" | "data-clear";
+  command: "start" | "doctor" | "data-path" | "data-clear" | "import-openai";
   target?: string;
+  files?: string[];
   port: number;
   otlpPort: number;
   open: boolean;
@@ -48,6 +49,11 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     if (action === "path") options.command = "data-path";
     else if (action === "clear") options.command = "data-clear";
     else throw new CliUsageError("Data requires either 'path' or 'clear'.");
+  } else if (input[0] === "import") {
+    input.shift();
+    if (input.shift() !== "openai")
+      throw new CliUsageError("Import requires 'openai' followed by saved trace pages.");
+    options.command = "import-openai";
   }
   const positional: string[] = [];
   for (let index = 0; index < input.length; index += 1) {
@@ -69,6 +75,12 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     else if (argument.startsWith("-")) throw new CliUsageError(`Unknown option: ${argument}`);
     else positional.push(argument);
   }
+  if (options.command === "import-openai") {
+    if (!positional.length && !options.help)
+      throw new CliUsageError("Provide one or more saved OpenAI trace page files.");
+    options.files = positional;
+    return options;
+  }
   if (positional.length > 1) throw new CliUsageError("Only one repository path may be provided.");
   if (positional.length && options.command.startsWith("data-"))
     throw new CliUsageError("Data commands do not accept a repository path.");
@@ -77,5 +89,5 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
 }
 
 export function helpText() {
-  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm Sarvadrik-owned data clearing\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
+  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm Sarvadrik-owned data clearing\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
 }

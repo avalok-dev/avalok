@@ -48,7 +48,10 @@ export function ExecutionDock() {
         <div className="mb-3 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-slate-600">
           Run summary
         </div>
-        <RunMetrics run={dataset.run} />
+        <RunMetrics
+          run={dataset.run}
+          telemetry={dataset.source === "telemetry" || dataset.session?.source === "telemetry"}
+        />
         <div className="mt-2.5 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2 font-mono text-[0.6875rem] text-slate-600">
             {dataset.session ? (

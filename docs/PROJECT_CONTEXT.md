@@ -16,6 +16,8 @@ Sarvadrik ("See your whole system.") was developed under the working name AgentM
 - **Milestone 7.4A:** local HTTP hardening (loopback Host on the actual port, same-loopback Origin, JSON-only mutations/hooks/test trace, no CORS), tracer-safe home paths that fix the Windows build, neutral-path release builds with a path-leak scan, and a green macOS/Linux/Windows distribution CI.
 - **Milestone 7.4B:** Sarvadrik identity (CLI `sarvadrik`, package `sarvadrik`, `0.1.0-alpha.1`, `SARVADRIK_*`), AgentMap → Sarvadrik data migration, generated third-party notices (elkjs EPL-2.0 reviewed), Next.js telemetry disabled everywhere, release provenance and a gated release workflow, Node 24 GitHub Actions, public README/CONTRIBUTING/SECURITY/privacy docs, and a release checklist. Release candidate; not published.
 - Milestones 1-6 and M7.1-M7.4B are complete. Preserve their behavior rather than recreating it.
+- **Agent observability Stage 1:** offline import of saved, paginated OpenAI Agents API trace exports through `sarvadrik import openai`; vendor-neutral telemetry runs retain session/turn/span identity and expose pure per-node and per-edge statistics. See `docs/development/openai-trace-import.md`. No live OpenAI connection or billing integration.
+- **Agent observability Stage 2 (single-user UI):** selected telemetry runs show observed run, node, and connection statistics in Runs; selecting a map node or directed connection shows its statistics in the inspector. Ambiguous or unobserved connections have an honest empty state. Missing latency or usage is labeled unavailable, and telemetry does not show a cost estimate. Hover cards and traffic styling remain future work.
 
 ## Package map
 

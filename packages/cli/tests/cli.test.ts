@@ -87,6 +87,10 @@ describe("CLI options", () => {
       command: "data-clear",
       yes: true,
     });
+    expect(parseCliOptions(["import", "openai", "page-1.json", "page-2.json"])).toMatchObject({
+      command: "import-openai",
+      files: ["page-1.json", "page-2.json"],
+    });
   });
 
   it("prints help and the package version without starting services", async () => {
@@ -94,6 +98,7 @@ describe("CLI options", () => {
     const writer = { write: (value: string | Uint8Array) => ((output += value.toString()), true) };
     expect(await runCli(["--help"], writer, writer)).toBe(0);
     expect(output).toContain("Usage:\n  sarvadrik [path] [options]");
+    expect(output).toContain("sarvadrik import openai <page.json>");
     output = "";
     expect(await runCli(["--version"], writer, writer)).toBe(0);
     expect(output.trim()).toBe(productIdentity.version);
@@ -103,6 +108,7 @@ describe("CLI options", () => {
     expect(() => parseCliOptions(["--port", "nope"])).toThrow("requires a TCP port");
     expect(() => parseCliOptions(["one", "two"])).toThrow("Only one repository path");
     expect(() => parseCliOptions(["--unknown"])).toThrow("Unknown option");
+    expect(() => parseCliOptions(["import", "openai"])).toThrow("saved OpenAI trace page");
   });
 });
 

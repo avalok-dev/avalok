@@ -25,7 +25,7 @@ function anyValue(value: OtlpAnyValue | undefined): unknown {
 
 export function attributes(values: OtlpKeyValue[] | undefined) {
   const result: Record<string, unknown> = {};
-  for (const item of values ?? []) {
+  for (const item of Array.isArray(values) ? values : []) {
     if (typeof item?.key !== "string") continue;
     result[item.key] = anyValue(item.value);
   }
@@ -35,7 +35,10 @@ export function attributes(values: OtlpKeyValue[] | undefined) {
 function nanosToMs(value: unknown) {
   if (typeof value !== "string" && typeof value !== "number") return undefined;
   try {
-    return Number(BigInt(value) / 1_000_000n);
+    const milliseconds = Number(BigInt(value) / 1_000_000n);
+    return Number.isFinite(milliseconds) && milliseconds >= 0 && milliseconds <= 8.64e15
+      ? milliseconds
+      : undefined;
   } catch {
     return undefined;
   }
@@ -54,15 +57,29 @@ export function parseOtlpJson(payload: unknown): {
   const spans: CanonicalSpan[] = [];
   let malformed = 0;
   for (const resourceSpans of root.resourceSpans) {
+    if (!objectValue(resourceSpans)) {
+      malformed += 1;
+      continue;
+    }
     const resource = attributes(resourceSpans.resource?.attributes);
     const groups = [
-      ...(resourceSpans.scopeSpans ?? []),
-      ...(resourceSpans.instrumentationLibrarySpans ?? []),
+      ...(Array.isArray(resourceSpans.scopeSpans) ? resourceSpans.scopeSpans : []),
+      ...(Array.isArray(resourceSpans.instrumentationLibrarySpans)
+        ? resourceSpans.instrumentationLibrarySpans
+        : []),
     ];
     for (const group of groups) {
+      if (!objectValue(group)) {
+        malformed += 1;
+        continue;
+      }
       const scopeName = stringValue(group.scope?.name);
       const scopeVersion = stringValue(group.scope?.version);
-      for (const span of group.spans ?? []) {
+      for (const span of Array.isArray(group.spans) ? group.spans : []) {
+        if (!objectValue(span)) {
+          malformed += 1;
+          continue;
+        }
         const traceId = stringValue(span.traceId);
         const spanId = stringValue(span.spanId);
         const parentSpanId = stringValue(span.parentSpanId);

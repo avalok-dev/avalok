@@ -7,6 +7,7 @@ import { maybeOpenBrowser, startSarvadrik, startupSummary } from "./orchestrator
 import { StartupError } from "./system.ts";
 import { dataPath, runDataClear } from "./data.ts";
 import { runDoctor } from "./doctor.ts";
+import { importOpenAiTraceFiles } from "@visual-system/telemetry-adapter";
 
 export async function runCli(
   arguments_ = process.argv.slice(2),
@@ -33,6 +34,13 @@ export async function runCli(
     });
     output.write(result.message);
     return 0;
+  }
+  if (options.command === "import-openai") {
+    const result = await importOpenAiTraceFiles(options.files ?? []);
+    output.write(
+      `Imported ${result.traces} traces and ${result.spans} distinct spans from ${result.files} saved pages.${result.malformed ? ` Skipped ${result.malformed} malformed items.` : ""}\n`,
+    );
+    return result.malformed ? 1 : 0;
   }
   if (options.command === "doctor") {
     const result = await runDoctor(options);

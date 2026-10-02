@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RuntimeSnapshot } from "@visual-system/runtime-adapter";
 import type { CapabilityReport } from "@visual-system/capabilities";
 import { RadioTower } from "lucide-react";
@@ -12,6 +12,11 @@ import { RunsPanel } from "./runs-panel";
 import { SourcePanel } from "./source-panel";
 import { TopBar } from "./top-bar";
 import { GettingStarted } from "./getting-started";
+import { ActivityStatisticsLine } from "./observability-statistics";
+import {
+  selectConnectionObservation,
+  selectTelemetryObservability,
+} from "@/lib/observability-view";
 import { demoArchitecture, demoRun } from "@/lib/fixtures";
 import {
   displayedArchitecture,
@@ -29,6 +34,7 @@ export function VisualizerWorkspace() {
   const dataset = useVisualizationStore((state) => state.dataset);
   const setMode = useVisualizationStore((state) => state.setMode);
   const selectedEntityId = useVisualizationStore((state) => state.selectedEntityId);
+  const selectedConnectionId = useVisualizationStore((state) => state.selectedConnectionId);
   const snapshot = useVisualizationStore((state) => state.snapshot);
   const tick = useVisualizationStore((state) => state.tick);
   const replayRun = useVisualizationStore((state) => state.replayRun);
@@ -234,9 +240,37 @@ export function VisualizerWorkspace() {
     closeSetup();
   };
 
-  const visibleArchitecture = displayedArchitecture({ dataset, showExecution, layerFilter });
+  const visibleArchitecture = useMemo(
+    () => displayedArchitecture({ dataset, showExecution, layerFilter }),
+    [dataset, showExecution, layerFilter],
+  );
+  const observability = useMemo(() => selectTelemetryObservability(dataset), [dataset]);
   const selectedEntity = visibleArchitecture.entities.find(
     (entity) => entity.id === selectedEntityId,
+  );
+  const selectedStatistics = selectedEntity
+    ? observability?.nodeById[selectedEntity.id]
+    : undefined;
+  const selectedConnection = visibleArchitecture.edges.find(
+    (edge) => edge.id === selectedConnectionId,
+  );
+  const connectionObservation = useMemo(
+    () =>
+      selectedConnection
+        ? selectConnectionObservation(
+            selectedConnection,
+            visibleArchitecture,
+            dataset.run.events,
+            observability,
+          )
+        : undefined,
+    [selectedConnection, visibleArchitecture, dataset.run.events, observability],
+  );
+  const connectionSource = visibleArchitecture.entities.find(
+    (entity) => entity.id === selectedConnection?.source,
+  );
+  const connectionTarget = visibleArchitecture.entities.find(
+    (entity) => entity.id === selectedConnection?.target,
   );
   const connectedIds = selectedEntity
     ? visibleArchitecture.edges.flatMap((edge) => {
@@ -330,11 +364,30 @@ export function VisualizerWorkspace() {
           </div>
         ) : null}
         {mode === "runs" ? (
-          <RunsPanel onReplay={replayRun} onConnectTelemetry={connectTelemetry} />
+          <RunsPanel
+            onReplay={replayRun}
+            onConnectTelemetry={connectTelemetry}
+            {...(observability ? { observability } : {})}
+          />
         ) : null}
       </section>
       <Inspector
         entity={selectedEntity}
+        {...(connectionSource && connectionTarget
+          ? {
+              connection: {
+                source: connectionSource,
+                target: connectionTarget,
+                ...(connectionObservation?.status === "observed"
+                  ? {
+                      observedActivity: (
+                        <ActivityStatisticsLine statistics={connectionObservation.statistics} />
+                      ),
+                    }
+                  : { emptyReason: connectionObservation?.status ?? "unobserved" }),
+              },
+            }
+          : {})}
         currentEvent={mode === "live" ? snapshot.currentEvent : undefined}
         connectedEntities={connectedEntities}
         isLive={mode === "live"}
@@ -361,6 +414,11 @@ export function VisualizerWorkspace() {
                 : dataset.source === "telemetry"
                   ? "Local telemetry trace"
                   : "Local Codex session"
+        }
+        observedActivity={
+          selectedStatistics ? (
+            <ActivityStatisticsLine statistics={selectedStatistics} />
+          ) : undefined
         }
         repositoryFiles={architectureFiles}
         runtimeActivity={

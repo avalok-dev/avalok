@@ -133,6 +133,51 @@ function openInferenceClassification(span: CanonicalSpan): Classification | unde
 }
 
 function genericClassification(span: CanonicalSpan, serviceName: string): Classification {
+  const importedKind =
+    text(span.attributes["openai.span.type"]) ?? text(span.attributes["gen_ai.operation.name"]);
+  if (importedKind === "agent" || importedKind === "invoke_agent") {
+    const name =
+      text(span.attributes["gen_ai.agent.name"]) ??
+      text(span.attributes["agent.name"]) ??
+      span.name;
+    const id =
+      text(span.attributes["openai.subagent.id"]) ??
+      text(span.attributes["openai.agent.id"]) ??
+      text(span.attributes["gen_ai.agent.id"]) ??
+      `span-${span.spanId}`;
+    return {
+      category: "agent",
+      action: "agent.run",
+      entityKind: "agent",
+      entityId: `agent:${slug(id)}`,
+      entityName: name,
+    };
+  }
+  if (["generation", "chat", "generate_content", "text_completion"].includes(importedKind ?? "")) {
+    const model =
+      text(span.attributes["gen_ai.response.model"]) ??
+      text(span.attributes["gen_ai.request.model"]);
+    return {
+      category: "model",
+      action: "model.call",
+      entityKind: "model",
+      entityId: `model:${slug(model ?? `unknown-${span.spanId}`)}`,
+      entityName: model ?? "Unknown model",
+    };
+  }
+  if (importedKind === "tool" || importedKind === "execute_tool") {
+    const name =
+      text(span.attributes["gen_ai.tool.name"]) ?? text(span.attributes["tool.name"]) ?? span.name;
+    const server =
+      text(span.attributes["mcp.server_label"]) ?? text(span.attributes["server_label"]);
+    return {
+      category: server ? "mcp" : "tool",
+      action: server ? "mcp.tool_call" : "tool.call",
+      entityKind: server ? "mcp_server" : "tool",
+      entityId: `${server ? "mcp" : "tool"}:${slug(server ? `${server}-${name}` : name)}`,
+      entityName: server ? `${server} · ${name}` : name,
+    };
+  }
   const dbSystem = text(span.attributes["db.system"]) ?? text(span.attributes["db.system.name"]);
   if (dbSystem) {
     return {
@@ -190,7 +235,7 @@ function tokenCount(span: CanonicalSpan, keys: string[]) {
     const value = number(span.attributes[key]);
     if (value !== undefined) return Math.max(0, Math.round(value));
   }
-  return 0;
+  return undefined;
 }
 
 function sourceKind(spans: CanonicalSpan[]): RuntimeSourceKind {
@@ -202,7 +247,10 @@ function sourceKind(spans: CanonicalSpan[]): RuntimeSourceKind {
     : "telemetry";
 }
 
-export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSnapshot {
+export function normalizeTrace(
+  spansInput: readonly CanonicalSpan[],
+  options: { imported?: boolean; sessionId?: string; turnId?: string } = {},
+): RuntimeSnapshot {
   if (spansInput.length === 0) throw new Error("A telemetry trace must contain at least one span.");
   const spans = [...spansInput].sort(
     (left, right) => left.startMs - right.startMs || left.spanId.localeCompare(right.spanId),
@@ -233,14 +281,15 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
   let redactedFields = 0;
   let truncatedFields = 0;
 
-  entities.set("user", {
-    id: "user",
-    kind: "user",
-    name: synthetic ? "Synthetic Fixture · Test User" : "User",
-    ...(synthetic
-      ? { description: "Synthetic fixture actor; not observed application activity." }
-      : {}),
-  });
+  if (!options.imported)
+    entities.set("user", {
+      id: "user",
+      kind: "user",
+      name: synthetic ? "Synthetic Fixture · Test User" : "User",
+      ...(synthetic
+        ? { description: "Synthetic fixture actor; not observed application activity." }
+        : {}),
+    });
   const classifications = new Map<string, Classification>();
   for (const span of spans) {
     const openInferenceKind = text(span.attributes["openinference.span.kind"]);
@@ -268,10 +317,10 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
     const classification = classifications.get(span.spanId);
     if (!classification) continue;
     const parent = span.parentSpanId ? classifications.get(span.parentSpanId) : undefined;
-    const sourceEntityId = parent?.entityId ?? "user";
+    const sourceEntityId = parent?.entityId ?? (options.imported ? undefined : "user");
     const targetEntityId = classification.entityId;
     const edgeId = `edge:${sourceEntityId}:${targetEntityId}`;
-    if (sourceEntityId !== targetEntityId && !edges.has(edgeId)) {
+    if (sourceEntityId && sourceEntityId !== targetEntityId && !edges.has(edgeId)) {
       edges.set(edgeId, {
         id: edgeId,
         source: sourceEntityId,
@@ -313,7 +362,7 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
       durationMs: Math.max(0, span.endMs - span.startMs),
       category: failed ? "error" : classification.category,
       action: failed ? `${classification.action}.error` : classification.action,
-      sourceEntityId,
+      ...(sourceEntityId ? { sourceEntityId } : {}),
       targetEntityId,
       metadata: {
         spanName: span.name,
@@ -321,8 +370,41 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
         status: failed ? "error" : span.statusCode === 1 ? "ok" : "unset",
         absoluteStartMs: span.startMs,
         absoluteEndMs: span.endMs,
-        inputTokens,
-        outputTokens,
+        ...(inputTokens !== undefined ? { inputTokens } : {}),
+        ...(outputTokens !== undefined ? { outputTokens } : {}),
+        ...(options.imported ? { imported: true, observedCategory: classification.category } : {}),
+        ...(options.sessionId ? { sessionId: options.sessionId } : {}),
+        ...(options.turnId ? { turnId: options.turnId } : {}),
+        ...(number(span.attributes["retry.attempt"]) !== undefined
+          ? { retryObserved: number(span.attributes["retry.attempt"])! > 1 }
+          : {}),
+        ...((text(span.attributes["openai.agent.id"]) ?? text(span.attributes["gen_ai.agent.id"]))
+          ? {
+              agentId:
+                text(span.attributes["openai.agent.id"]) ??
+                text(span.attributes["gen_ai.agent.id"]),
+            }
+          : {}),
+        ...(text(span.attributes["openai.subagent.id"])
+          ? { subagentId: text(span.attributes["openai.subagent.id"]) }
+          : {}),
+        ...(text(span.attributes["openai.agent.type"])
+          ? { agentType: text(span.attributes["openai.agent.type"]) }
+          : {}),
+        ...((text(span.attributes["gen_ai.response.model"]) ??
+        text(span.attributes["gen_ai.request.model"]))
+          ? {
+              modelId:
+                text(span.attributes["gen_ai.response.model"]) ??
+                text(span.attributes["gen_ai.request.model"]),
+            }
+          : {}),
+        ...((text(span.attributes["mcp.server_label"]) ?? text(span.attributes["server_label"]))
+          ? {
+              mcpServerLabel:
+                text(span.attributes["mcp.server_label"]) ?? text(span.attributes["server_label"]),
+            }
+          : {}),
         serviceName: text(span.resource["service.name"]) ?? serviceName,
         ...(synthetic ? { synthetic: true, fixture: "Sarvadrik test trace" } : {}),
         ...(classification.openInferenceKind
@@ -373,8 +455,9 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
   const errors = events.filter((event) => event.category === "error").length;
   const root = spans.find((span) => !span.parentSpanId) ?? spans[0];
   const prompt =
-    text(root?.attributes["input.value"]) ??
-    text(root?.attributes["prompt"]) ??
+    (options.imported
+      ? undefined
+      : (text(root?.attributes["input.value"]) ?? text(root?.attributes["prompt"]))) ??
     "Observed telemetry trace";
   const architecture = ArchitectureGraphSchema.parse({
     id: `${kind}:${traceId}`,
@@ -389,8 +472,12 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
     startedAt: new Date(origin).toISOString(),
     endedAt: new Date(end).toISOString(),
     totalDurationMs: Math.max(0, end - origin),
-    inputTokens: inputTokens > 0 ? inputTokens : null,
-    outputTokens: outputTokens > 0 ? outputTokens : null,
+    inputTokens: events.some((event) => typeof event.metadata?.inputTokens === "number")
+      ? inputTokens
+      : null,
+    outputTokens: events.some((event) => typeof event.metadata?.outputTokens === "number")
+      ? outputTokens
+      : null,
     estimatedCostUsd: null,
     toolCallCount: events.filter((event) =>
       ["tool", "mcp", "retrieval", "database", "web"].includes(event.category),
@@ -422,5 +509,5 @@ export function normalizeTrace(spansInput: readonly CanonicalSpan[]): RuntimeSna
 export function normalizeTraces(spans: readonly CanonicalSpan[]) {
   const grouped = new Map<string, CanonicalSpan[]>();
   for (const span of spans) grouped.set(span.traceId, [...(grouped.get(span.traceId) ?? []), span]);
-  return [...grouped.values()].map(normalizeTrace);
+  return [...grouped.values()].map((group) => normalizeTrace(group));
 }

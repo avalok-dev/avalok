@@ -9,6 +9,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  type EdgeChange,
   type EdgeTypes,
   type NodeMouseHandler,
   type NodeTypes,
@@ -51,8 +52,11 @@ function CanvasGraph() {
   const source = useVisualizationStore((state) => state.dataset.source);
   const showExecution = useVisualizationStore((state) => state.showExecution);
   const run = useVisualizationStore((state) => state.dataset.run);
+  const sessionSource = useVisualizationStore((state) => state.dataset.session?.source);
   const selectedEntityId = useVisualizationStore((state) => state.selectedEntityId);
+  const selectedConnectionId = useVisualizationStore((state) => state.selectedConnectionId);
   const selectEntity = useVisualizationStore((state) => state.selectEntity);
+  const selectConnection = useVisualizationStore((state) => state.selectConnection);
   const [positions, setPositions] = useState(fallbackPositions);
   const { fitView } = useReactFlow();
 
@@ -88,6 +92,7 @@ function CanvasGraph() {
 
   const hasActiveSignal = runtime.activeEntityIds.size + runtime.completedEntityIds.size > 0;
   const overlayActive = mode === "live" || (source === "repository" && showExecution);
+  const telemetry = source === "telemetry" || sessionSource === "telemetry";
   const nodes = useMemo<GraphNodeModel[]>(
     () =>
       architecture.entities.map((entity) => {
@@ -109,35 +114,63 @@ function CanvasGraph() {
     [architecture.entities, hasActiveSignal, overlayActive, positions, runtime, selectedEntityId],
   );
 
-  const edges = useMemo<GraphEdgeModel[]>(
-    () =>
-      architecture.edges.map((edge) => {
-        const isActive = runtime.activeEdgeIds.has(edge.id);
-        const isCompleted = runtime.completedEdgeIds.has(edge.id);
-        const activeRuntimeEvent = snapshot.activeEvents.find(
-          (event) =>
-            event.sourceEntityId &&
-            event.targetEntityId &&
-            ((event.sourceEntityId === edge.source && event.targetEntityId === edge.target) ||
-              (event.sourceEntityId === edge.target && event.targetEntityId === edge.source)),
-        );
-        return {
-          ...edge,
-          source: isActive ? (activeRuntimeEvent?.sourceEntityId ?? edge.source) : edge.source,
-          target: isActive ? (activeRuntimeEvent?.targetEntityId ?? edge.target) : edge.target,
-          type: "signal",
-          markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15 },
-          data: {
-            state: isActive ? "active" : isCompleted ? "completed" : "idle",
-            dimmed: overlayActive && hasActiveSignal && !isActive && !isCompleted,
-            runtime: edge.metadata?.runtime === true,
-          },
-        };
-      }),
-    [architecture.edges, hasActiveSignal, overlayActive, runtime, snapshot.activeEvents],
-  );
+  const edges = useMemo<GraphEdgeModel[]>(() => {
+    const names = new Map(architecture.entities.map((entity) => [entity.id, entity.name]));
+    return architecture.edges.map((edge) => {
+      const isActive = runtime.activeEdgeIds.has(edge.id);
+      const isCompleted = runtime.completedEdgeIds.has(edge.id);
+      const activeRuntimeEvent = snapshot.activeEvents.find(
+        (event) =>
+          event.sourceEntityId &&
+          event.targetEntityId &&
+          ((event.sourceEntityId === edge.source && event.targetEntityId === edge.target) ||
+            (event.sourceEntityId === edge.target && event.targetEntityId === edge.source)),
+      );
+      return {
+        ...edge,
+        source: isActive ? (activeRuntimeEvent?.sourceEntityId ?? edge.source) : edge.source,
+        target: isActive ? (activeRuntimeEvent?.targetEntityId ?? edge.target) : edge.target,
+        type: "signal",
+        selected: selectedConnectionId === edge.id,
+        selectable: telemetry,
+        focusable: telemetry,
+        interactionWidth: telemetry ? 32 : 20,
+        ariaRole: telemetry ? "button" : "img",
+        ariaLabel: `Connection from ${names.get(edge.source) ?? edge.source} to ${names.get(edge.target) ?? edge.target}`,
+        ...(telemetry
+          ? { domAttributes: { "aria-pressed": selectedConnectionId === edge.id } }
+          : {}),
+        markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15 },
+        data: {
+          state: isActive ? "active" : isCompleted ? "completed" : "idle",
+          dimmed: overlayActive && hasActiveSignal && !isActive && !isCompleted,
+          runtime: edge.metadata?.runtime === true,
+        },
+      };
+    });
+  }, [
+    architecture.edges,
+    architecture.entities,
+    hasActiveSignal,
+    overlayActive,
+    runtime,
+    selectedConnectionId,
+    snapshot.activeEvents,
+    telemetry,
+  ]);
 
   const onNodeClick: NodeMouseHandler<GraphNodeModel> = (_, node) => selectEntity(node.id);
+  const onEdgesChange = (changes: EdgeChange<GraphEdgeModel>[]) => {
+    const selected = changes.find((change) => change.type === "select" && change.selected);
+    if (selected?.type === "select") selectConnection(selected.id);
+    else if (
+      changes.some(
+        (change) =>
+          change.type === "select" && !change.selected && change.id === selectedConnectionId,
+      )
+    )
+      selectConnection(undefined);
+  };
 
   return (
     <ReactFlow<GraphNodeModel, GraphEdgeModel>
@@ -146,13 +179,14 @@ function CanvasGraph() {
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodeClick={onNodeClick}
+      onEdgesChange={onEdgesChange}
       onPaneClick={() => selectEntity(undefined)}
       fitView
       fitViewOptions={{ padding: 0.16 }}
       minZoom={0.25}
       maxZoom={1.65}
       nodesFocusable
-      edgesFocusable
+      edgesFocusable={telemetry}
       aria-label="System architecture graph"
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#263142" />
