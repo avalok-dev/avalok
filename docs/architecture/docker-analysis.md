@@ -1,6 +1,6 @@
 # Docker and Compose analysis
 
-Docker inputs are deployment evidence. Sarvadrik never invokes Docker, builds an image, pulls an
+Docker inputs are deployment evidence. Avalok never invokes Docker, builds an image, pulls an
 image, runs Compose, executes an instruction, or resolves a secret.
 
 ## Dockerfiles
@@ -17,7 +17,7 @@ meaningless top-level node.
 ## Compose
 
 `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, and `compose.yaml` are parsed as bounded
-YAML data. Sarvadrik retains service names, build contexts, Dockerfile names, image names, published
+YAML data. Avalok retains service names, build contexts, Dockerfile names, image names, published
 and target ports, `depends_on`, network/volume names, healthcheck presence, and environment variable
 names.
 

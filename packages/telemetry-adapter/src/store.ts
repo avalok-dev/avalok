@@ -19,10 +19,10 @@ export interface PlatformDirectoryNames {
   linux: string;
 }
 
-export const sarvadrikDirectoryNames: PlatformDirectoryNames = {
-  windows: "Sarvadrik",
-  darwin: "Sarvadrik",
-  linux: "sarvadrik",
+export const avalokDirectoryNames: PlatformDirectoryNames = {
+  windows: "Avalok",
+  darwin: "Avalok",
+  linux: "avalok",
 };
 
 /** Where development builds named AgentMap (M7.2–M7.4A) kept data; a migration source only. */
@@ -59,18 +59,18 @@ export function platformDataRoot(
   );
 }
 
-export function defaultSarvadrikDataRoot(
+export function defaultAvalokDataRoot(
   environment: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
   home = homedir(),
 ) {
-  const configured = environment.SARVADRIK_DATA_ROOT ?? environment.SARVADRIK_DATA_DIR;
+  const configured = environment.AVALOK_DATA_ROOT ?? environment.AVALOK_DATA_DIR;
   if (configured) return resolve(configured);
-  return platformDataRoot(sarvadrikDirectoryNames, environment, platform, home);
+  return platformDataRoot(avalokDirectoryNames, environment, platform, home);
 }
 
 export function defaultRuntimeDataDirectory(environment: NodeJS.ProcessEnv = process.env) {
-  return join(defaultSarvadrikDataRoot(environment), "runtime");
+  return join(defaultAvalokDataRoot(environment), "runtime");
 }
 
 const snapshotKey = (source: RuntimeSourceKind, id: string) =>

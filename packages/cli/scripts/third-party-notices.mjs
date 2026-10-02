@@ -5,7 +5,7 @@
 //   - the module manifests recorded by apps/web/next.config.ts while building the dashboard
 //     (every module webpack bundled into .next/server and .next/static).
 // Each file is mapped to its nearest named package.json inside node_modules; workspace source
-// (Sarvadrik's own code) is excluded. License identifiers come from package.json and license
+// (Avalok's own code) is excluded. License identifiers come from package.json and license
 // texts from the package's own LICENSE/LICENCE/COPYING/NOTICE files. Nothing is written by hand.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
@@ -108,7 +108,7 @@ export function renderNotices(packages, { product, runtimeDependencies = [] }) {
     a.name === b.name ? a.version.localeCompare(b.version) : a.name.localeCompare(b.name),
   );
   const missingText = sorted.filter((entry) => entry.texts.length === 0);
-  // Weak/strong copyleft components get an explicit source-availability statement. Sarvadrik
+  // Weak/strong copyleft components get an explicit source-availability statement. Avalok
   // applies no patches to dependencies (no pnpm patchedDependencies), so every component ships
   // exactly as published.
   const copyleft = sorted.filter((entry) => /\b(EPL|MPL|LGPL|GPL|CDDL|EUPL)\b/.test(entry.license));
@@ -151,7 +151,7 @@ export function renderNotices(packages, { product, runtimeDependencies = [] }) {
     lines.push(
       "## Runtime dependencies installed separately",
       "",
-      "npm installs these alongside Sarvadrik from their own published packages, which carry",
+      "npm installs these alongside Avalok from their own published packages, which carry",
       "their own license files:",
       "",
       ...runtimeDependencies.map((entry) => `- ${entry.name} ${entry.version} (${entry.license})`),

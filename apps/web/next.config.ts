@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { NextConfig } from "next";
 
-// Sarvadrik is local-first: never send Next.js framework telemetry from any Sarvadrik workflow
+// Avalok is local-first: never send Next.js framework telemetry from any Avalok workflow
 // (`pnpm dev`, `pnpm build`, the packaging build). Next reads this variable when it creates its
 // telemetry client, which happens after this file is evaluated, and child processes inherit it.
 // The packaged runtime also sets it explicitly (packages/cli/src/dashboard.ts).
@@ -16,7 +16,7 @@ interface ManifestModule {
 
 // Release builds record every module webpack bundles so the third-party notices list exactly the
 // packages whose code ships in the dashboard (packages/cli/scripts/third-party-notices.mjs).
-const manifestDirectory = process.env.SARVADRIK_MODULE_MANIFEST;
+const manifestDirectory = process.env.AVALOK_MODULE_MANIFEST;
 const moduleManifestPlugin = {
   apply(compiler: {
     name?: string;
@@ -29,7 +29,7 @@ const moduleManifestPlugin = {
       };
     };
   }) {
-    compiler.hooks.done.tap("SarvadrikModuleManifest", (stats) => {
+    compiler.hooks.done.tap("AvalokModuleManifest", (stats) => {
       const resources = new Set<string>();
       const visit = (entry: ManifestModule) => {
         if (entry.resource) resources.add(entry.resource.split("?")[0]!);
@@ -49,7 +49,7 @@ const moduleManifestPlugin = {
 const nextConfig: NextConfig = {
   // The installable package ships Next's standalone server. Contributor builds keep the
   // default output so `next start` and `pnpm dev` behave as before.
-  ...(process.env.SARVADRIK_DASHBOARD_STANDALONE === "1" ? { output: "standalone" as const } : {}),
+  ...(process.env.AVALOK_DASHBOARD_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   serverExternalPackages: ["@cdktf/hcl2json"],
   webpack(config, { isServer }) {
     if (isServer) {

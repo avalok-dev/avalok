@@ -1,5 +1,7 @@
 # Milestone 7.4B — Sarvadrik public release candidate
 
+> **Historical record.** Written while the product was named Sarvadrik; it was renamed to **Avalok** before any public release (CLI `avalok`, environment variables `AVALOK_*`, homepage https://avalok.dev). Commands and names below are as they were at the time.
+
 M7.4B turns the AgentMap development build into **Sarvadrik** `0.1.0-alpha.1`, a release candidate for the first open-source developer preview, and resolves the M7.4A release blockers. Nothing was published: no `npm publish`, GitHub release, visibility change, new remote, or external account.
 
 ## Baseline (before changes)

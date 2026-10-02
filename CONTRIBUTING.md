@@ -1,6 +1,6 @@
-# Contributing to Sarvadrik
+# Contributing to Avalok
 
-Thanks for your interest. Sarvadrik is an early developer preview, so small, focused changes with tests are the easiest to review.
+Thanks for your interest. Avalok is an early developer preview, so small, focused changes with tests are the easiest to review.
 
 ## Setup
 
@@ -15,7 +15,7 @@ pnpm dev          # dashboard http://localhost:3000, OTLP receiver http://127.0.
 Run the CLI from source against any repository:
 
 ```sh
-pnpm sarvadrik /path/to/repository
+pnpm avalok /path/to/repository
 ```
 
 ## Checks
@@ -44,7 +44,7 @@ Pass `--python /path/to/python` to include the standard OpenTelemetry Python exp
 | ---------------------------- | ------------------------------------------------------------------------ |
 | `apps/web`                   | Next.js dashboard and local API routes                                   |
 | `apps/collector`             | Loopback OTLP/HTTP (protobuf + JSON) and Claude Code hook receiver       |
-| `packages/cli`               | `sarvadrik` CLI, lifecycle, product identity, distribution scripts       |
+| `packages/cli`               | `avalok` CLI, lifecycle, product identity, distribution scripts          |
 | `packages/analyzer`          | Static repository analysis (JS/TS, Python, Docker, Terraform, K8s, Helm) |
 | `packages/reconcile`         | Runtime-to-architecture matching and the unified graph                   |
 | `packages/schema`            | Vendor-neutral architecture/runtime schemas                              |
@@ -58,7 +58,7 @@ Pass `--python /path/to/python` to include the standard OpenTelemetry Python exp
 | `packages/local-security`    | Loopback Host/Origin/content-type validation                             |
 | `examples/`                  | Runnable fixtures used by tests and the dashboard's sample sources       |
 
-Internal workspace packages use the `@visual-system/*` scope; they are bundled into the single published `sarvadrik` package and are never published individually.
+Internal workspace packages use the `@visual-system/*` scope; they are bundled into the single published `avalok` package and are never published individually.
 
 Architecture documents live in [`docs/architecture`](docs/architecture) (start with [`overview.md`](docs/architecture/overview.md)); development guides in [`docs/development`](docs/development); security in [`docs/security`](docs/security). Documents named `milestone-*` are historical records.
 
@@ -67,7 +67,7 @@ Architecture documents live in [`docs/architecture`](docs/architecture) (start w
 - **Static analysis never executes target code.** Parse files as data; never import, run, build, or install anything from an analyzed repository, never read secret values, and make no network requests while analyzing.
 - **No repository-specific rules.** Add reusable detectors with fixture coverage in `packages/analyzer/tests/fixtures`.
 - **Say what is known.** Product language is "detected", "observed", "inferred", "evidence", and "confidence"; unmatched runtime activity stays visible rather than being forced into a match.
-- **Local-first.** No analytics, remote services, accounts, or telemetry about Sarvadrik itself. Local HTTP routes go through the shared Host/Origin guards; new mutation routes accept JSON only ([local HTTP security](docs/security/local-http.md)).
+- **Local-first.** No analytics, remote services, accounts, or telemetry about Avalok itself. Local HTTP routes go through the shared Host/Origin guards; new mutation routes accept JSON only ([local HTTP security](docs/security/local-http.md)).
 - **Keep React out of data packages.** `schema`, `graph`, `replay`, `analyzer`, `reconcile`, and adapters must not depend on React.
 - Add or update focused tests for behavior changes.
 

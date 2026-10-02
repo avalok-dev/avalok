@@ -12,13 +12,13 @@ All actions run on Node 24 majors: `actions/checkout@v7`, `pnpm/action-setup@v6`
 
 `release:build` ([release build](release-build.md)) copies the source to a neutral temporary path with spaces, builds and packs there, scans the package for build-machine paths, installs the tarball into a separate temporary directory with plain `npm install` (no links, workspace protocol, or `NODE_PATH`), and runs the installed-product smoke test:
 
-- `sarvadrik --version`, `--help`, `data path`, and `doctor` on five external fixtures (JS/TS, Python, polyglot, infrastructure, Unicode name)
+- `avalok --version`, `--help`, `data path`, and `doctor` on five external fixtures (JS/TS, Python, polyglot, infrastructure, Unicode name)
 - startup with a hostile `HOSTNAME=0.0.0.0`; dashboard HTML and static assets; repository and sample analysis
 - dashboard and OTLP health; capabilities; the UI test trace; OTLP JSON and protobuf; the standard Python protobuf exporter
 - 17 local-security checks against the production servers
 - shutdown with port release; restart persistence; force-kill orphan cleanup; safe `data clear`
 
-The Linux job uploads the neutral tarball as the `sarvadrik-packed-tarball` artifact (7 days).
+The Linux job uploads the neutral tarball as the `avalok-packed-tarball` artifact (7 days).
 
 ## Platform notes
 
@@ -41,7 +41,7 @@ No step uses `continue-on-error`. `pnpm test --continue` only makes turbo run ev
 | `windows-latest`           | 293/293                                     | pass; 0 leaks; neutral root on `D:` | **63/63**                    | 5m23s    |
 | `ci.yml` (`ubuntu-latest`) | format, lint, typecheck, tests, build: pass | —                                   | —                            | ≈3m      |
 
-The smoke test now also checks package identity (`sarvadrik@0.1.0-alpha.1`), `LICENSE`, the package README, `THIRD_PARTY_NOTICES.md` (elkjs, EPL-2.0 text, source link), and the absence of AgentMap branding in `--help`, the startup banner, and the dashboard HTML. Remaining annotations are GitHub notices only (Ubuntu 26 label migration, macOS capacity).
+The smoke test now also checks package identity (`avalok@0.1.0-alpha.1`), `LICENSE`, the package README, `THIRD_PARTY_NOTICES.md` (elkjs, EPL-2.0 text, source link), and the absence of AgentMap branding in `--help`, the startup banner, and the dashboard HTML. Remaining annotations are GitHub notices only (Ubuntu 26 label migration, macOS capacity).
 
 Builds are not byte-for-byte reproducible across machines: Next.js embeds the random neutral build path as module labels, so each OS's SHA-256 differs. Publication therefore uses the single CI-built tarball whose checksum and provenance the release workflow records.
 

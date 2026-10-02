@@ -51,7 +51,7 @@ The analyzer uses only read-only filesystem metadata and bounded file reads. It 
 - make network requests, call an LLM, upload source, or emit telemetry;
 - write to the analyzed repository.
 
-Symlinks are not followed. Default ignores include dependency, VCS, build, coverage, cache, and `.terraform` directories plus state/variable files. Secret `.env` files are skipped; `.env.example`-style templates contribute names only. Repositories may add `.sarvadrikignore` patterns for analysis-only exclusions without changing Git tracking.
+Symlinks are not followed. Default ignores include dependency, VCS, build, coverage, cache, and `.terraform` directories plus state/variable files. Secret `.env` files are skipped; `.env.example`-style templates contribute names only. Repositories may add `.avalokignore` patterns for analysis-only exclusions without changing Git tracking.
 
 ## Limits and partial results
 

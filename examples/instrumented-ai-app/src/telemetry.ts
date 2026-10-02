@@ -54,7 +54,7 @@ export function buildTracePayload(
         },
         scopeSpans: [
           {
-            scope: { name: "sarvadrik.example", version: "1.0.0" },
+            scope: { name: "avalok.example", version: "1.0.0" },
             spans: [
               span(
                 "0000000000000001",

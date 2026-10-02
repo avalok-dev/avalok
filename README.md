@@ -1,12 +1,12 @@
-# Sarvadrik
+# Avalok
 
 **See your whole system.**
 
-Sarvadrik is a local-first visual system for understanding how your code, infrastructure, agents, and runtime connect and execute. It maps your repository's architecture statically, then overlays what actually ran: coding-agent sessions, OpenTelemetry traces, and agent tool calls, all on one canvas on your machine.
+Avalok is a local-first visual system for understanding how your code, infrastructure, agents, and runtime connect and execute. It maps your repository's architecture statically, then overlays what actually ran: coding-agent sessions, OpenTelemetry traces, and agent tool calls, all on one canvas on your machine.
 
-![Sarvadrik showing the architecture of a sample platform: services, datastores, and AWS/Kubernetes deployment configuration on one canvas](docs/assets/sarvadrik-overview.png)
+![Avalok showing the architecture of a sample platform: services, datastores, and AWS/Kubernetes deployment configuration on one canvas](docs/assets/avalok-overview.png)
 
-> **Developer preview (`0.1.0-alpha.1`).** Sarvadrik is not published to npm yet. The Quick Start shows the command that will work after publication and how to try the release candidate today.
+> **Developer preview (`0.1.0-alpha.1`).** Avalok is not published to npm yet. The Quick Start shows the command that will work after publication and how to try the release candidate today.
 
 ## Quick Start
 
@@ -15,32 +15,32 @@ Requires Node.js **24.19 or newer in the Node 24 line**.
 **After publication** (not available yet):
 
 ```sh
-npx sarvadrik            # analyze the current directory and open the dashboard
+npx avalok            # analyze the current directory and open the dashboard
 # or
-npm install -g sarvadrik
-sarvadrik .
+npm install -g avalok
+avalok .
 ```
 
 **Today: build and try the release candidate** from a clone of this repository (needs pnpm 11.19):
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm release:build --skip-smoke          # → artifacts/release/sarvadrik-0.1.0-alpha.1.tgz
-npm install -g ./artifacts/release/sarvadrik-0.1.0-alpha.1.tgz
+pnpm release:build --skip-smoke          # → artifacts/release/avalok-0.1.0-alpha.1.tgz
+npm install -g ./artifacts/release/avalok-0.1.0-alpha.1.tgz
 cd /path/to/your/repository
-sarvadrik .
+avalok .
 ```
 
-Sarvadrik analyzes the repository, starts a dashboard at `http://127.0.0.1:4737` and a local OTLP receiver at `http://127.0.0.1:4318`, and opens your browser. Press Ctrl+C to stop.
+Avalok analyzes the repository, starts a dashboard at `http://127.0.0.1:4737` and a local OTLP receiver at `http://127.0.0.1:4318`, and opens your browser. Press Ctrl+C to stop.
 
 ```sh
-sarvadrik doctor         # check the setup without starting anything
-sarvadrik --help
-sarvadrik data path      # where Sarvadrik keeps its own data
-sarvadrik data clear     # delete Sarvadrik's runs and settings
+avalok doctor         # check the setup without starting anything
+avalok --help
+avalok data path      # where Avalok keeps its own data
+avalok data clear     # delete Avalok's runs and settings
 ```
 
-## What Sarvadrik sees
+## What Avalok sees
 
 | Layer              | How                                                                                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
@@ -49,11 +49,11 @@ sarvadrik data clear     # delete Sarvadrik's runs and settings
 | **Agents**         | Local Codex sessions; Claude Code through its OpenTelemetry traces and opt-in lifecycle hooks                        |
 | **Runtime**        | OpenTelemetry traces (OTLP/HTTP protobuf or JSON), with OpenInference semantics for LLM, tool, and retrieval spans   |
 
-Every detected element carries **evidence** (the file and reason it was detected) and a **confidence** level. Sarvadrik reports what it detected and observed; it does not claim complete understanding of your system.
+Every detected element carries **evidence** (the file and reason it was detected) and a **confidence** level. Avalok reports what it detected and observed; it does not claim complete understanding of your system.
 
 ### Architecture
 
-Sarvadrik parses JavaScript/TypeScript (TypeScript compiler API, syntax only) and Python (`@lezer/python`) without importing, running, or installing anything from your repository. It groups code into service units (workspace packages, Python projects, container build contexts) and shows the system at service level. Files appear in the inspector, not as thousands of nodes.
+Avalok parses JavaScript/TypeScript (TypeScript compiler API, syntax only) and Python (`@lezer/python`) without importing, running, or installing anything from your repository. It groups code into service units (workspace packages, Python projects, container build contexts) and shows the system at service level. Files appear in the inspector, not as thousands of nodes.
 
 ### Live runtime
 
@@ -61,9 +61,9 @@ Runtime activity is normalized into one event model and replayed on the same can
 
 ### Infrastructure intelligence
 
-Terraform (HCL and JSON), Kubernetes manifests, Helm charts (bounded static values substitution), Dockerfiles, and Compose files are parsed as data. Sarvadrik infers AWS resource relationships and links application services to their configured deployment (container → Kubernetes workload → cluster → cloud).
+Terraform (HCL and JSON), Kubernetes manifests, Helm charts (bounded static values substitution), Dockerfiles, and Compose files are parsed as data. Avalok infers AWS resource relationships and links application services to their configured deployment (container → Kubernetes workload → cluster → cloud).
 
-**This is configured architecture, not live state.** Sarvadrik does **not** connect to AWS APIs, Kubernetes clusters, CloudWatch, Prometheus, or cost services. It never runs `terraform`, `helm`, `kubectl`, or cloud CLIs, and never reads `.tfvars` or Terraform state; Kubernetes Secret and secret-like configuration values are discarded.
+**This is configured architecture, not live state.** Avalok does **not** connect to AWS APIs, Kubernetes clusters, CloudWatch, Prometheus, or cost services. It never runs `terraform`, `helm`, `kubectl`, or cloud CLIs, and never reads `.tfvars` or Terraform state; Kubernetes Secret and secret-like configuration values are discarded.
 
 ## Supported sources
 
@@ -85,7 +85,7 @@ Terraform (HCL and JSON), Kubernetes manifests, Helm charts (bounded static valu
 
 ## OpenTelemetry
 
-Point any OTLP/HTTP trace exporter at Sarvadrik. No Collector is needed:
+Point any OTLP/HTTP trace exporter at Avalok. No Collector is needed:
 
 ```sh
 export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
@@ -96,23 +96,23 @@ The standard Python exporter (`opentelemetry-exporter-otlp-proto-http`) works as
 
 ## Codex
 
-Sarvadrik discovers Codex session files in `~/.codex/sessions` (or `$CODEX_HOME`), replays them, and tails active sessions live. It shows commands, file changes, MCP calls, model responses, and errors. It never reconstructs hidden reasoning and never writes to Codex's directory.
+Avalok discovers Codex session files in `~/.codex/sessions` (or `$CODEX_HOME`), replays them, and tails active sessions live. It shows commands, file changes, MCP calls, model responses, and errors. It never reconstructs hidden reasoning and never writes to Codex's directory.
 
 ## Claude Code
 
-Sarvadrik observes Claude Code through two supported interfaces, both opt-in:
+Avalok observes Claude Code through two supported interfaces, both opt-in:
 
 - **Traces:** launch Claude Code with `CLAUDE_CODE_ENABLE_TELEMETRY=1`, `OTEL_TRACES_EXPORTER=otlp`, and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces`.
 - **Hooks:** add `"type": "http"` hooks pointing at `http://127.0.0.1:4318/v1/claude/hooks` to your Claude Code settings.
 
-Hooks are observational only; Sarvadrik never blocks or changes Claude Code. Full configuration: [docs/architecture/claude-code.md](docs/architecture/claude-code.md).
+Hooks are observational only; Avalok never blocks or changes Claude Code. Full configuration: [docs/architecture/claude-code.md](docs/architecture/claude-code.md).
 
 ## Privacy and local-first
 
 - Everything runs on your machine. The dashboard and receiver bind to `127.0.0.1` only.
-- There is no Sarvadrik cloud service, account, analytics, crash reporting, or update check.
+- There is no Avalok cloud service, account, analytics, crash reporting, or update check.
 - Repository analysis never executes your code, never uploads source, and never calls an LLM.
-- Sarvadrik keeps only its own observed runs and UI settings, in your platform's user-data directory; `sarvadrik data clear` removes them.
+- Avalok keeps only its own observed runs and UI settings, in your platform's user-data directory; `avalok data clear` removes them.
 
 Details: [Privacy](docs/privacy.md) · [Security](SECURITY.md) · [Local HTTP security](docs/security/local-http.md) · [Threat model](docs/security/threat-model.md)
 
@@ -132,7 +132,7 @@ Details: [Privacy](docs/privacy.md) · [Security](SECURITY.md) · [Local HTTP se
 pnpm install --frozen-lockfile
 pnpm dev                       # dashboard http://localhost:3000, receiver http://127.0.0.1:4318
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
-pnpm sarvadrik <path>          # run the CLI from source
+pnpm avalok <path>          # run the CLI from source
 pnpm release:build             # neutral-path release build + installed-product smoke test
 ```
 
@@ -142,12 +142,12 @@ The codebase is a pnpm/Turborepo monorepo. See [CONTRIBUTING.md](CONTRIBUTING.md
 
 Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, and report security issues as described in [SECURITY.md](SECURITY.md) rather than in public issues.
 
-## Why "Sarvadrik"?
+## Why "Avalok"?
 
-Sarvadrik comes from Sanskrit and can be read as "all-seeing" or "vision of all": a fitting name for a tool that brings code, infrastructure, agents, and runtime into one view.
+Avalok (AH-va-lok) comes from the Sanskrit _avaloka_, "looking upon" or "observing": a fitting name for a tool that lets you look at your code, infrastructure, agents, and runtime in one view.
 
 ## License
 
 Apache License 2.0; see [LICENSE](LICENSE). The published package also includes third-party components under their own licenses, listed in its `THIRD_PARTY_NOTICES.md`.
 
-Website: [sarvadrik.com](https://sarvadrik.com)
+Website: [avalok.dev](https://avalok.dev)

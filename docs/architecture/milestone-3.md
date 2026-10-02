@@ -1,6 +1,6 @@
 # Milestone 3: repository intelligence and reconciliation
 
-> **Historical record.** Written while the product's working name was AgentMap; the product is now **Sarvadrik** (CLI `sarvadrik`, environment variables `SARVADRIK_*`). Commands and names below are as they were at the time.
+> **Historical record.** Written while the product's working name was AgentMap (later Sarvadrik); the product is now **Avalok** (CLI `avalok`, environment variables `AVALOK_*`). Commands and names below are as they were at the time.
 
 Milestone 3 adds deterministic, local repository understanding without replacing either of the product's existing graph concepts. AgentMap now maintains three explicit views:
 

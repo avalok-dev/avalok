@@ -43,7 +43,7 @@ export function TopBar({
           <span className="absolute inset-0 animate-[spin_10s_linear_infinite] rounded-lg border-t border-cyan-200/50" />
         </div>
         <div className="hidden items-baseline gap-2 sm:flex">
-          <span className="text-sm font-semibold tracking-[-0.02em] text-slate-100">Sarvadrik</span>
+          <span className="text-sm font-semibold tracking-[-0.02em] text-slate-100">Avalok</span>
           <Badge className="border-white/[0.06] text-[0.6rem]">preview</Badge>
         </div>
         <div className="mx-2 hidden h-4 w-px bg-white/[0.08] md:block" />

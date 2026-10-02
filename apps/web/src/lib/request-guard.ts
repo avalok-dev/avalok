@@ -21,11 +21,11 @@ export interface DashboardRequest {
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
- * The port the dashboard actually listens on. The Sarvadrik CLI passes it explicitly; `next dev`
+ * The port the dashboard actually listens on. The Avalok CLI passes it explicitly; `next dev`
  * and `next start` also publish the bound port (after any fallback) as `PORT`.
  */
 export function dashboardPort(environment: Record<string, string | undefined> = process.env) {
-  const port = Number(environment.SARVADRIK_DASHBOARD_PORT || environment.PORT);
+  const port = Number(environment.AVALOK_DASHBOARD_PORT || environment.PORT);
   return Number.isInteger(port) && port >= 1 && port <= 65_535 ? port : undefined;
 }
 

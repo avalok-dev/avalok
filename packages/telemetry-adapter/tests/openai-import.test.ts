@@ -72,7 +72,7 @@ describe("saved OpenAI Agents API trace pages", () => {
   });
 
   it("imports partial pages, repairs hierarchy, deduplicates spans, and updates late usage", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "sarvadrik-openai-"));
+    const dir = await mkdtemp(join(tmpdir(), "avalok-openai-"));
     const store = new LocalRuntimeStore(join(dir, "runtime"));
     const root = span("0000000000000001", "root", 1000, 2000, "agent", undefined, [
       kv("agent.name", "Root"),

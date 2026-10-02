@@ -29,7 +29,7 @@ afterEach(async () =>
 );
 
 async function collector(options: { maxBodyBytes?: number; maxHookBodyBytes?: number } = {}) {
-  const store = new LocalRuntimeStore(await mkdtemp(join(tmpdir(), "sarvadrik-security-")));
+  const store = new LocalRuntimeStore(await mkdtemp(join(tmpdir(), "avalok-security-")));
   const server = createCollectorServer({ store, ...options });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -128,7 +128,7 @@ describe("collector Host validation (DNS rebinding)", () => {
       send(port, "/health", { host }),
       send(port, "/v1/traces", { host, method: "POST", headers: json, body: tracePayload }),
       send(port, "/v1/claude/hooks", { host, method: "POST", headers: json, body: hookPayload }),
-      send(port, "/v1/sarvadrik/test-trace", { host, method: "POST", headers: json, body: "{}" }),
+      send(port, "/v1/avalok/test-trace", { host, method: "POST", headers: json, body: "{}" }),
     ]);
     expect(responses.map((response) => response.status)).toEqual([403, 403, 403, 403]);
     expect(responses[0]!.body).not.toContain("diagnostics");
@@ -224,7 +224,7 @@ describe("Claude hook browser protection", () => {
 describe("synthetic test-trace protection", () => {
   it("accepts the dashboard's server-side request (JSON, no Origin)", async () => {
     const { port, store } = await collector();
-    const response = await send(port, "/v1/sarvadrik/test-trace", {
+    const response = await send(port, "/v1/avalok/test-trace", {
       method: "POST",
       headers: json,
       body: "{}",
@@ -236,8 +236,8 @@ describe("synthetic test-trace protection", () => {
 
   it("rejects a bodiless simple POST (what an HTML form or no-cors fetch can send)", async () => {
     const { port, store } = await collector();
-    expect((await send(port, "/v1/sarvadrik/test-trace", { method: "POST" })).status).toBe(415);
-    const form = await send(port, "/v1/sarvadrik/test-trace", {
+    expect((await send(port, "/v1/avalok/test-trace", { method: "POST" })).status).toBe(415);
+    const form = await send(port, "/v1/avalok/test-trace", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: "a=1",
@@ -250,7 +250,7 @@ describe("synthetic test-trace protection", () => {
     "rejects browser Origin %s",
     async (origin) => {
       const { port, store } = await collector();
-      const response = await send(port, "/v1/sarvadrik/test-trace", {
+      const response = await send(port, "/v1/avalok/test-trace", {
         method: "POST",
         headers: { ...json, Origin: origin },
         body: "{}",

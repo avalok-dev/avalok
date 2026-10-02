@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Clean-install smoke test for the packed Sarvadrik artifact.
+// Clean-install smoke test for the packed Avalok artifact.
 //
 //   pnpm dist:smoke [--tarball <path>] [--hide-workspace] [--keep]
 //
 // 1. Copies the tarball and external fixture repositories into a fresh temporary directory
 //    whose path contains spaces (and a Unicode repository name).
 // 2. Installs the tarball with plain `npm install` — no links, no workspace protocol, no NODE_PATH.
-// 3. Optionally renames the Sarvadrik source checkout for the rest of the run so the installed
+// 3. Optionally renames the Avalok source checkout for the rest of the run so the installed
 //    package cannot silently resolve anything from it (restored in `finally`).
 // 4. Drives the installed CLI: --version/--help, doctor per fixture, startup, dashboard assets,
 //    repository/sample analysis, capabilities, test trace, OTLP JSON + protobuf, restart
@@ -82,7 +82,7 @@ function runSync(command, arguments_, options = {}) {
   return spawnSync(command, arguments_, { encoding: "utf8", ...options });
 }
 
-function startSarvadrik(bin, target, ports, environment) {
+function startAvalok(bin, target, ports, environment) {
   const child = spawn(
     process.execPath,
     [
@@ -116,7 +116,7 @@ function startSarvadrik(bin, target, ports, environment) {
     });
     void exited.then(({ code }) => {
       clearTimeout(timer);
-      reject(new Error(`Sarvadrik exited during startup (${code}).\n${stdout}\n${stderr}`));
+      reject(new Error(`Avalok exited during startup (${code}).\n${stdout}\n${stderr}`));
     });
   });
   return { child, exited, ready, output: () => ({ stdout, stderr }) };
@@ -175,14 +175,14 @@ async function json(url, init) {
 
 const tarballSource = resolve(option("--tarball") ?? newestTarball());
 const expectedVersion = JSON.parse(readFileSync(join(cliRoot, "package.json"), "utf8")).version;
-// Former working name; must not appear in anything a user sees.
-const legacyBrand = /agentmap/i;
-const scratch = mkdtempSync(join(tmpdir(), "sarvadrik smoke "));
+// Former names; must not appear in anything a user sees.
+const legacyBrand = /agentmap|sarvadrik/i;
+const scratch = mkdtempSync(join(tmpdir(), "avalok smoke "));
 const install = join(scratch, "Install Dir With Spaces");
 const repositories = join(scratch, "External Repos");
-const dataRoot = join(scratch, "Sarvadrik Data");
-const outsideSentinel = join(scratch, "not-sarvadrik-data", "keep.txt");
-const hiddenWorkspace = `${repositoryRoot}.hidden-by-sarvadrik-smoke`;
+const dataRoot = join(scratch, "Avalok Data");
+const outsideSentinel = join(scratch, "not-avalok-data", "keep.txt");
+const hiddenWorkspace = `${repositoryRoot}.hidden-by-avalok-smoke`;
 let workspaceHidden = false;
 
 // Load everything needed from the workspace *before* it may be hidden.
@@ -205,7 +205,7 @@ const jsonPayload = {
       },
       scopeSpans: [
         {
-          scope: { name: "sarvadrik-smoke" },
+          scope: { name: "avalok-smoke" },
           spans: [
             {
               traceId: "5b8efff798038103d269b633813fc60c",
@@ -265,7 +265,7 @@ try {
   cpSync(tarballSource, join(install, basename(tarballSource)));
   writeFileSync(
     join(install, "package.json"),
-    JSON.stringify({ name: "sarvadrik-smoke-host", private: true }),
+    JSON.stringify({ name: "avalok-smoke-host", private: true }),
   );
   if (flag("--hide-workspace")) {
     if (existsSync(hiddenWorkspace))
@@ -335,14 +335,14 @@ try {
 
   const environment = {
     ...process.env,
-    SARVADRIK_DATA_DIR: dataRoot,
-    SARVADRIK_QUIET_NODE_WARNING: "1",
+    AVALOK_DATA_DIR: dataRoot,
+    AVALOK_QUIET_NODE_WARNING: "1",
     NODE_PATH: "",
     // A shell HOSTNAME must never widen the dashboard bind.
     HOSTNAME: "0.0.0.0",
   };
-  delete environment.SARVADRIK_DASHBOARD_DIR;
-  delete environment.SARVADRIK_SAMPLES_DIR;
+  delete environment.AVALOK_DASHBOARD_DIR;
+  delete environment.AVALOK_SAMPLES_DIR;
 
   // The npm-generated shim is exercised directly on POSIX. On Windows it is a .cmd file that
   // needs a shell, and shell argument joining would break this intentionally spaced path, so
@@ -350,7 +350,7 @@ try {
   const version = windows
     ? runSync(process.execPath, [bin, "--version"], { env: environment })
     : runSync(shim, ["--version"], { env: environment });
-  check("sarvadrik --version", version.stdout.trim() === expectedVersion, version.stdout.trim());
+  check("avalok --version", version.stdout.trim() === expectedVersion, version.stdout.trim());
   const help = runSync(process.execPath, [bin, "--help"], { env: environment });
   check(
     `${product.cliName} --help`,
@@ -360,7 +360,7 @@ try {
       !legacyBrand.test(help.stdout),
   );
   const path = runSync(process.execPath, [bin, "data", "path"], { env: environment });
-  check("sarvadrik data path", path.stdout.trim() === dataRoot, path.stdout.trim());
+  check("avalok data path", path.stdout.trim() === dataRoot, path.stdout.trim());
 
   const importPage = join(scratch, "saved trace page.json");
   const importRoot = join(scratch, "Import Data");
@@ -381,7 +381,7 @@ try {
       has_more: false,
     }),
   );
-  const importEnvironment = { ...environment, SARVADRIK_DATA_DIR: importRoot };
+  const importEnvironment = { ...environment, AVALOK_DATA_DIR: importRoot };
   const imported = runSync(process.execPath, [bin, "import", "openai", importPage], {
     env: importEnvironment,
   });
@@ -423,7 +423,7 @@ try {
 
   const ports = { dashboard: await freePort(), otlp: await freePort() };
   const target = join(repositories, "Polyglot Project");
-  let running = startSarvadrik(bin, target, ports, environment);
+  let running = startAvalok(bin, target, ports, environment);
   await running.ready;
   const dashboard = `http://127.0.0.1:${ports.dashboard}`;
   const otlp = `http://127.0.0.1:${ports.otlp}`;
@@ -631,14 +631,14 @@ try {
     ],
     [
       "test trace rejects a bodiless simple POST",
-      `${otlp}/v1/sarvadrik/test-trace`,
+      `${otlp}/v1/avalok/test-trace`,
       { method: "POST" },
       415,
       {},
     ],
     [
       "test trace rejects a foreign Origin",
-      `${otlp}/v1/sarvadrik/test-trace`,
+      `${otlp}/v1/avalok/test-trace`,
       { method: "POST", body: "{}" },
       403,
       { Origin: "https://attacker.example", "Content-Type": "application/json" },
@@ -672,7 +672,7 @@ try {
   if (!windows) check("Ctrl+C exits cleanly", stopped.code === 0, JSON.stringify(stopped));
   check("dashboard and OTLP ports released", await portsReleased(ports));
 
-  running = startSarvadrik(bin, target, ports, environment);
+  running = startAvalok(bin, target, ports, environment);
   await running.ready;
   const persisted = await json(`${dashboard}/api/runtime/runs`);
   check(
@@ -684,7 +684,7 @@ try {
   if (!windows) check("second shutdown clean", stopped.code === 0);
   check("ports released after restart", await portsReleased(ports));
 
-  running = startSarvadrik(bin, target, ports, environment);
+  running = startAvalok(bin, target, ports, environment);
   await running.ready;
   running.child.kill("SIGKILL");
   await running.exited;
@@ -692,8 +692,8 @@ try {
 
   const clear = runSync(process.execPath, [bin, "data", "clear", "--yes"], { env: environment });
   check("data clear", clear.status === 0);
-  check("Sarvadrik runs removed", !existsSync(join(dataRoot, "runtime")));
-  check("non-Sarvadrik data untouched", existsSync(outsideSentinel));
+  check("Avalok runs removed", !existsSync(join(dataRoot, "runtime")));
+  check("non-Avalok data untouched", existsSync(outsideSentinel));
   check("target repository untouched", existsSync(join(target, "docker-compose.yml")));
 } finally {
   if (workspaceHidden) {

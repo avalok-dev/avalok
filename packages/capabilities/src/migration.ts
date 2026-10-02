@@ -15,10 +15,10 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { legacyAgentMapDirectoryNames, platformDataRoot } from "@visual-system/telemetry-adapter";
-import type { SarvadrikDataPaths } from "./index.ts";
+import type { AvalokDataPaths } from "./index.ts";
 
 // Migration of development data kept under the product's former working name, AgentMap, into
-// the Sarvadrik platform data root. Sources, in order:
+// the Avalok platform data root. Sources, in order:
 //   1. The AgentMap platform root (M7.2–M7.4A): runtime snapshots and settings.json.
 //   2. The provisional M7.1 location `~/.agentmap/runtime`.
 // Strategy per source: copy → verify → activate, one snapshot at a time.
@@ -27,7 +27,7 @@ import type { SarvadrikDataPaths } from "./index.ts";
 //   - A destination file that already exists is never overwritten (newer data wins).
 //   - Activation is an exclusive hard link (or exclusive copy) so a concurrent writer is never
 //     clobbered and readers never observe a partial file.
-//   - settings.json is copied only when Sarvadrik has none yet.
+//   - settings.json is copied only when Avalok has none yet.
 //   - Legacy directories are never modified or deleted.
 //   - Each source's outcome is recorded in `<root>/migration.json`; a completed source is a
 //     no-op afterwards, and a failed source is retried on the next start.
@@ -124,11 +124,11 @@ export function legacyDataSources(
   ];
 }
 
-export function migrationRecordPath(paths: SarvadrikDataPaths) {
+export function migrationRecordPath(paths: AvalokDataPaths) {
   return join(paths.root, "migration.json");
 }
 
-export async function readMigrationFile(paths: SarvadrikDataPaths): Promise<MigrationFile> {
+export async function readMigrationFile(paths: AvalokDataPaths): Promise<MigrationFile> {
   try {
     const value = JSON.parse(await readFile(migrationRecordPath(paths), "utf8")) as MigrationFile;
     if (value && typeof value === "object" && value.sources && typeof value.sources === "object")
@@ -140,7 +140,7 @@ export async function readMigrationFile(paths: SarvadrikDataPaths): Promise<Migr
 }
 
 export async function readMigrationRecord(
-  paths: SarvadrikDataPaths,
+  paths: AvalokDataPaths,
   key: LegacyDataSource["key"] = "agentmap-home-directory",
 ): Promise<MigrationRecord | undefined> {
   return (await readMigrationFile(paths)).sources[key];
@@ -184,7 +184,7 @@ async function activate(staged: string, destination: string) {
 }
 
 async function writeRecord(
-  paths: SarvadrikDataPaths,
+  paths: AvalokDataPaths,
   key: LegacyDataSource["key"],
   record: MigrationRecord,
 ) {
@@ -199,7 +199,7 @@ async function writeRecord(
 }
 
 async function migrateSource(
-  paths: SarvadrikDataPaths,
+  paths: AvalokDataPaths,
   source: LegacyDataSource,
   now: () => Date,
 ): Promise<SourceMigrationResult> {
@@ -283,7 +283,7 @@ async function migrateSource(
 }
 
 export async function migrateLegacyData(options: {
-  paths: SarvadrikDataPaths;
+  paths: AvalokDataPaths;
   /** One explicit M7.1-style source (tests); defaults to every legacy source on this machine. */
   legacy?: LegacyDataPaths;
   sources?: LegacyDataSource[];
@@ -306,7 +306,7 @@ export async function migrateLegacyData(options: {
       : undefined);
   // An explicit data-root override (development, tests, CI) is an isolated location; never
   // pull a developer's personal legacy data into it implicitly.
-  if (!explicit && (environment.SARVADRIK_DATA_ROOT || environment.SARVADRIK_DATA_DIR))
+  if (!explicit && (environment.AVALOK_DATA_ROOT || environment.AVALOK_DATA_DIR))
     return { status: "skipped-override", ...empty };
   const sources = explicit ?? legacyDataSources(environment);
   const now = options.now ?? (() => new Date());

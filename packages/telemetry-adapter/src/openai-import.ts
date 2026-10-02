@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { parseOtlpJson } from "./otlp-json.ts";
 import { normalizeTrace } from "./normalizer.ts";
 import { LocalRuntimeStore } from "./store.ts";
@@ -90,9 +90,9 @@ export async function importOpenAiTraceFiles(
   >();
   let malformed = 0;
   for (const path of paths) {
-    const bytes = await readFile(path);
-    if (bytes.byteLength > 20 * 1024 * 1024)
+    if ((await stat(path)).size > 20 * 1024 * 1024)
       throw new Error(`Trace page exceeds the 20 MiB local import limit: ${path}`);
+    const bytes = await readFile(path);
     let payload: unknown;
     try {
       payload = JSON.parse(bytes.toString("utf8"));

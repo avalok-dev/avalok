@@ -4,7 +4,7 @@ provider "aws" {
 
 resource "aws_vpc" "platform" {
   cidr_block = "10.42.0.0/16"
-  tags = { Name = "sarvadrik-platform" }
+  tags = { Name = "avalok-platform" }
 }
 
 resource "aws_subnet" "private" {
@@ -13,18 +13,18 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_eks_cluster" "platform" {
-  name     = "sarvadrik-platform"
+  name     = "avalok-platform"
   role_arn = aws_iam_role.eks.arn
   vpc_config { subnet_ids = [aws_subnet.private.id] }
 }
 
 resource "aws_iam_role" "eks" {
-  name               = "sarvadrik-eks"
+  name               = "avalok-eks"
   assume_role_policy = "{}"
 }
 
 resource "aws_lb" "public" {
-  name               = "sarvadrik-public"
+  name               = "avalok-public"
   load_balancer_type = "application"
   subnets            = [aws_subnet.private.id]
 }
@@ -37,5 +37,5 @@ resource "aws_db_instance" "postgres" {
 }
 
 resource "aws_s3_bucket" "documents" {
-  bucket = "sarvadrik-documents"
+  bucket = "avalok-documents"
 }

@@ -153,7 +153,7 @@ function regexForGitignore(pattern: string) {
 
 async function readIgnoreFiles(rootPath: string) {
   const patterns: RegExp[] = [];
-  for (const name of [".gitignore", ".sarvadrikignore"]) {
+  for (const name of [".gitignore", ".avalokignore"]) {
     try {
       const body = await readFile(join(rootPath, name), "utf8");
       patterns.push(

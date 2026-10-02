@@ -46,7 +46,7 @@ jobs:
       - if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: sarvadrik-packed-tarball
+          name: avalok-packed-tarball
           path: |
             artifacts/release/*.tgz
             artifacts/release/*.sha256

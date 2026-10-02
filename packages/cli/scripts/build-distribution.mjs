@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Builds the installable Sarvadrik package into `packages/cli/dist/`.
+// Builds the installable Avalok package into `packages/cli/dist/`.
 //
 // The result is a self-contained npm package directory: a bundled CLI (`lib/`), a Next.js
 // standalone dashboard (`dashboard/`), allowlisted sample repositories (`samples/`), a small
@@ -36,7 +36,7 @@ const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 // `--publishable` (release workflow only) omits `private: true` so the exact artifact that was
 // built and smoke-tested is the one a later, explicitly approved `npm publish` would upload.
 const publishable = process.argv.includes("--publishable");
-const moduleManifests = mkdtempSync(join(tmpdir(), "sarvadrik-modules-"));
+const moduleManifests = mkdtempSync(join(tmpdir(), "avalok-modules-"));
 let cliInputs = [];
 
 const cliManifest = readJson(join(cliRoot, "package.json"));
@@ -66,6 +66,7 @@ const excludedSampleEntries = new Set([
   ".DS_Store",
   ".agentmap",
   ".sarvadrik",
+  ".avalok",
   ".terraform",
 ]);
 
@@ -101,8 +102,8 @@ function buildDashboard() {
     cwd: webRoot,
     env: {
       ...process.env,
-      SARVADRIK_DASHBOARD_STANDALONE: "1",
-      SARVADRIK_MODULE_MANIFEST: moduleManifests,
+      AVALOK_DASHBOARD_STANDALONE: "1",
+      AVALOK_MODULE_MANIFEST: moduleManifests,
       NEXT_TELEMETRY_DISABLED: "1",
       NODE_ENV: "production",
     },
@@ -124,7 +125,7 @@ function buildDashboard() {
   });
   if (existsSync(join(webRoot, "public")))
     cpSync(join(webRoot, "public"), join(destination, "public"), { recursive: true });
-  cpSync(join(cliRoot, "src", "dashboard-launcher.cjs"), join(destination, "sarvadrik-launch.cjs"));
+  cpSync(join(cliRoot, "src", "dashboard-launcher.cjs"), join(destination, "avalok-launch.cjs"));
   // The package root is ESM; the standalone server is CommonJS.
   writeFileSync(
     join(destination, "package.json"),
@@ -154,7 +155,7 @@ async function bundleCli() {
     external: externalRuntime,
     // Some bundled CommonJS dependencies call require() for Node built-ins.
     banner: {
-      js: 'import { createRequire as __sarvadrikCreateRequire } from "node:module";\nconst require = __sarvadrikCreateRequire(import.meta.url);',
+      js: 'import { createRequire as __avalokCreateRequire } from "node:module";\nconst require = __avalokCreateRequire(import.meta.url);',
     },
   });
   cliInputs = Object.keys(cli.metafile.inputs).map((input) => resolve(process.cwd(), input));
@@ -184,7 +185,7 @@ if (support === "unsupported") {
   );
   process.exit(1);
 }
-if (support === "untested-newer" && process.env.SARVADRIK_QUIET_NODE_WARNING !== "1")
+if (support === "untested-newer" && process.env.AVALOK_QUIET_NODE_WARNING !== "1")
   process.stderr.write(
     "Warning: Node.js " + process.versions.node + " is newer than the tested range " + supportedNodeRange + ".\\n",
   );
@@ -280,8 +281,8 @@ Developer preview. Website: ${product.homepage}
 \`\`\`sh
 ${product.cliName} [path]            # analyze a repository and open the local dashboard
 ${product.cliName} doctor [path]     # diagnose the local setup without starting services
-${product.cliName} data path         # show Sarvadrik-owned local data
-${product.cliName} data clear        # clear Sarvadrik-owned local data
+${product.cliName} data path         # show Avalok-owned local data
+${product.cliName} data clear        # clear Avalok-owned local data
 \`\`\`
 
 Requires Node.js ${rootManifest.engines.node}. Everything runs locally; both servers bind to 127.0.0.1.
@@ -290,7 +291,7 @@ OTLP/HTTP traces (protobuf or JSON) are accepted at http://127.0.0.1:4318/v1/tra
 Terraform, Kubernetes, Helm, and AWS support analyzes configuration files in your repository;
 ${product.displayName} does not connect to cloud or cluster APIs.
 
-Uninstalling the package does not delete Sarvadrik's local data; run \`${product.cliName} data path\`
+Uninstalling the package does not delete Avalok's local data; run \`${product.cliName} data path\`
 to find it and \`${product.cliName} data clear\` before uninstalling if you want it removed.
 
 Licensed under Apache-2.0. Bundled third-party components and their licenses are listed in
@@ -332,7 +333,7 @@ function verifyIndependence() {
       problems.push(`${relativeFile} loads an internal workspace package at runtime`);
   }
   const forbidden =
-    /^(\.env(\..*)?|node_modules|\.git|\.agentmap|\.sarvadrik|coverage|\.turbo|\.venv|__pycache__|.*\.tfstate|.*\.tfvars)$/;
+    /^(\.env(\..*)?|node_modules|\.git|\.agentmap|\.sarvadrik|\.avalok|coverage|\.turbo|\.venv|__pycache__|.*\.tfstate|.*\.tfvars)$/;
   for (const file of files(output))
     for (const part of relative(output, file).split(sep))
       if (forbidden.test(part)) problems.push(`artifact contains ${relative(output, file)}`);

@@ -10,7 +10,7 @@ import type { DashboardHandle } from "../src/dashboard";
 import { runCli, waitForShutdown } from "../src/bin";
 import { productIdentity } from "../src/identity";
 import { cliDefaults, parseCliOptions, type CliOptions } from "../src/options";
-import { maybeOpenBrowser, startSarvadrik, type RunningSarvadrik } from "../src/orchestrator";
+import { maybeOpenBrowser, startAvalok, type RunningAvalok } from "../src/orchestrator";
 import { availableDashboardPort, isPortAvailable, resolveTarget } from "../src/system";
 import { dataPath, runDataClear } from "../src/data";
 import { runDoctor } from "../src/doctor";
@@ -30,7 +30,7 @@ afterEach(async () => {
 });
 
 async function temporaryRepository() {
-  const directory = await mkdtemp(join(tmpdir(), "sarvadrik-cli-target-"));
+  const directory = await mkdtemp(join(tmpdir(), "avalok-cli-target-"));
   await writeFile(
     join(directory, "package.json"),
     JSON.stringify({ name: "external-test-repository", dependencies: { next: "15.0.0" } }),
@@ -97,8 +97,8 @@ describe("CLI options", () => {
     let output = "";
     const writer = { write: (value: string | Uint8Array) => ((output += value.toString()), true) };
     expect(await runCli(["--help"], writer, writer)).toBe(0);
-    expect(output).toContain("Usage:\n  sarvadrik [path] [options]");
-    expect(output).toContain("sarvadrik import openai <page.json>");
+    expect(output).toContain("Usage:\n  avalok [path] [options]");
+    expect(output).toContain("avalok import openai <page.json>");
     output = "";
     expect(await runCli(["--version"], writer, writer)).toBe(0);
     expect(output.trim()).toBe(productIdentity.version);
@@ -115,13 +115,13 @@ describe("CLI options", () => {
 describe("doctor and local data commands", () => {
   it("reports a usable repository without leaking environment secrets", async () => {
     const repository = await temporaryRepository();
-    const root = await mkdtemp(join(tmpdir(), "sarvadrik-doctor-data-"));
+    const root = await mkdtemp(join(tmpdir(), "avalok-doctor-data-"));
     const [port, otlpPort] = await Promise.all([unusedPort(), unusedPort()]);
     const result = await runDoctor(
       options({ command: "doctor", target: repository, port, otlpPort }),
       {
         environment: {
-          SARVADRIK_DATA_DIR: root,
+          AVALOK_DATA_DIR: root,
           HOME: root,
           PATH: "",
           SECRET_TOKEN: "must-not-appear",
@@ -145,12 +145,12 @@ describe("doctor and local data commands", () => {
     await new Promise<void>((resolveListen) => occupied.listen(0, cliDefaults.host, resolveListen));
     const address = occupied.address();
     if (!address || typeof address === "string") throw new Error("Expected a TCP address.");
-    const root = await mkdtemp(join(tmpdir(), "sarvadrik-doctor-conflict-"));
+    const root = await mkdtemp(join(tmpdir(), "avalok-doctor-conflict-"));
     const result = await runDoctor(
       options({ command: "doctor", target: repository, otlpPort: address.port }),
       {
         environment: {
-          SARVADRIK_DATA_DIR: root,
+          AVALOK_DATA_DIR: root,
           HOME: root,
           PATH: "",
           AI_VISUALIZER_CODEX_HOME: join(root, "codex"),
@@ -163,15 +163,15 @@ describe("doctor and local data commands", () => {
 
   it("reports an unreadable target as blocking", async () => {
     const result = await runDoctor(
-      options({ command: "doctor", target: join(tmpdir(), "missing-sarvadrik-target") }),
+      options({ command: "doctor", target: join(tmpdir(), "missing-avalok-target") }),
     );
     expect(result.exitCode).toBe(1);
     expect(result.output).toContain("does not exist");
   });
 
-  it("cancels data clearing without changing Sarvadrik files", async () => {
-    const root = await mkdtemp(join(tmpdir(), "sarvadrik-data-cancel-"));
-    const environment = { SARVADRIK_DATA_DIR: root };
+  it("cancels data clearing without changing Avalok files", async () => {
+    const root = await mkdtemp(join(tmpdir(), "avalok-data-cancel-"));
+    const environment = { AVALOK_DATA_DIR: root };
     const paths = dataPath(environment);
     await mkdir(paths.runtime, { recursive: true });
     const run = join(paths.runtime, "run.json");
@@ -186,11 +186,11 @@ describe("doctor and local data commands", () => {
     expect(await readFile(run, "utf8")).toBe("keep\n");
   });
 
-  it("clears confirmed Sarvadrik data without touching repository or agent storage", async () => {
-    const root = await mkdtemp(join(tmpdir(), "sarvadrik-data-confirm-"));
+  it("clears confirmed Avalok data without touching repository or agent storage", async () => {
+    const root = await mkdtemp(join(tmpdir(), "avalok-data-confirm-"));
     const repository = await temporaryRepository();
-    const agentStorage = await mkdtemp(join(tmpdir(), "sarvadrik-agent-storage-"));
-    const environment = { SARVADRIK_DATA_DIR: root };
+    const agentStorage = await mkdtemp(join(tmpdir(), "avalok-agent-storage-"));
+    const environment = { AVALOK_DATA_DIR: root };
     const paths = dataPath(environment);
     await mkdir(paths.runtime, { recursive: true });
     await writeFile(join(paths.runtime, "run.json"), "remove\n");
@@ -234,12 +234,12 @@ describe("ports and orchestration", () => {
 
   it("analyzes the requested target, starts loopback OTLP, and keeps discovery failures non-fatal", async () => {
     const repository = await temporaryRepository();
-    const dataDirectory = await mkdtemp(join(tmpdir(), "sarvadrik-cli-data-"));
+    const dataDirectory = await mkdtemp(join(tmpdir(), "avalok-cli-data-"));
     const [dashboardPort, otlpPort] = await Promise.all([unusedPort(), unusedPort()]);
-    const running = await startSarvadrik(
+    const running = await startAvalok(
       options({ target: repository, port: dashboardPort, otlpPort }),
       {
-        environment: { SARVADRIK_DATA_DIR: dataDirectory },
+        environment: { AVALOK_DATA_DIR: dataDirectory },
         dependencies: {
           discoverCodex: async () => {
             throw new Error("not available");
@@ -266,8 +266,11 @@ describe("ports and orchestration", () => {
     const address = occupied.address();
     if (!address || typeof address === "string") throw new Error("Expected a TCP address.");
     const launch = vi.fn(() => fakeDashboard());
+    const dataDirectory = await mkdtemp(join(tmpdir(), "avalok-cli-data-"));
     await expect(
-      startSarvadrik(options({ target: repository, otlpPort: address.port }), {
+      startAvalok(options({ target: repository, otlpPort: address.port }), {
+        // Never the real user-data root: startup migrates legacy data from the home directory.
+        environment: { AVALOK_DATA_DIR: dataDirectory },
         dependencies: { launchDashboard: launch },
       }),
     ).rejects.toThrow(`OTLP port ${address.port} is already in use`);
@@ -276,7 +279,7 @@ describe("ports and orchestration", () => {
 
   it("treats browser-opening failure as a warning", async () => {
     const warning = await maybeOpenBrowser(
-      { dashboardUrl: "http://127.0.0.1:4737" } as RunningSarvadrik,
+      { dashboardUrl: "http://127.0.0.1:4737" } as RunningAvalok,
       true,
       async () => {
         throw new Error("headless");
@@ -291,12 +294,12 @@ describe("ports and orchestration", () => {
     const running = {
       dashboard: fakeDashboard(),
       stop,
-    } as unknown as RunningSarvadrik;
+    } as unknown as RunningAvalok;
     const output = { write: vi.fn(() => true) };
     const waiting = waitForShutdown(running, signals, output);
     signals.emit("SIGINT");
     await waiting;
     expect(stop).toHaveBeenCalledOnce();
-    expect(output.write).toHaveBeenCalledWith("\nStopping Sarvadrik...\n");
+    expect(output.write).toHaveBeenCalledWith("\nStopping Avalok...\n");
   });
 });

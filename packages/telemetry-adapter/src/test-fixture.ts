@@ -29,8 +29,8 @@ export function buildSyntheticTestTrace(startedAt = Date.now()) {
     startTimeUnixNano: nanos(startedAt + offset),
     endTimeUnixNano: nanos(startedAt + offset + duration),
     attributes: [
-      attribute("sarvadrik.synthetic", true),
-      attribute("sarvadrik.fixture", "m7.2-test-trace"),
+      attribute("avalok.synthetic", true),
+      attribute("avalok.fixture", "m7.2-test-trace"),
       attribute("openinference.span.kind", kind),
       ...extra,
     ],
@@ -41,14 +41,14 @@ export function buildSyntheticTestTrace(startedAt = Date.now()) {
       {
         resource: {
           attributes: [
-            attribute("service.name", "Sarvadrik Synthetic Fixture"),
+            attribute("service.name", "Avalok Synthetic Fixture"),
             attribute("deployment.environment.name", "local-test"),
-            attribute("sarvadrik.synthetic", true),
+            attribute("avalok.synthetic", true),
           ],
         },
         scopeSpans: [
           {
-            scope: { name: "sarvadrik.synthetic-fixture", version: "1" },
+            scope: { name: "avalok.synthetic-fixture", version: "1" },
             spans: [
               span(
                 "0000000000000101",

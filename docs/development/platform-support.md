@@ -22,9 +22,9 @@ Supported: Node `>=24.19.0 <25` (Node 24 LTS line). The installed launcher refus
 | Child processes   | Only two spawns (dashboard, browser), both `process.execPath`/fixed executables with argument arrays and `shell: false`. Repository paths are never interpolated into commands.                                                        |
 | Signals           | SIGINT (Ctrl+C, including Windows console), SIGTERM, and SIGHUP (terminal/console closed) trigger coordinated shutdown.                                                                                                                |
 | Dashboard stop    | The packaged dashboard exits immediately on SIGTERM (`NEXT_MANUAL_SIG_HANDLE`), as Windows termination already does; the collector in the CLI process owns persistence. Measured ≈50 ms on macOS with and without an open live stream. |
-| Orphans           | `sarvadrik-launch.cjs` checks the CLI PID every second (`process.kill(pid, 0)`, cross-platform) and exits if the CLI is gone — e.g. force-killed or a closed Windows console.                                                          |
+| Orphans           | `avalok-launch.cjs` checks the CLI PID every second (`process.kill(pid, 0)`, cross-platform) and exits if the CLI is gone — e.g. force-killed or a closed Windows console.                                                             |
 | Paths             | `path` APIs throughout; the analyzer normalizes repository-relative IDs to `/`. Tested with spaces in install and repository paths and a Unicode repository name.                                                                      |
-| Temp files        | `os.tmpdir()` only in tests/smoke; runtime writes only under the Sarvadrik data root.                                                                                                                                                  |
+| Temp files        | `os.tmpdir()` only in tests/smoke; runtime writes only under the Avalok data root.                                                                                                                                                     |
 | Permissions       | No `chmod` requirement at runtime; npm creates bin shims (`.cmd`/`.ps1` on Windows).                                                                                                                                                   |
 | Bind              | Dashboard and OTLP bind `127.0.0.1`; the child's `HOSTNAME` is pinned so a shell `HOSTNAME` cannot widen it (verified with `HOSTNAME=0.0.0.0` and `lsof`).                                                                             |
 
@@ -32,5 +32,5 @@ Supported: Node `>=24.19.0 <25` (Node 24 LTS line). The installed launcher refus
 
 - Windows: Ctrl+C cannot be simulated for a single child in CI, so the Windows smoke asserts port release after termination rather than a clean exit code. Symlink-based unit tests pass on GitHub runners (administrator); a non-admin machine without Developer Mode may skip or fail them.
 - Windows checkouts rely on `.gitattributes` (LF) and on the dashboard build keeping home-directory paths away from Next's file tracer (see [release build](release-build.md)).
-- Linux headless: `xdg-open` may be absent; Sarvadrik prints the URL and continues.
+- Linux headless: `xdg-open` may be absent; Avalok prints the URL and continues.
 - WSL is not specifically handled.

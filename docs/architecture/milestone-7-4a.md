@@ -1,6 +1,6 @@
 # Milestone 7.4A — local security hardening and cross-platform release verification
 
-> **Historical record.** Written while the product's working name was AgentMap; the product is now **Sarvadrik** (CLI `sarvadrik`, environment variables `SARVADRIK_*`). Commands and names below are as they were at the time.
+> **Historical record.** Written while the product's working name was AgentMap (later Sarvadrik); the product is now **Avalok** (CLI `avalok`, environment variables `AVALOK_*`). Commands and names below are as they were at the time.
 
 M7.4A closes the local HTTP security findings from M7.3, proves the packaged product on real Linux, Windows, and macOS runners, and makes release builds independent of the build machine. Nothing was published; the name and package identity remain provisional (`@visual-system/agentmap`, private).
 

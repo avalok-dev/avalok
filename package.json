@@ -1,5 +1,5 @@
 {
-  "name": "sarvadrik-monorepo",
+  "name": "avalok-monorepo",
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
@@ -8,7 +8,7 @@
     "node": ">=24.19.0 <25"
   },
   "scripts": {
-    "sarvadrik": "node packages/cli/sarvadrik.mjs",
+    "avalok": "node packages/cli/avalok.mjs",
     "build": "turbo run build",
     "dev": "turbo run dev --filter=@visual-system/web --filter=@visual-system/collector",
     "lint": "turbo run lint",

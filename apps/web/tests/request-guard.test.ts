@@ -64,7 +64,7 @@ describe("dashboard Host validation (DNS rebinding)", () => {
   });
 
   it("reads the port the CLI or Next publishes", () => {
-    expect(dashboardPort({ SARVADRIK_DASHBOARD_PORT: "4740", PORT: "1" })).toBe(4740);
+    expect(dashboardPort({ AVALOK_DASHBOARD_PORT: "4740", PORT: "1" })).toBe(4740);
     expect(dashboardPort({ PORT: "3001" })).toBe(3001);
     expect(dashboardPort({})).toBeUndefined();
     expect(dashboardPort({ PORT: "nope" })).toBeUndefined();
@@ -123,13 +123,13 @@ describe("dashboard mutation content type", () => {
 });
 
 describe("middleware", () => {
-  const originalPort = process.env.SARVADRIK_DASHBOARD_PORT;
+  const originalPort = process.env.AVALOK_DASHBOARD_PORT;
   beforeEach(() => {
-    process.env.SARVADRIK_DASHBOARD_PORT = String(port);
+    process.env.AVALOK_DASHBOARD_PORT = String(port);
   });
   afterEach(() => {
-    if (originalPort === undefined) delete process.env.SARVADRIK_DASHBOARD_PORT;
-    else process.env.SARVADRIK_DASHBOARD_PORT = originalPort;
+    if (originalPort === undefined) delete process.env.AVALOK_DASHBOARD_PORT;
+    else process.env.AVALOK_DASHBOARD_PORT = originalPort;
   });
 
   const call = (path: string, headers: Record<string, string>, method = "GET") =>
@@ -181,8 +181,8 @@ describe("bounded JSON bodies", () => {
 describe("settings route", () => {
   let data: string;
   beforeEach(async () => {
-    data = await mkdtemp(join(tmpdir(), "sarvadrik-settings-"));
-    vi.stubEnv("SARVADRIK_DATA_DIR", data);
+    data = await mkdtemp(join(tmpdir(), "avalok-settings-"));
+    vi.stubEnv("AVALOK_DATA_DIR", data);
   });
   afterEach(() => vi.unstubAllEnvs());
 

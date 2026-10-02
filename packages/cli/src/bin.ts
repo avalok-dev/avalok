@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import type { EventEmitter } from "node:events";
 import { productIdentity } from "./identity.ts";
 import { helpText, parseCliOptions } from "./options.ts";
-import { maybeOpenBrowser, startSarvadrik, startupSummary } from "./orchestrator.ts";
+import { maybeOpenBrowser, startAvalok, startupSummary } from "./orchestrator.ts";
 import { StartupError } from "./system.ts";
 import { dataPath, runDataClear } from "./data.ts";
 import { runDoctor } from "./doctor.ts";
@@ -47,7 +47,7 @@ export async function runCli(
     output.write(result.output);
     return result.exitCode;
   }
-  const running = await startSarvadrik(options);
+  const running = await startAvalok(options);
   output.write(startupSummary(running, options.port));
   for (const status of [running.sources.codex, running.sources.claude])
     if (status.warning) errorOutput.write(`Warning: ${status.warning}\n`);
@@ -62,7 +62,7 @@ export async function runCli(
 export const shutdownSignals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
 
 export async function waitForShutdown(
-  running: Awaited<ReturnType<typeof startSarvadrik>>,
+  running: Awaited<ReturnType<typeof startAvalok>>,
   signals: Pick<EventEmitter, "once" | "removeListener">,
   output: Pick<NodeJS.WriteStream, "write">,
 ) {
@@ -86,7 +86,7 @@ export async function waitForShutdown(
         if (!stopping)
           throw new StartupError(
             `Dashboard stopped unexpectedly${code === null ? "" : ` with exit code ${code}`}${signal ? ` (${signal})` : ""}.`,
-            "Run Sarvadrik again. If the problem continues, rebuild the dashboard.",
+            "Run Avalok again. If the problem continues, rebuild the dashboard.",
           );
       }),
       shutdownSignal,

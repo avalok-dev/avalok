@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Sarvadrik does not work as documented
+description: Something in Avalok does not work as documented
 labels: [bug]
 body:
   - type: markdown
@@ -24,14 +24,14 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: sarvadrik doctor output
-      description: Run `sarvadrik doctor` in the affected repository. Review it before posting (it contains local paths).
+      label: avalok doctor output
+      description: Run `avalok doctor` in the affected repository. Review it before posting (it contains local paths).
       render: text
   - type: input
     id: version
     attributes:
-      label: Sarvadrik version
-      description: Output of `sarvadrik --version`
+      label: Avalok version
+      description: Output of `avalok --version`
     validations:
       required: true
   - type: dropdown

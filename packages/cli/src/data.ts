@@ -1,12 +1,8 @@
 import { createInterface } from "node:readline/promises";
-import {
-  sarvadrikDataPaths,
-  clearSarvadrikData,
-  compactUserPath,
-} from "@visual-system/capabilities";
+import { avalokDataPaths, clearAvalokData, compactUserPath } from "@visual-system/capabilities";
 
 export function dataPath(environment: NodeJS.ProcessEnv = process.env) {
-  return sarvadrikDataPaths(environment);
+  return avalokDataPaths(environment);
 }
 
 export async function confirmDataClear(
@@ -16,7 +12,7 @@ export async function confirmDataClear(
   const readline = createInterface({ input, output });
   try {
     const answer = await readline.question(
-      "This will delete Sarvadrik's local cache, observed runs, and UI settings.\nIt will NOT modify your repository, Codex sessions, or Claude sessions.\nContinue? [y/N] ",
+      "This will delete Avalok's local cache, observed runs, and UI settings.\nIt will NOT modify your repository, Codex sessions, or Claude sessions.\nContinue? [y/N] ",
     );
     return /^y(?:es)?$/i.test(answer.trim());
   } finally {
@@ -34,11 +30,10 @@ export async function runDataClear(options: {
   const confirmed =
     options.yes ||
     (await confirmDataClear(options.input ?? process.stdin, options.output ?? process.stdout));
-  if (!confirmed)
-    return { cleared: false, message: "Cancelled. Sarvadrik data was not changed.\n" };
-  await clearSarvadrikData(paths);
+  if (!confirmed) return { cleared: false, message: "Cancelled. Avalok data was not changed.\n" };
+  await clearAvalokData(paths);
   return {
     cleared: true,
-    message: `Cleared Sarvadrik-owned data in ${compactUserPath(paths.root)}.\n`,
+    message: `Cleared Avalok-owned data in ${compactUserPath(paths.root)}.\n`,
   };
 }

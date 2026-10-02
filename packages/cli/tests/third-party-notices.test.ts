@@ -16,7 +16,7 @@ async function pkg(root: string, path: string, manifest: object, files: Record<s
 
 describe("third-party notices", () => {
   it("attributes shipped files to packages, reproduces license texts, and flags copyleft", async () => {
-    const root = await mkdtemp(join(tmpdir(), "sarvadrik-notices-"));
+    const root = await mkdtemp(join(tmpdir(), "avalok-notices-"));
     const mit = await pkg(
       root,
       "left-pad",
@@ -53,7 +53,7 @@ describe("third-party notices", () => {
     mergePackages(packages, collectPackages([mit, epl, workspace]), "cli");
     mergePackages(packages, collectPackages([mit, vendored, noText]), "dashboard");
     const { text, missingText, count } = renderNotices(packages, {
-      product: { displayName: "Sarvadrik" },
+      product: { displayName: "Avalok" },
       runtimeDependencies: [{ name: "typescript", version: "5.9.3", license: "Apache-2.0" }],
     });
 

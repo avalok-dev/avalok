@@ -1,43 +1,43 @@
 # Privacy and local data
 
-Sarvadrik runs entirely on your machine. There is no Sarvadrik cloud service, account, analytics, telemetry about how you use Sarvadrik, crash reporting, or update check. This page describes what the installed `sarvadrik` package reads, stores, and sends. It does not describe what other tools (Codex, Claude Code, your model providers, cloud providers) do with their own data.
+Avalok runs entirely on your machine. There is no Avalok cloud service, account, analytics, telemetry about how you use Avalok, crash reporting, or update check. This page describes what the installed `avalok` package reads, stores, and sends. It does not describe what other tools (Codex, Claude Code, your model providers, cloud providers) do with their own data.
 
-## What Sarvadrik reads
+## What Avalok reads
 
-| Source                             | What is read                                                                                                                                                                                                                                                                                                                                      | When                                  |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| **The repository you point it at** | Source and configuration files, parsed as data (bounded by file-count and size limits). Honors `.gitignore` and `.sarvadrikignore`. Skips `node_modules`, virtualenvs, `.env*` files, Terraform state, `.tfvars`, and lock files. Environment and secret-like configuration values are discarded; for Kubernetes Secrets only key names are kept. | At startup, `doctor`, and on Rescan   |
-| **Codex sessions**                 | Session files in `~/.codex/sessions` (or `$CODEX_HOME/sessions`): prompts, commands, file changes, tool and model activity as Codex recorded them. Read-only; the dashboard reads them live and Sarvadrik does not copy them into its own storage.                                                                                                | When you list or open a Codex session |
-| **Claude Code**                    | Whether `~/.claude` exists, and whether `~/.claude/settings.json` or the repository's `.claude/settings*.json` configure a Sarvadrik hook (only the presence of the hook URL is checked). Transcripts are not read.                                                                                                                               | Capability report and `doctor`        |
-| **Telemetry and hooks you send**   | OpenTelemetry traces and Claude Code hook payloads that programs on your machine send to `127.0.0.1:4318`.                                                                                                                                                                                                                                        | When they are sent                    |
-| **Executables on `PATH`**          | Whether `codex` and `claude` exist (file existence only; nothing is executed).                                                                                                                                                                                                                                                                    | Capability report and `doctor`        |
+| Source                             | What is read                                                                                                                                                                                                                                                                                                                                   | When                                  |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| **The repository you point it at** | Source and configuration files, parsed as data (bounded by file-count and size limits). Honors `.gitignore` and `.avalokignore`. Skips `node_modules`, virtualenvs, `.env*` files, Terraform state, `.tfvars`, and lock files. Environment and secret-like configuration values are discarded; for Kubernetes Secrets only key names are kept. | At startup, `doctor`, and on Rescan   |
+| **Codex sessions**                 | Session files in `~/.codex/sessions` (or `$CODEX_HOME/sessions`): prompts, commands, file changes, tool and model activity as Codex recorded them. Read-only; the dashboard reads them live and Avalok does not copy them into its own storage.                                                                                                | When you list or open a Codex session |
+| **Claude Code**                    | Whether `~/.claude` exists, and whether `~/.claude/settings.json` or the repository's `.claude/settings*.json` configure an Avalok hook (only the presence of the hook URL is checked). Transcripts are not read.                                                                                                                              | Capability report and `doctor`        |
+| **Telemetry and hooks you send**   | OpenTelemetry traces and Claude Code hook payloads that programs on your machine send to `127.0.0.1:4318`.                                                                                                                                                                                                                                     | When they are sent                    |
+| **Executables on `PATH`**          | Whether `codex` and `claude` exist (file existence only; nothing is executed).                                                                                                                                                                                                                                                                 | Capability report and `doctor`        |
 
 Static analysis never executes, imports, builds, or installs anything from your repository, and never sends its contents anywhere.
 
-## What Sarvadrik stores
+## What Avalok stores
 
 Only its own data, in your platform's user-data directory:
 
-| Platform | Location                                                 |
-| -------- | -------------------------------------------------------- |
-| macOS    | `~/Library/Application Support/Sarvadrik`                |
-| Linux    | `$XDG_DATA_HOME/sarvadrik` or `~/.local/share/sarvadrik` |
-| Windows  | `%LOCALAPPDATA%\Sarvadrik`                               |
+| Platform | Location                                           |
+| -------- | -------------------------------------------------- |
+| macOS    | `~/Library/Application Support/Avalok`             |
+| Linux    | `$XDG_DATA_HOME/avalok` or `~/.local/share/avalok` |
+| Windows  | `%LOCALAPPDATA%\Avalok`                            |
 
 - `runtime/`: normalized runs from received OpenTelemetry traces and Claude Code hooks. Before anything is stored, secret-named fields (authorization, cookies, API keys, tokens, passwords, private keys, credentials, connection strings) are replaced with `[REDACTED]`, and long values are truncated.
 - `settings.json`: UI preferences (for example, whether Getting Started was dismissed).
 - `migration.json`: a record of the one-time copy of data from the product's former AgentMap development locations ([details](development/data-migration.md)).
 
-Repository analysis results are kept in memory only. Sarvadrik never writes to your repository, Codex's or Claude Code's directories, kubeconfig, or Terraform files.
+Repository analysis results are kept in memory only. Avalok never writes to your repository, Codex's or Claude Code's directories, kubeconfig, or Terraform files.
 
 ## Clearing data
 
 ```sh
-sarvadrik data path          # show the directory
-sarvadrik data clear         # delete Sarvadrik's runs and settings (asks first)
+avalok data path          # show the directory
+avalok data clear         # delete Avalok's runs and settings (asks first)
 ```
 
-`data clear` deletes only Sarvadrik's `runtime/` and `settings.json`. Uninstalling the package does not remove this directory; clear it first if you want it gone.
+`data clear` deletes only Avalok's `runtime/` and `settings.json`. Uninstalling the package does not remove this directory; clear it first if you want it gone.
 
 ## Network
 
@@ -52,4 +52,4 @@ Development workflows disable Next.js telemetry too (`apps/web/next.config.ts`).
 
 ## Verification
 
-Before release, outbound connections were measured by hooking Node's network APIs in every Sarvadrik process (including child processes) while running the packaged product, sending traces, and using the dashboard: no connection to any non-loopback host was attempted. The same method showed that contributor `next build` previously posted to `telemetry.nextjs.org`; it no longer does. See the [developer-preview release record](releases/developer-preview.md).
+Before release, outbound connections were measured by hooking Node's network APIs in every Avalok process (including child processes) while running the packaged product, sending traces, and using the dashboard: no connection to any non-loopback host was attempted. The same method showed that contributor `next build` previously posted to `telemetry.nextjs.org`; it no longer does. See the [developer-preview release record](releases/developer-preview.md).

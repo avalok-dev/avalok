@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "bin": {
-    "sarvadrik": "./sarvadrik.mjs"
+    "avalok": "./avalok.mjs"
   },
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "sarvadrik": "node sarvadrik.mjs",
+    "avalok": "node avalok.mjs",
     "build": "tsc --noEmit",
     "lint": "eslint src tests",
     "test": "vitest run",

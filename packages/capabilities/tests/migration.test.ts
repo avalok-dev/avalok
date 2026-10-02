@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  sarvadrikDataPaths,
-  clearSarvadrikData,
+  avalokDataPaths,
+  clearAvalokData,
   inspectLegacyData,
   legacyAgentMapDataPaths,
   legacyDataSources,
@@ -18,10 +18,10 @@ const snapshotName = (source: string, seed: string) =>
   `${source}-${createHash("sha256").update(seed).digest("hex")}.json`;
 
 async function fixture() {
-  const scratch = await mkdtemp(join(tmpdir(), "sarvadrik migration "));
+  const scratch = await mkdtemp(join(tmpdir(), "avalok migration "));
   const home = join(scratch, "home");
   const legacy = legacyAgentMapDataPaths(home);
-  const paths = sarvadrikDataPaths({ SARVADRIK_DATA_DIR: join(scratch, "New Data Root") });
+  const paths = avalokDataPaths({ AVALOK_DATA_DIR: join(scratch, "New Data Root") });
   await mkdir(legacy.runtime, { recursive: true });
   const first = snapshotName("telemetry", "one");
   const second = snapshotName("claude", "two");
@@ -73,7 +73,7 @@ describe("legacy data migration", () => {
     const { scratch, legacy, paths } = await fixture();
     const outside = join(scratch, "outside.json");
     await writeFile(outside, "secret\n");
-    await writeFile(join(legacy.runtime, "notes.txt"), "not sarvadrik\n");
+    await writeFile(join(legacy.runtime, "notes.txt"), "not avalok\n");
     await symlink(outside, join(legacy.runtime, snapshotName("telemetry", "link")));
     await writeFile(join(legacy.runtime, snapshotName("telemetry", "corrupt")), "{not json");
     const result = await migrateLegacyData({ paths, legacy });
@@ -83,7 +83,7 @@ describe("legacy data migration", () => {
 
   it("records failure, keeps legacy data, and retries on the next run", async () => {
     const { scratch, legacy, paths, first } = await fixture();
-    const blocked = sarvadrikDataPaths({ SARVADRIK_DATA_DIR: join(scratch, "blocked") });
+    const blocked = avalokDataPaths({ AVALOK_DATA_DIR: join(scratch, "blocked") });
     await mkdir(blocked.root, { recursive: true });
     await writeFile(blocked.runtime, "a file where the runtime directory should be");
     const failed = await migrateLegacyData({ paths: blocked, legacy });
@@ -111,7 +111,7 @@ describe("legacy data migration", () => {
       await migrateLegacyData({ paths, legacy: legacyAgentMapDataPaths(join(scratch, "empty")) }),
     ).toMatchObject({ status: "no-legacy-data" });
     expect(
-      await migrateLegacyData({ paths, environment: { SARVADRIK_DATA_DIR: paths.root } }),
+      await migrateLegacyData({ paths, environment: { AVALOK_DATA_DIR: paths.root } }),
     ).toMatchObject({ status: "skipped-override" });
     expect(await inspectLegacyData(legacyAgentMapDataPaths(join(scratch, "empty")))).toEqual({
       present: false,
@@ -122,7 +122,7 @@ describe("legacy data migration", () => {
   it("keeps data clearing inside the new root and never re-imports cleared legacy runs", async () => {
     const { legacy, paths, first } = await fixture();
     await migrateLegacyData({ paths, legacy });
-    await clearSarvadrikData(paths);
+    await clearAvalokData(paths);
     expect(await readFile(join(legacy.runtime, first), "utf8")).toBe('{"run":"legacy-one"}\n');
     expect(await migrateLegacyData({ paths, legacy })).toMatchObject({
       status: "already-migrated",
@@ -137,7 +137,7 @@ describe("legacy data migration", () => {
     await writeFile(join(external, "keep.txt"), "keep\n");
     await mkdir(paths.root, { recursive: true });
     await symlink(external, paths.runtime);
-    await clearSarvadrikData(paths);
+    await clearAvalokData(paths);
     expect(await readFile(join(external, "keep.txt"), "utf8")).toBe("keep\n");
   });
 
@@ -211,7 +211,7 @@ describe("legacy data migration", () => {
     expect(home).toBeTruthy();
   });
 
-  it("never overwrites existing Sarvadrik settings", async () => {
+  it("never overwrites existing Avalok settings", async () => {
     const { scratch, paths } = await fixture();
     const agentMapRoot = join(scratch, "AgentMap Root");
     await mkdir(agentMapRoot, { recursive: true });

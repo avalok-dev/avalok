@@ -6,9 +6,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { DashboardHandle } from "../src/dashboard";
 import { cliDefaults } from "../src/options";
-import { startSarvadrik } from "../src/orchestrator";
+import { startAvalok } from "../src/orchestrator";
 import { isPortAvailable } from "../src/system";
-import { sarvadrikDataPaths, buildCapabilityReport } from "@visual-system/capabilities";
+import { avalokDataPaths, buildCapabilityReport } from "@visual-system/capabilities";
 import { runDoctor } from "../src/doctor";
 
 async function unusedPort() {
@@ -24,9 +24,9 @@ async function unusedPort() {
 describe("M7.2 product flow integration", () => {
   it("takes a temporary repository from CLI startup through waiting, synthetic observation, doctor, and shutdown", async () => {
     const repository = await realpath(
-      await mkdtemp(join(tmpdir(), "sarvadrik-cli-integration-target-")),
+      await mkdtemp(join(tmpdir(), "avalok-cli-integration-target-")),
     );
-    const dataDirectory = await mkdtemp(join(tmpdir(), "sarvadrik-cli-integration-data-"));
+    const dataDirectory = await mkdtemp(join(tmpdir(), "avalok-cli-integration-data-"));
     await writeFile(
       join(repository, "package.json"),
       JSON.stringify({ name: "outside-workspace" }),
@@ -35,7 +35,7 @@ describe("M7.2 product flow integration", () => {
     const [dashboardPort, otlpPort] = await Promise.all([unusedPort(), unusedPort()]);
     let dashboardServer: Server | undefined;
 
-    const running = await startSarvadrik(
+    const running = await startAvalok(
       {
         command: "start",
         target: repository,
@@ -47,7 +47,7 @@ describe("M7.2 product flow integration", () => {
         yes: false,
       },
       {
-        environment: { SARVADRIK_DATA_DIR: dataDirectory },
+        environment: { AVALOK_DATA_DIR: dataDirectory },
         dependencies: {
           launchDashboard: ({ host, port }): DashboardHandle => {
             dashboardServer = createServer((request, response) => {
@@ -79,7 +79,7 @@ describe("M7.2 product flow integration", () => {
     expect(running.analysis.repository.rootPath).toBe(repository);
     expect((await fetch(`${running.dashboardUrl}/api/health`)).status).toBe(200);
     expect((await fetch(`${running.otlpUrl}/health`)).status).toBe(200);
-    const paths = sarvadrikDataPaths({ SARVADRIK_DATA_DIR: dataDirectory });
+    const paths = avalokDataPaths({ AVALOK_DATA_DIR: dataDirectory });
     const before = await buildCapabilityReport({
       analysis: running.analysis,
       target: repository,
@@ -94,7 +94,7 @@ describe("M7.2 product flow integration", () => {
     expect(before.sources.find((source) => source.id === "telemetry")?.observation).toBe("waiting");
     expect(
       (
-        await fetch(`${running.otlpUrl}/v1/sarvadrik/test-trace`, {
+        await fetch(`${running.otlpUrl}/v1/avalok/test-trace`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: "{}",
@@ -129,7 +129,7 @@ describe("M7.2 product flow integration", () => {
       },
       {
         environment: {
-          SARVADRIK_DATA_DIR: dataDirectory,
+          AVALOK_DATA_DIR: dataDirectory,
           HOME: dataDirectory,
           PATH: "",
           AI_VISUALIZER_CODEX_HOME: join(dataDirectory, "codex"),
@@ -137,7 +137,7 @@ describe("M7.2 product flow integration", () => {
       },
     );
     expect(doctor.exitCode).toBe(0);
-    expect(doctor.output).toContain("Sarvadrik OTLP receiver listening");
+    expect(doctor.output).toContain("Avalok OTLP receiver listening");
     await running.stop();
     expect(await isPortAvailable(dashboardPort, cliDefaults.host)).toBe(true);
     expect(await isPortAvailable(otlpPort, cliDefaults.host)).toBe(true);

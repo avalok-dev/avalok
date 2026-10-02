@@ -3,7 +3,7 @@ import "@xyflow/react/dist/style.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sarvadrik — See your whole system",
+  title: "Avalok — See your whole system",
   description:
     "A local-first visual system for understanding how your code, infrastructure, agents, and runtime connect and execute.",
   icons: { icon: "/favicon.svg" },

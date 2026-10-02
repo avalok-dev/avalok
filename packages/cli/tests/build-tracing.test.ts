@@ -65,7 +65,7 @@ afterEach(() => {
 
 describe("dashboard build tracing", () => {
   it("never globs the build machine's home directory or private agent data", async () => {
-    const scratch = await mkdtemp(join(tmpdir(), "sarvadrik-trace-"));
+    const scratch = await mkdtemp(join(tmpdir(), "avalok-trace-"));
     const home = join(scratch, "home");
     await mkdir(join(home, ".codex", "sessions"), { recursive: true });
     await mkdir(join(home, "Documents"), { recursive: true });

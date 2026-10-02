@@ -232,7 +232,7 @@ export function VisualizerWorkspace() {
         (item) =>
           item.source === "telemetry" &&
           // Runs migrated from AgentMap-era data keep the fixture's former service name.
-          (item.serviceName === "Sarvadrik Synthetic Fixture" ||
+          (item.serviceName === "Avalok Synthetic Fixture" ||
             item.serviceName === "AgentMap Synthetic Fixture"),
       ) ?? payload.runs?.find((item) => item.source === "telemetry");
     if (session) selectSession(session);
@@ -354,8 +354,8 @@ export function VisualizerWorkspace() {
               <RadioTower className="mx-auto size-5 text-cyan-300" />
               <h2 className="mt-3 text-sm font-semibold text-slate-100">Nothing live yet</h2>
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Sarvadrik is ready. Select an available local agent session or connect your
-                application with telemetry.
+                Avalok is ready. Select an available local agent session or connect your application
+                with telemetry.
               </p>
               <Button size="sm" className="mt-4" onClick={connectTelemetry}>
                 Connect telemetry

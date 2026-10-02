@@ -1,5 +1,5 @@
 // Produces OTLP payloads with the official OpenTelemetry JS SDK and serializers, so protobuf
-// tests exercise real wire bytes encoded independently of Sarvadrik's decoder.
+// tests exercise real wire bytes encoded independently of Avalok's decoder.
 import { SpanKind, SpanStatusCode, context, trace, type Attributes } from "@opentelemetry/api";
 import { JsonTraceSerializer, ProtobufTraceSerializer } from "@opentelemetry/otlp-transformer";
 import { resourceFromAttributes } from "@opentelemetry/resources";

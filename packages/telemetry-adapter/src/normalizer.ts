@@ -269,8 +269,7 @@ export function normalizeTrace(
   const kind = sourceKind(spans);
   const synthetic = spans.some(
     (span) =>
-      span.resource["sarvadrik.synthetic"] === true ||
-      span.attributes["sarvadrik.synthetic"] === true,
+      span.resource["avalok.synthetic"] === true || span.attributes["avalok.synthetic"] === true,
   );
   const entities = new Map<string, Entity>();
   const edges = new Map<string, GraphEdge>();
@@ -406,7 +405,7 @@ export function normalizeTrace(
             }
           : {}),
         serviceName: text(span.resource["service.name"]) ?? serviceName,
-        ...(synthetic ? { synthetic: true, fixture: "Sarvadrik test trace" } : {}),
+        ...(synthetic ? { synthetic: true, fixture: "Avalok test trace" } : {}),
         ...(classification.openInferenceKind
           ? { openInferenceSpanKind: classification.openInferenceKind }
           : {}),

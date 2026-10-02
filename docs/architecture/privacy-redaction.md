@@ -1,6 +1,6 @@
 # Runtime privacy, redaction, and size limits
 
-Runtime telemetry is stored locally under Sarvadrik's platform user-data `runtime/` directory by default. Sarvadrik does not upload traces, prompts, responses, Claude sessions, Codex sessions, or repository source to a Sarvadrik service.
+Runtime telemetry is stored locally under Avalok's platform user-data `runtime/` directory by default. Avalok does not upload traces, prompts, responses, Claude sessions, Codex sessions, or repository source to an Avalok service.
 
 Before persistence and raw inspection, the shared runtime policy recursively redacts case- and separator-insensitive sensitive keys including authorization, API keys, tokens, access/refresh tokens, cookies, set-cookie, passwords (`passwd`, passphrases), secrets, client secrets, secret keys and AWS secret access keys, private keys, credentials (for example `GOOGLE_APPLICATION_CREDENTIALS`), database URLs, and connection strings. Keys are matched after lower-casing and removing separators, so OTLP attribute names such as `http.request.header.authorization` are covered (M7.4A added the secret-key, private-key, credential, passwd, and passphrase names).
 

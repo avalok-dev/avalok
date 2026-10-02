@@ -1,13 +1,13 @@
 # Building the installable package
 
-Sarvadrik ships as **one** npm package containing the CLI, OTLP receiver, analyzers, adapters, and a production dashboard. Users need Node.js only; pnpm, the monorepo, and TypeScript source are contributor-only. Nothing is published in M7.3.
+Avalok ships as **one** npm package containing the CLI, OTLP receiver, analyzers, adapters, and a production dashboard. Users need Node.js only; pnpm, the monorepo, and TypeScript source are contributor-only. Nothing is published in M7.3.
 
 ## Commands
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm dist:build   # → packages/cli/dist/ (a ready-to-pack package directory)
-pnpm dist:pack    # → artifacts/visual-system-sarvadrik-<version>.tgz
+pnpm dist:pack    # → artifacts/visual-system-avalok-<version>.tgz
 pnpm dist:smoke   # clean temp install + installed-product smoke test
 ```
 
@@ -15,33 +15,33 @@ pnpm dist:smoke   # clean temp install + installed-product smoke test
 
 ## What `dist:build` does
 
-1. Builds `apps/web` with `SARVADRIK_DASHBOARD_STANDALONE=1` (Next.js `output: "standalone"`) and `NEXT_TELEMETRY_DISABLED=1`. Contributor builds (`pnpm build`, `pnpm dev`) keep the default output.
-2. Copies the standalone server **without** its traced `node_modules`, plus `.next/static` and `public/`, into `dist/dashboard/`, and adds `sarvadrik-launch.cjs` (orphan watchdog, see platform support).
+1. Builds `apps/web` with `AVALOK_DASHBOARD_STANDALONE=1` (Next.js `output: "standalone"`) and `NEXT_TELEMETRY_DISABLED=1`. Contributor builds (`pnpm build`, `pnpm dev`) keep the default output.
+2. Copies the standalone server **without** its traced `node_modules`, plus `.next/static` and `public/`, into `dist/dashboard/`, and adds `avalok-launch.cjs` (orphan watchdog, see platform support).
 3. Bundles `packages/cli/src/bin.ts` — CLI, collector, analyzer, adapters, capabilities, protobuf decoder — with esbuild into `dist/lib/cli.mjs`. `next`, `react`, `react-dom`, `typescript`, and `@cdktf/hcl2json` stay external runtime dependencies.
-4. Writes `dist/bin/sarvadrik.mjs`: a tiny launcher that checks the Node version before loading anything else.
+4. Writes `dist/bin/avalok.mjs`: a tiny launcher that checks the Node version before loading anything else.
 5. Copies the six allowlisted sample repositories into `dist/samples/` (excluding `node_modules`, virtualenvs, caches, `.env*`).
 6. Generates `dist/package.json` from `packages/cli/product.json` + `packages/cli/package.json#version` + root `engines`, with exact-pinned runtime dependencies and an explicit `files` allowlist (`bin`, `lib`, `dashboard`, `samples`).
 7. **Verifies independence** and fails the build if the manifest uses `workspace:`, the CLI bundle embeds the checkout path, any shipped file loads from the checkout or an internal `@visual-system/*` package at runtime, a symlink is present, or forbidden content (`.env*`, `node_modules`, `.git`, `.agentmap`, coverage, `.turbo`, virtualenvs, Terraform state/vars) is included.
 
 ## Package identity and version
 
-| Item         | Source                                     | Current                  |
-| ------------ | ------------------------------------------ | ------------------------ |
-| Display name | `packages/cli/product.json`                | Sarvadrik (working name) |
-| CLI command  | `packages/cli/product.json`                | `sarvadrik`              |
-| Package name | `packages/cli/product.json`                | `sarvadrik`              |
-| Version      | `packages/cli/package.json#version` (only) | `0.1.0-alpha.0`          |
-| Node range   | root `package.json#engines`                | `>=24.19.0 <25`          |
+| Item         | Source                                     | Current               |
+| ------------ | ------------------------------------------ | --------------------- |
+| Display name | `packages/cli/product.json`                | Avalok (working name) |
+| CLI command  | `packages/cli/product.json`                | `avalok`              |
+| Package name | `packages/cli/product.json`                | `avalok`              |
+| Version      | `packages/cli/package.json#version` (only) | `0.1.0-alpha.0`       |
+| Node range   | root `package.json#engines`                | `>=24.19.0 <25`       |
 
-`sarvadrik --version`, startup output, `doctor`, the dashboard capability report (Setup footer), and the generated manifest all read these; tests assert they agree. The internal scope is deliberately reversible and the generated manifest is `private: true`, so `npm publish` refuses it. Renaming the product later is a `product.json` edit.
+`avalok --version`, startup output, `doctor`, the dashboard capability report (Setup footer), and the generated manifest all read these; tests assert they agree. The internal scope is deliberately reversible and the generated manifest is `private: true`, so `npm publish` refuses it. Renaming the product later is a `product.json` edit.
 
 ## Runtime layout
 
 ```text
-<install>/node_modules/sarvadrik/
-  bin/sarvadrik.mjs        Node gate → lib/cli.mjs
+<install>/node_modules/avalok/
+  bin/avalok.mjs        Node gate → lib/cli.mjs
   lib/cli.mjs             bundled CLI + collector (+ LEGAL.txt with bundled licenses)
-  dashboard/              sarvadrik-launch.cjs, server.js, .next/{server,static}, public/
+  dashboard/              avalok-launch.cjs, server.js, .next/{server,static}, public/
   samples/                allowlisted analysis samples
 ```
 

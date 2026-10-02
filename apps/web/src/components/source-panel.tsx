@@ -406,7 +406,7 @@ export function SourcePanel({
             onClick={onConnectTelemetry}
             className="mx-2 mt-3 w-[calc(100%-16px)] rounded-lg border border-cyan-300/10 bg-cyan-300/[0.025] p-3 text-left text-[0.6875rem] leading-5 text-slate-500 hover:text-slate-300"
           >
-            Nothing live yet. Sarvadrik is ready to receive OTLP/HTTP traces.{" "}
+            Nothing live yet. Avalok is ready to receive OTLP/HTTP traces.{" "}
             <span className="text-cyan-300">Connect telemetry →</span>
           </button>
         ) : null}
@@ -423,7 +423,7 @@ export function SourcePanel({
         </div>
       ) : (
         <div className="border-t border-white/[0.055] px-4 py-2.5 text-[0.6875rem] leading-4 text-slate-600">
-          Local-first · no Sarvadrik cloud upload
+          Local-first · no Avalok cloud upload
         </div>
       )}
     </section>

@@ -1,6 +1,6 @@
 # Clean-install test
 
-The packed artifact must run with no Sarvadrik checkout, no workspace links, no pnpm, and no development server.
+The packed artifact must run with no Avalok checkout, no workspace links, no pnpm, and no development server.
 
 ## Automated
 
@@ -15,7 +15,7 @@ The smoke test (`packages/cli/scripts/smoke-installed.mjs`):
 
 1. Creates a fresh OS temp directory whose install path and repository paths contain spaces, plus a Unicode repository name.
 2. Copies external fixtures there **before** anything else: a simple JS/TS app, the FastAPI Python fixture, the polyglot fixture, and the M6 infrastructure fixture.
-3. With `--hide-workspace`, renames the Sarvadrik checkout to `<checkout>.hidden-by-sarvadrik-smoke` for the rest of the run and restores it in `finally`.
+3. With `--hide-workspace`, renames the Avalok checkout to `<checkout>.hidden-by-avalok-smoke` for the rest of the run and restores it in `finally`.
 4. Runs `npm install ./<tarball>.tgz` with `NODE_PATH` cleared — no `link`, no `workspace:` protocol.
 5. Asserts the install is a real directory (not a symlink), the bin shim exists, and no `node_modules` shipped inside the package.
 6. Runs `--version`, `--help`, `data path`, and `doctor` on every fixture.
@@ -23,7 +23,7 @@ The smoke test (`packages/cli/scripts/smoke-installed.mjs`):
 8. Ctrl+C (SIGINT) → exit 0 and both ports released; restart → runs persisted; second shutdown clean.
    8a. **Local HTTP security** (17 checks against the installed production servers): foreign/rebound `Host` on dashboard APIs, Codex reads, runtime runs, and the HTML page → `403`; `localhost` Host → `200`; settings with a foreign or `null` Origin → `403`, `text/plain` → `415`, the dashboard's own Origin → `200`; the test-trace proxy with a foreign Origin → `403`; collector/OTLP foreign Host → `403`; Claude hook `text/plain` → `415`, foreign Origin → `403`, real Claude Code shape → `200`; bodiless test trace → `415`, foreign Origin → `403`.
 9. Force-kills the CLI → the dashboard watchdog exits and both ports are released (no orphan).
-10. `data clear --yes` → Sarvadrik runs removed; a sentinel outside the data root and the target repository are untouched.
+10. `data clear --yes` → Avalok runs removed; a sentinel outside the data root and the target repository are untouched.
 
 ## Verified results
 
@@ -34,19 +34,19 @@ The smoke test (`packages/cli/scripts/smoke-installed.mjs`):
 
 - The install directory is outside the checkout and dependencies come only from the npm registry plus the tarball.
 - During the run, the checkout path does not exist (renamed), so any runtime reference to it would fail; all checks still pass.
-- `NODE_PATH` is cleared; `SARVADRIK_DASHBOARD_DIR`/`SARVADRIK_SAMPLES_DIR` are removed from the environment.
+- `NODE_PATH` is cleared; `AVALOK_DASHBOARD_DIR`/`AVALOK_SAMPLES_DIR` are removed from the environment.
 - `dist:build` statically rejects workspace protocol use, runtime loads from the checkout, internal package requires, and symlinks.
 
 ## Manual equivalent
 
 ```sh
 pnpm dist:build && pnpm dist:pack
-mkdir -p "/tmp/Sarvadrik Clean Install" && cd "/tmp/Sarvadrik Clean Install"
+mkdir -p "/tmp/Avalok Clean Install" && cd "/tmp/Avalok Clean Install"
 npm init -y
-npm install /path/to/checkout/artifacts/visual-system-sarvadrik-0.1.0-alpha.0.tgz
-npx sarvadrik --version
-npx sarvadrik doctor /path/to/some/repository
-cd /path/to/some/repository && npx --prefix "/tmp/Sarvadrik Clean Install" sarvadrik .
+npm install /path/to/checkout/artifacts/visual-system-avalok-0.1.0-alpha.0.tgz
+npx avalok --version
+npx avalok doctor /path/to/some/repository
+cd /path/to/some/repository && npx --prefix "/tmp/Avalok Clean Install" avalok .
 ```
 
 Windows and Linux runs are defined in `.github/workflows/distribution.yml` (Windows skips `--hide-workspace` because open files lock the checkout). They have not been run as part of M7.3; see `platform-support.md`.

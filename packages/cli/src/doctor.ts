@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import { analyzeRepository } from "@visual-system/analyzer";
 import {
-  sarvadrikDataPaths,
+  avalokDataPaths,
   buildCapabilityReport,
   checkDataDirectoryWritable,
   compactUserPath,
@@ -25,7 +25,7 @@ export interface DoctorResult {
 const line = (state: "ok" | "warning" | "error", message: string) =>
   `${state === "ok" ? "✓" : state === "warning" ? "!" : "✗"} ${message}`;
 
-async function sarvadrikCollectorListening(endpoint: string) {
+async function avalokCollectorListening(endpoint: string) {
   try {
     const response = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(750) });
     const body = (await response.json()) as { status?: string };
@@ -36,7 +36,7 @@ async function sarvadrikCollectorListening(endpoint: string) {
 }
 
 async function legacyDataLines(
-  paths: ReturnType<typeof sarvadrikDataPaths>,
+  paths: ReturnType<typeof avalokDataPaths>,
   environment: NodeJS.ProcessEnv,
   legacyHome?: string,
 ) {
@@ -55,11 +55,11 @@ async function legacyDataLines(
       continue;
     }
     if (!inspection.present) continue;
-    if (environment.SARVADRIK_DATA_ROOT || environment.SARVADRIK_DATA_DIR)
+    if (environment.AVALOK_DATA_ROOT || environment.AVALOK_DATA_DIR)
       lines.push(
         line(
           "warning",
-          `Earlier AgentMap data at ${label} (${inspection.snapshots} runs) is not migrated while SARVADRIK_DATA_DIR is set`,
+          `Earlier AgentMap data at ${label} (${inspection.snapshots} runs) is not migrated while AVALOK_DATA_DIR is set`,
         ),
       );
     else if (record?.status === "failed")
@@ -85,12 +85,7 @@ export async function runDoctor(
   configuration: { cwd?: string; environment?: NodeJS.ProcessEnv; legacyHome?: string } = {},
 ): Promise<DoctorResult> {
   const environment = configuration.environment ?? process.env;
-  const sections: string[] = [
-    "Sarvadrik Doctor",
-    "",
-    "Version",
-    line("ok", productIdentity.version),
-  ];
+  const sections: string[] = ["Avalok Doctor", "", "Version", line("ok", productIdentity.version)];
   const layout = resolveDashboardLayout(environment);
   sections.push(
     line(
@@ -115,7 +110,7 @@ export async function runDoctor(
       line("error", `Node ${process.versions.node} unsupported; use ${supportedNodeRange}`),
     );
   }
-  sections.push(line("ok", "pnpm is not required after Sarvadrik starts"));
+  sections.push(line("ok", "pnpm is not required after Avalok starts"));
 
   let target: string;
   try {
@@ -188,7 +183,7 @@ export async function runDoctor(
   }
 
   const endpoint = `http://127.0.0.1:${options.otlpPort}`;
-  const paths = sarvadrikDataPaths(environment);
+  const paths = avalokDataPaths(environment);
   const report = await buildCapabilityReport({
     analysis,
     target,
@@ -214,8 +209,8 @@ export async function runDoctor(
   const otlpAvailable = await isPortAvailable(options.otlpPort, "127.0.0.1");
   if (otlpAvailable)
     sections.push(line("ok", `127.0.0.1:${options.otlpPort} available for the OTLP receiver`));
-  else if (await sarvadrikCollectorListening(endpoint))
-    sections.push(line("ok", `Sarvadrik OTLP receiver listening on 127.0.0.1:${options.otlpPort}`));
+  else if (await avalokCollectorListening(endpoint))
+    sections.push(line("ok", `Avalok OTLP receiver listening on 127.0.0.1:${options.otlpPort}`));
   else {
     blocking = true;
     sections.push(line("error", `OTLP port ${options.otlpPort} is occupied by another process`));

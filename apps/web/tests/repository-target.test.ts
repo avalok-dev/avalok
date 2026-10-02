@@ -16,8 +16,8 @@ describe("allowlisted sample repositories", () => {
   });
 
   it("resolves packaged samples from the install directory, never the source workspace", async () => {
-    const samples = join("/opt", "My Tools", "sarvadrik", "samples");
-    expect(await sampleRepositoryPath("infrastructure", { SARVADRIK_SAMPLES_DIR: samples })).toBe(
+    const samples = join("/opt", "My Tools", "avalok", "samples");
+    expect(await sampleRepositoryPath("infrastructure", { AVALOK_SAMPLES_DIR: samples })).toBe(
       join(samples, "infrastructure-ai-platform"),
     );
   });

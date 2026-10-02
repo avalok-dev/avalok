@@ -1,7 +1,7 @@
 import {
-  sarvadrikDataPaths,
-  readSarvadrikSettings,
-  writeSarvadrikSettings,
+  avalokDataPaths,
+  readAvalokSettings,
+  writeAvalokSettings,
 } from "@visual-system/capabilities";
 import { readJsonBody, RequestBodyError } from "@/lib/request-body";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json(await readSarvadrikSettings(sarvadrikDataPaths()), {
+  return Response.json(await readAvalokSettings(avalokDataPaths()), {
     headers: { "Cache-Control": "no-store" },
   });
 }
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     if (typeof body?.gettingStartedDismissed !== "boolean")
       return Response.json({ error: "Invalid settings value." }, { status: 400 });
     const settings = { gettingStartedDismissed: body.gettingStartedDismissed };
-    await writeSarvadrikSettings(settings, sarvadrikDataPaths());
+    await writeAvalokSettings(settings, avalokDataPaths());
     return Response.json(settings);
   } catch (error) {
     if (error instanceof RequestBodyError)

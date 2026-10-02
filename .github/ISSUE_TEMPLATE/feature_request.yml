@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an improvement or a new source Sarvadrik should understand
+description: Suggest an improvement or a new source Avalok should understand
 labels: [enhancement]
 body:
   - type: textarea

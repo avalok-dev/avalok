@@ -10,7 +10,7 @@ import { shutdownSignals, waitForShutdown } from "../src/bin";
 import { healthy, launchDashboard, resolveDashboardLayout } from "../src/dashboard";
 import { productIdentity } from "../src/identity";
 import { nodeSupport, supportedNodeRange } from "../src/node-support";
-import { migrationSummary, type RunningSarvadrik } from "../src/orchestrator";
+import { migrationSummary, type RunningAvalok } from "../src/orchestrator";
 import { browserCommand } from "../src/system";
 import { runDoctor } from "../src/doctor";
 import { legacyAgentMapDirectoryNames, platformDataRoot } from "@visual-system/telemetry-adapter";
@@ -40,7 +40,7 @@ describe("identity and version", () => {
 
 describe("packaged asset resolution", () => {
   // resolve(): an absolute path on this platform (a drive letter on Windows).
-  const installed = resolve("/opt/My Tools/lib/node_modules/@visual-system/sarvadrik");
+  const installed = resolve("/opt/My Tools/lib/node_modules/@visual-system/avalok");
   const moduleUrl = pathToFileURL(join(installed, "lib", "cli.mjs")).href;
 
   it("resolves the bundled dashboard and samples from the installed module, not the cwd", () => {
@@ -59,23 +59,23 @@ describe("packaged asset resolution", () => {
   });
 
   it("falls back to the contributor workspace only when no bundled dashboard exists", () => {
-    const source = pathToFileURL("/work/sarvadrik/packages/cli/src/dashboard.ts").href;
+    const source = pathToFileURL("/work/avalok/packages/cli/src/dashboard.ts").href;
     expect(resolveDashboardLayout({}, source, () => false)).toEqual({
       kind: "source",
-      directory: resolve("/work/sarvadrik/apps/web"),
+      directory: resolve("/work/avalok/apps/web"),
     });
   });
 
   it("honors the explicit development override", () => {
     expect(
-      resolveDashboardLayout({ SARVADRIK_DASHBOARD_DIR: "/custom/dashboard" }, moduleUrl, (path) =>
+      resolveDashboardLayout({ AVALOK_DASHBOARD_DIR: "/custom/dashboard" }, moduleUrl, (path) =>
         path.endsWith("server.js"),
       ),
     ).toEqual({ kind: "packaged", directory: resolve("/custom/dashboard") });
   });
 
   it("starts a packaged server from a spaced install path with loopback and privacy pinned", async () => {
-    const root = await mkdtemp(join(tmpdir(), "sarvadrik install dir "));
+    const root = await mkdtemp(join(tmpdir(), "avalok install dir "));
     const directory = join(root, "dashboard");
     await mkdir(directory);
     await writeFile(
@@ -84,8 +84,8 @@ describe("packaged asset resolution", () => {
         HOSTNAME: process.env.HOSTNAME, PORT: process.env.PORT,
         NEXT_TELEMETRY_DISABLED: process.env.NEXT_TELEMETRY_DISABLED,
         NEXT_MANUAL_SIG_HANDLE: process.env.NEXT_MANUAL_SIG_HANDLE,
-        SARVADRIK_TARGET_ROOT: process.env.SARVADRIK_TARGET_ROOT,
-        SARVADRIK_SAMPLES_DIR: process.env.SARVADRIK_SAMPLES_DIR,
+        AVALOK_TARGET_ROOT: process.env.AVALOK_TARGET_ROOT,
+        AVALOK_SAMPLES_DIR: process.env.AVALOK_SAMPLES_DIR,
         NODE_ENV: process.env.NODE_ENV } }));`,
     );
     const handle = launchDashboard({
@@ -97,7 +97,7 @@ describe("packaged asset resolution", () => {
       dataRoot: join(root, "data"),
       otlpPort: 4318,
       version: productIdentity.version,
-      environment: { HOSTNAME: "0.0.0.0", SARVADRIK_SAMPLES_DIR: join(root, "samples") },
+      environment: { HOSTNAME: "0.0.0.0", AVALOK_SAMPLES_DIR: join(root, "samples") },
     });
     expect((await handle.exited).code).toBe(0);
     const reported = JSON.parse(handle.logs ?? "{}") as {
@@ -110,8 +110,8 @@ describe("packaged asset resolution", () => {
       PORT: "4799",
       NEXT_TELEMETRY_DISABLED: "1",
       NEXT_MANUAL_SIG_HANDLE: "1",
-      SARVADRIK_TARGET_ROOT: "/repos/My Project",
-      SARVADRIK_SAMPLES_DIR: join(root, "samples"),
+      AVALOK_TARGET_ROOT: "/repos/My Project",
+      AVALOK_SAMPLES_DIR: join(root, "samples"),
       NODE_ENV: "production",
     });
   });
@@ -153,7 +153,7 @@ describe("platform integration", () => {
       const running = {
         dashboard: { exited: new Promise(() => {}) },
         stop,
-      } as unknown as RunningSarvadrik;
+      } as unknown as RunningAvalok;
       const waiting = waitForShutdown(running, signals, { write: () => true });
       signals.emit(signal);
       await waiting;
@@ -212,7 +212,7 @@ describe("platform integration", () => {
 
 describe("doctor distribution checks", () => {
   it("reports install kind, protobuf support, data root, and legacy migration state", async () => {
-    const scratch = await mkdtemp(join(tmpdir(), "sarvadrik doctor "));
+    const scratch = await mkdtemp(join(tmpdir(), "avalok doctor "));
     const repository = join(scratch, "My Repo");
     const legacyHome = join(scratch, "home");
     const dataRoot = join(scratch, "Data Root");
@@ -234,13 +234,13 @@ describe("doctor distribution checks", () => {
       yes: false,
     };
     const pending = await runDoctor(options, {
-      environment: { SARVADRIK_DATA_ROOT: dataRoot, PATH: "" },
+      environment: { AVALOK_DATA_ROOT: dataRoot, PATH: "" },
       legacyHome,
     });
     expect(pending.output).toContain("Source workspace (contributor mode)");
     expect(pending.output).toContain("OTLP/HTTP protobuf and JSON accepted");
     expect(pending.output).toContain("gRPC not supported");
-    expect(pending.output).toContain("(1 runs) is not migrated while SARVADRIK_DATA_DIR is set");
+    expect(pending.output).toContain("(1 runs) is not migrated while AVALOK_DATA_DIR is set");
     // The former AgentMap platform data root is also reported.
     const agentMapRoot = platformDataRoot(
       legacyAgentMapDirectoryNames,
@@ -251,10 +251,10 @@ describe("doctor distribution checks", () => {
     await mkdir(join(agentMapRoot, "runtime"), { recursive: true });
     await writeFile(join(agentMapRoot, "runtime", `claude-${"b".repeat(64)}.json`), "{}\n");
     const both = await runDoctor(options, {
-      environment: { SARVADRIK_DATA_ROOT: dataRoot, PATH: "" },
+      environment: { AVALOK_DATA_ROOT: dataRoot, PATH: "" },
       legacyHome,
     });
-    expect(both.output.match(/is not migrated while SARVADRIK_DATA_DIR is set/g)).toHaveLength(2);
+    expect(both.output.match(/is not migrated while AVALOK_DATA_DIR is set/g)).toHaveLength(2);
     await writeFile(
       join(dataRoot, "migration.json"),
       JSON.stringify({
@@ -271,7 +271,7 @@ describe("doctor distribution checks", () => {
       }),
     );
     const migrated = await runDoctor(options, {
-      environment: { SARVADRIK_DATA_ROOT: dataRoot, PATH: "" },
+      environment: { AVALOK_DATA_ROOT: dataRoot, PATH: "" },
       legacyHome,
     });
     expect(migrated.output).toContain("1 copied, 0 already present); original kept");
@@ -301,7 +301,7 @@ describe("dashboard readiness probe", () => {
 
 describe("dashboard shutdown", () => {
   it("stops promptly and leaves no timer keeping the CLI alive", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "sarvadrik stop "));
+    const directory = await mkdtemp(join(tmpdir(), "avalok stop "));
     await writeFile(join(directory, "server.js"), "setInterval(() => {}, 1000);\n");
     const handle = launchDashboard({
       directory,
@@ -332,19 +332,19 @@ describe("dashboard shutdown", () => {
 
 describe("orphan protection", () => {
   it("prefers the packaged launcher, which exits when the launching CLI disappears", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "sarvadrik launcher "));
+    const directory = await mkdtemp(join(tmpdir(), "avalok launcher "));
     const { copyFile } = await import("node:fs/promises");
     await copyFile(
       join(import.meta.dirname, "../src/dashboard-launcher.cjs"),
-      join(directory, "sarvadrik-launch.cjs"),
+      join(directory, "avalok-launch.cjs"),
     );
     await writeFile(join(directory, "server.js"), "setInterval(() => {}, 1000);\n");
     const { spawn } = await import("node:child_process");
     // A stand-in "CLI" that dies immediately, leaving the dashboard's parent PID dead.
     const parent = spawn(process.execPath, ["-e", "0"]);
     await new Promise((resolveExit) => parent.once("exit", resolveExit));
-    const dashboard = spawn(process.execPath, [join(directory, "sarvadrik-launch.cjs")], {
-      env: { ...process.env, SARVADRIK_PARENT_PID: String(parent.pid) },
+    const dashboard = spawn(process.execPath, [join(directory, "avalok-launch.cjs")], {
+      env: { ...process.env, AVALOK_PARENT_PID: String(parent.pid) },
     });
     const exited = await Promise.race([
       new Promise<number | null>((resolveExit) => dashboard.once("exit", resolveExit)),

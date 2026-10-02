@@ -1,7 +1,7 @@
 import type { Server } from "node:http";
 import { analyzeRepository, type RepositoryAnalysis } from "@visual-system/analyzer";
 import {
-  sarvadrikDataPaths,
+  avalokDataPaths,
   compactUserPath,
   migrateLegacyData,
   type MigrationResult,
@@ -19,7 +19,7 @@ export interface SourceStatus {
   claude: { detected: boolean; count: number; warning?: string };
 }
 
-export interface RunningSarvadrik {
+export interface RunningAvalok {
   target: string;
   analysis: RepositoryAnalysis;
   dashboardUrl: string;
@@ -55,7 +55,7 @@ const defaultDependencies: StartDependencies = {
 };
 
 export function defaultCliDataDirectory(environment = process.env) {
-  return sarvadrikDataPaths(environment).runtime;
+  return avalokDataPaths(environment).runtime;
 }
 
 async function listen(server: Server, port: number, host: string) {
@@ -105,14 +105,14 @@ async function discoverSources(
   };
 }
 
-export async function startSarvadrik(
+export async function startAvalok(
   options: CliOptions,
   configuration: {
     cwd?: string;
     environment?: NodeJS.ProcessEnv;
     dependencies?: Partial<StartDependencies>;
   } = {},
-): Promise<RunningSarvadrik> {
+): Promise<RunningAvalok> {
   const dependencies = { ...defaultDependencies, ...configuration.dependencies };
   const environment = configuration.environment ?? process.env;
   const target = await resolveTarget(options.target, configuration.cwd);
@@ -121,12 +121,12 @@ export async function startSarvadrik(
     analysis = await dependencies.analyze(target);
   } catch (error) {
     throw new StartupError(
-      `Sarvadrik could not analyze this repository. ${error instanceof Error ? error.message : "Unknown analyzer error."}`,
+      `Avalok could not analyze this repository. ${error instanceof Error ? error.message : "Unknown analyzer error."}`,
       "Check repository permissions and run again.",
     );
   }
   const dashboardPort = await dependencies.findDashboardPort(options.port, cliDefaults.host);
-  const dataPaths = sarvadrikDataPaths(environment);
+  const dataPaths = avalokDataPaths(environment);
   const dataDirectory = dataPaths.runtime;
   // Safe, non-destructive copy of provisional M7.1 data; failure never blocks startup.
   const migration = await dependencies
@@ -183,7 +183,7 @@ function compactPath(path: string) {
   return compactUserPath(path);
 }
 
-export function startupSummary(running: RunningSarvadrik, requestedPort: number) {
+export function startupSummary(running: RunningAvalok, requestedPort: number) {
   const technologies = running.analysis.technologies;
   const source = (label: string, detected: boolean, count: number) =>
     `  ${label.padEnd(12)}${detected ? `detected (${count})` : "not detected"}`;
@@ -231,14 +231,14 @@ export function migrationSummary(migration: MigrationResult) {
     if (source.status === "failed")
       return [
         `  Earlier AgentMap data in ${source.label} was not copied: ${source.error ?? "unknown error"}`,
-        "  The original data is untouched; Sarvadrik will retry next start.",
+        "  The original data is untouched; Avalok will retry next start.",
       ];
     return [];
   });
 }
 
 export async function maybeOpenBrowser(
-  running: RunningSarvadrik,
+  running: RunningAvalok,
   enabled: boolean,
   opener: (url: string) => Promise<void> = openBrowser,
 ) {

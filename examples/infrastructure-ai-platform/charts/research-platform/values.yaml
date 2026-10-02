@@ -1,9 +1,9 @@
 namespace: research
 backend:
-  image: ghcr.io/sarvadrik/backend:1.0.0
+  image: ghcr.io/avalok/backend:1.0.0
   replicas: 3
 worker:
-  image: ghcr.io/sarvadrik/worker:1.0.0
+  image: ghcr.io/avalok/worker:1.0.0
   replicas: 2
 frontend:
-  image: ghcr.io/sarvadrik/frontend:1.0.0
+  image: ghcr.io/avalok/frontend:1.0.0

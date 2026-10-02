@@ -51,7 +51,7 @@ jobs:
           { console.error(p); process.exit(1); } console.log(JSON.stringify(p, null, 2));'
       - uses: actions/upload-artifact@v7
         with:
-          name: sarvadrik-release
+          name: avalok-release
           path: |
             artifacts/release/*.tgz
             artifacts/release/*.sha256
@@ -71,7 +71,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: sarvadrik-release
+          name: avalok-release
           path: release
       - uses: actions/setup-node@v7
         with:

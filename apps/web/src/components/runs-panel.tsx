@@ -53,8 +53,8 @@ export function RunsPanel({
           <RadioTower className="mx-auto size-6 text-cyan-300/80" />
           <h2 className="mt-3 text-base font-semibold text-slate-100">No runs yet</h2>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">
-            Runs appear after Sarvadrik observes an available Codex or Claude Code source, or
-            receives OpenTelemetry/OpenInference activity.
+            Runs appear after Avalok observes an available Codex or Claude Code source, or receives
+            OpenTelemetry/OpenInference activity.
           </p>
           <Button size="sm" className="mt-4" onClick={onConnectTelemetry}>
             Connect telemetry
