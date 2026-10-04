@@ -697,6 +697,26 @@ try {
   check("target repository untouched", existsSync(join(target, "docker-compose.yml")));
 } finally {
   if (workspaceHidden) {
+    // Next can recreate only its ignored build cache at the original checkout path while the
+    // workspace is hidden. Remove that cache only after checking the entire new tree's shape.
+    if (existsSync(repositoryRoot)) {
+      const onlyDirectory = (path, name) =>
+        lstatSync(path).isDirectory() &&
+        readdirSync(path).length === 1 &&
+        readdirSync(path)[0] === name;
+      const apps = join(repositoryRoot, "apps");
+      const web = join(apps, "web");
+      const next = join(web, ".next");
+      if (
+        !onlyDirectory(repositoryRoot, "apps") ||
+        !onlyDirectory(apps, "web") ||
+        !onlyDirectory(web, ".next") ||
+        !lstatSync(next).isDirectory()
+      ) {
+        throw new Error(`Workspace path was recreated with unexpected files: ${repositoryRoot}`);
+      }
+      rmSync(repositoryRoot, { recursive: true, force: true });
+    }
     renameSync(hiddenWorkspace, repositoryRoot);
     process.stdout.write(`Workspace restored: ${repositoryRoot}\n`);
   }
