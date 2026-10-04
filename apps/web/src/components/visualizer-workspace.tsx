@@ -318,7 +318,7 @@ export function VisualizerWorkspace() {
         }}
       />
       <section className="relative min-h-0 min-w-0">
-        <ArchitectureCanvas />
+        <ArchitectureCanvas observability={observability} />
         {mode === "map" && visibleArchitecture.entities.length === 0 ? (
           <div className="absolute inset-0 z-20 grid place-items-center p-6">
             <div className="max-w-sm rounded-xl border border-white/[0.08] bg-[#10151d]/95 p-5 text-center shadow-2xl">

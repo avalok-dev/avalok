@@ -2,6 +2,10 @@
 
 Status: **release candidate, not published.** Checked boxes were verified during M7.4B (2026-09-28/29) and re-verified under the Avalok name in M7.4C (2026-10-02). Unchecked boxes need a maintainer decision or action. Publication boxes stay unchecked until you explicitly approve and perform them.
 
+## Post-M7.4C working tree check (2026-10-03)
+
+Local run findings, memory/retrieval activity, and map traffic/failure cues are added in the working tree. `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` pass; a neutral-path `pnpm release:build` passes **66/66** installed smoke checks with zero developer-path leaks. Browser review covered Demo Runs findings, current repository, a historical Codex session, the Show Execution toggle, and Live. A separate synthetic OTLP trace under disposable `/private/tmp` data showed call badges on observed map nodes and node statistics in the inspector. The browser reported no console errors. Failure coloring was not visually exercised. No publication step was performed. The [product plan](../PRODUCT_PLAN.md) tracks the free/paid boundary and next gates.
+
 ## Identity and legal
 
 - [x] Name: **Avalok** ("See your whole system."), set in `packages/cli/product.json`. Renamed from Sarvadrik before any publication ([M7.4C](../architecture/milestone-7-4c.md)).

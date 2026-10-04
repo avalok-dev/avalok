@@ -226,3 +226,139 @@ export const RuntimeGraphSchema = z.object({
 });
 
 export type RuntimeGraph = z.infer<typeof RuntimeGraphSchema>;
+
+/** The public, content-free contract for a manually exported local run. */
+export const RunExportV1Schema = z
+  .object({
+    format: z.literal("avalok.run-export"),
+    version: z.literal(1),
+    source: z.enum(["demo", "codex", "claude", "telemetry"]),
+    run: z
+      .object({
+        status: RunStatusSchema,
+        totalDurationMs: z.number().finite().nonnegative(),
+        inputTokens: z.number().int().nonnegative().nullable(),
+        outputTokens: z.number().int().nonnegative().nullable(),
+        toolCallCount: z.number().int().nonnegative(),
+        modelCallCount: z.number().int().nonnegative(),
+      })
+      .strict(),
+    entities: z.array(
+      z.object({ id: z.number().int().positive(), kind: EntityKindSchema }).strict(),
+    ),
+    events: z.array(
+      z
+        .object({
+          sequence: z.number().int().positive(),
+          trace: z.number().int().positive(),
+          timestampMs: z.number().finite().nonnegative(),
+          durationMs: z.number().finite().nonnegative().optional(),
+          category: EventCategorySchema,
+          sourceEntity: z.number().int().positive().optional(),
+          targetEntity: z.number().int().positive().optional(),
+          failed: z.boolean(),
+          retryObserved: z.boolean(),
+        })
+        .strict(),
+    ),
+  })
+  .strict()
+  .superRefine((payload, context) => {
+    const entityIds = new Set<number>();
+    payload.entities.forEach((entity, index) => {
+      if (entity.id !== index + 1 || entityIds.has(entity.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["entities", index, "id"],
+          message: "Entity IDs must be consecutive",
+        });
+      }
+      entityIds.add(entity.id);
+    });
+    payload.events.forEach((event, index) => {
+      if (event.sequence !== index + 1) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["events", index, "sequence"],
+          message: "Event sequence must be consecutive",
+        });
+      }
+      if (index > 0 && event.timestampMs < payload.events[index - 1]!.timestampMs) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["events", index, "timestampMs"],
+          message: "Events must be ordered by timestamp",
+        });
+      }
+      for (const key of ["sourceEntity", "targetEntity"] as const) {
+        if (event[key] !== undefined && !entityIds.has(event[key])) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["events", index, key],
+            message: "Unknown entity reference",
+          });
+        }
+      }
+    });
+  });
+
+export type RunExportV1 = z.infer<typeof RunExportV1Schema>;
+
+/** Rebuilds a payload from approved scalar fields; no original IDs, names, or metadata cross this boundary. */
+export function prepareRunExportV1(
+  run: Run,
+  architecture: ArchitectureGraph,
+  source: RunExportV1["source"],
+): RunExportV1 {
+  const kindsById = new Map(architecture.entities.map((entity) => [entity.id, entity.kind]));
+  const entityNumbers = new Map<string, number>();
+  const traceNumbers = new Map<string, number>();
+  const entities: RunExportV1["entities"] = [];
+  const entityNumber = (id: string | undefined) => {
+    if (!id) return undefined;
+    const kind = kindsById.get(id);
+    if (!kind) return undefined;
+    let number = entityNumbers.get(id);
+    if (!number) {
+      number = entities.length + 1;
+      entityNumbers.set(id, number);
+      entities.push({ id: number, kind });
+    }
+    return number;
+  };
+  const events = run.events.map((event, index) => {
+    let trace = traceNumbers.get(event.traceId);
+    if (!trace) {
+      trace = traceNumbers.size + 1;
+      traceNumbers.set(event.traceId, trace);
+    }
+    const sourceEntity = entityNumber(event.sourceEntityId);
+    const targetEntity = entityNumber(event.targetEntityId);
+    return {
+      sequence: index + 1,
+      trace,
+      timestampMs: event.timestamp,
+      ...(event.durationMs === undefined ? {} : { durationMs: event.durationMs }),
+      category: event.category,
+      ...(sourceEntity === undefined ? {} : { sourceEntity }),
+      ...(targetEntity === undefined ? {} : { targetEntity }),
+      failed: event.category === "error" || event.metadata?.status === "error",
+      retryObserved: event.metadata?.retryObserved === true,
+    };
+  });
+  return RunExportV1Schema.parse({
+    format: "avalok.run-export",
+    version: 1,
+    source,
+    run: {
+      status: run.status,
+      totalDurationMs: run.totalDurationMs,
+      inputTokens: run.inputTokens,
+      outputTokens: run.outputTokens,
+      toolCallCount: run.toolCallCount,
+      modelCallCount: run.modelCallCount,
+    },
+    entities,
+    events,
+  });
+}

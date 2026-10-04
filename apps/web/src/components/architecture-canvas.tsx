@@ -17,6 +17,7 @@ import {
 import { deriveGraphRuntimeState, ElkLayoutEngine } from "@visual-system/graph";
 import { GraphNode, SignalEdge, type GraphEdgeModel, type GraphNodeModel } from "@visual-system/ui";
 import { displayedArchitecture, useVisualizationStore } from "@/store/visualization-store";
+import { selectConnectionObservation, type ObservabilityView } from "@/lib/observability-view";
 
 const nodeTypes: NodeTypes = { entity: GraphNode };
 const edgeTypes: EdgeTypes = { signal: SignalEdge };
@@ -45,7 +46,7 @@ function useDisplayedArchitecture() {
   );
 }
 
-function CanvasGraph() {
+function CanvasGraph({ observability }: { observability: ObservabilityView | undefined }) {
   const mode = useVisualizationStore((state) => state.mode);
   const snapshot = useVisualizationStore((state) => state.snapshot);
   const architecture = useDisplayedArchitecture();
@@ -98,6 +99,7 @@ function CanvasGraph() {
       architecture.entities.map((entity) => {
         const isActive = runtime.activeEntityIds.has(entity.id);
         const isCompleted = runtime.completedEntityIds.has(entity.id);
+        const activity = observability?.nodeById[entity.id];
         return {
           id: entity.id,
           type: "entity",
@@ -108,15 +110,32 @@ function CanvasGraph() {
             entity,
             state: isActive ? "active" : isCompleted ? "completed" : "idle",
             dimmed: overlayActive && hasActiveSignal && !isActive && !isCompleted,
+            ...(activity
+              ? {
+                  activity: {
+                    calls: activity.callCount,
+                    failures: activity.failures,
+                  },
+                }
+              : {}),
           },
         };
       }),
-    [architecture.entities, hasActiveSignal, overlayActive, positions, runtime, selectedEntityId],
+    [
+      architecture.entities,
+      hasActiveSignal,
+      observability,
+      overlayActive,
+      positions,
+      runtime,
+      selectedEntityId,
+    ],
   );
 
   const edges = useMemo<GraphEdgeModel[]>(() => {
     const names = new Map(architecture.entities.map((entity) => [entity.id, entity.name]));
     return architecture.edges.map((edge) => {
+      const connection = selectConnectionObservation(edge, architecture, run.events, observability);
       const isActive = runtime.activeEdgeIds.has(edge.id);
       const isCompleted = runtime.completedEdgeIds.has(edge.id);
       const activeRuntimeEvent = snapshot.activeEvents.find(
@@ -145,14 +164,23 @@ function CanvasGraph() {
           state: isActive ? "active" : isCompleted ? "completed" : "idle",
           dimmed: overlayActive && hasActiveSignal && !isActive && !isCompleted,
           runtime: edge.metadata?.runtime === true,
+          ...(connection.status === "observed"
+            ? {
+                activity: {
+                  calls: connection.statistics.callCount,
+                  failures: connection.statistics.failures,
+                },
+              }
+            : {}),
         },
       };
     });
   }, [
-    architecture.edges,
-    architecture.entities,
+    architecture,
     hasActiveSignal,
     overlayActive,
+    observability,
+    run.events,
     runtime,
     selectedConnectionId,
     snapshot.activeEvents,
@@ -199,7 +227,11 @@ function CanvasGraph() {
   );
 }
 
-export function ArchitectureCanvas() {
+export function ArchitectureCanvas({
+  observability,
+}: {
+  observability: ObservabilityView | undefined;
+}) {
   const architecture = useDisplayedArchitecture();
   const source = useVisualizationStore((state) => state.dataset.source);
   const session = useVisualizationStore((state) => state.dataset.session);
@@ -257,7 +289,7 @@ export function ArchitectureCanvas() {
         </div>
       </div>
       <ReactFlowProvider>
-        <CanvasGraph />
+        <CanvasGraph observability={observability} />
       </ReactFlowProvider>
     </div>
   );
