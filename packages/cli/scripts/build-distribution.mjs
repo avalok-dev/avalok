@@ -95,6 +95,14 @@ function installedVersion(name) {
   return installedManifest(name).version;
 }
 
+// Workspace packages that export compiled `dist/` files must be built before Next resolves them.
+function buildCompiledPackages() {
+  step("Building compiled workspace packages");
+  const schemaRoot = join(repositoryRoot, "packages", "schema");
+  const tsc = createRequire(join(schemaRoot, "package.json")).resolve("typescript/bin/tsc");
+  run(process.execPath, [tsc, "-p", "tsconfig.build.json"], { cwd: schemaRoot });
+}
+
 function buildDashboard() {
   step("Building the standalone dashboard");
   const next = createRequire(join(webRoot, "package.json")).resolve("next/dist/bin/next");
@@ -343,6 +351,7 @@ function verifyIndependence() {
 
 rmSync(output, { recursive: true, force: true });
 mkdirSync(output, { recursive: true });
+buildCompiledPackages();
 buildDashboard();
 await bundleCli();
 writeLauncher();
