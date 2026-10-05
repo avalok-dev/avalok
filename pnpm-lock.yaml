@@ -49,6 +49,9 @@ importers:
       "@visual-system/claude-adapter":
         specifier: workspace:*
         version: link:../../packages/claude-adapter
+      "@visual-system/local-security":
+        specifier: workspace:*
+        version: link:../../packages/local-security
       "@visual-system/runtime-adapter":
         specifier: workspace:*
         version: link:../../packages/runtime-adapter
@@ -101,6 +104,9 @@ importers:
       "@visual-system/graph":
         specifier: workspace:*
         version: link:../../packages/graph
+      "@visual-system/local-security":
+        specifier: workspace:*
+        version: link:../../packages/local-security
       "@visual-system/reconcile":
         specifier: workspace:*
         version: link:../../packages/reconcile
@@ -313,6 +319,18 @@ importers:
         specifier: ^0.10.0
         version: 0.10.2
     devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.4)(jiti@1.21.7)(supports-color@7.2.0)(tsx@4.23.15)(yaml@2.9.1)
+
+  packages/local-security:
+    devDependencies:
+      "@types/node":
+        specifier: ^22.15.30
+        version: 22.20.4
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

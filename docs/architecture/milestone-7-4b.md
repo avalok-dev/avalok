@@ -1,0 +1,60 @@
+# Milestone 7.4B — Sarvadrik public release candidate
+
+> **Historical record.** Written while the product was named Sarvadrik; it was renamed to **Avalok** before any public release (CLI `avalok`, environment variables `AVALOK_*`, homepage https://avalok.dev). Commands and names below are as they were at the time.
+
+M7.4B turns the AgentMap development build into **Sarvadrik** `0.1.0-alpha.1`, a release candidate for the first open-source developer preview, and resolves the M7.4A release blockers. Nothing was published: no `npm publish`, GitHub release, visibility change, new remote, or external account.
+
+## Baseline (before changes)
+
+Branch `m7.4a-local-security` @ `1103db9`, Node 24.19.0, pnpm 11.19.0, package `@visual-system/agentmap@0.1.0-alpha.0`: format, lint, typecheck, **289** tests, build, and `release:build` (neutral path, 0 leaks, **60/60** installed smoke with the standard Python exporter) all passed.
+
+## Identity
+
+| Item           | Value                                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Display name   | Sarvadrik                                                                                                             |
+| Tagline        | See your whole system.                                                                                                |
+| Description    | A local-first visual system for understanding how your code, infrastructure, agents, and runtime connect and execute. |
+| CLI            | `sarvadrik` (no `agentmap` alias)                                                                                     |
+| npm package    | `sarvadrik` (unscoped), still configurable in `packages/cli/product.json`                                             |
+| Version        | `0.1.0-alpha.1` (single source: `packages/cli/package.json`)                                                          |
+| Homepage       | https://sarvadrik.com                                                                                                 |
+| Repository URL | not set (`product.json#repository: null`) until the public repository is chosen                                       |
+
+All of these live in `packages/cli/product.json` and `packages/cli/package.json`. The CLI banner and help, `doctor`, the dashboard capability report, the generated package manifest and README, and the smoke test all read them.
+
+**Package name.** On 2026-09-28, `npm view sarvadrik`, `@sarvadrik/cli`, and `sarvadrik-cli` all returned 404 (unpublished). The `@sarvadrik` scope would require an npm organization you do not have yet, and the unused internal `@visual-system` scope is not yours to publish under. Unscoped `sarvadrik` is therefore the provisional name. npm can still refuse a name at publish time (similarity rules), so confirm availability immediately before publishing. The GitHub handle `sarvadrik` belongs to an existing user account whose owner was not verified; repository identity remains your decision.
+
+**No `agentmap` alias.** The product was never published under AgentMap, so there are no public users to keep compatible. A second command would add legacy surface for no benefit. Developers of earlier builds keep their data through the migration below.
+
+## Rename classification
+
+| Category                     | Examples                                                                                                                                         | Decision                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A. User-facing brand         | top bar, page title/description, CLI banner/help/errors, doctor, Getting Started, empty states, README, package README                           | **Changed** to Sarvadrik                                                                                                                                                                                                                                                                                                    |
+| B. CLI / package identity    | `agentmap` bin, `bin/agentmap.mjs`, `@visual-system/agentmap`, `packages/cli/agentmap.mjs`, `pnpm agentmap`                                      | **Changed**: `sarvadrik`, `bin/sarvadrik.mjs`, `sarvadrik`, `packages/cli/sarvadrik.mjs`, `pnpm sarvadrik`                                                                                                                                                                                                                  |
+| C. Internal package names    | `@visual-system/*` workspace packages; root `ai-system-visualizer`                                                                               | Workspace scope **kept** (bundled, never published; renaming is churn). Root renamed to `sarvadrik-monorepo` (it named a third codename). Code identifiers (`startAgentMap`, `agentMapDataPaths`, …) renamed to Sarvadrik.                                                                                                  |
+| Public configuration surface | `AGENTMAP_*` env vars; `.agentmapignore`; Kubernetes labels `agentmap.dev/cluster`, `agentmap.dev/load-balancer`                                 | **Changed** with no compatibility aliases (no public users): `SARVADRIK_*`, `.sarvadrikignore`, `sarvadrik.com/cluster`, `sarvadrik.com/load-balancer`. The label prefix uses the owned `sarvadrik.com` domain, not `.dev`.                                                                                                 |
+| D. Persistence / legacy      | `~/Library/Application Support/AgentMap` (and Linux/Windows equivalents), `~/.agentmap/runtime`, `.agentmap/` in `.gitignore`                    | New Sarvadrik data roots; both AgentMap locations **migrated, never modified** (below). Names kept only where they identify legacy locations.                                                                                                                                                                               |
+| E. Telemetry / protocol      | `/v1/agentmap/test-trace`; `agentmap.synthetic`, `agentmap.fixture`; service `AgentMap Synthetic Fixture`; example attributes `agentmap.example` | Internal endpoint (only caller: the dashboard's server route) **renamed** to `/v1/sarvadrik/test-trace`. Sarvadrik's own synthetic/example attributes renamed to `sarvadrik.*`. The UI still recognizes the old fixture service name for migrated runs. Standard OTel/OpenInference semantics and user telemetry untouched. |
+| Test fixtures                | `agentmap.protobuf.fixture` scope inside the committed binary `.pb` fixture                                                                      | **Kept**: binary test data asserted by tests; not shipped                                                                                                                                                                                                                                                                   |
+| F. Historical documentation  | `docs/architecture/milestone-*.md`, `docs/development/milestone-*-acceptance.md`                                                                 | **Kept** verbatim with a one-line "Historical record" banner; current reference docs updated                                                                                                                                                                                                                                |
+
+Remaining AgentMap occurrences are all intentional. In source: migration code and messages, legacy directory names, the legacy fixture-name filter, build exclusions, the binary fixture, and the smoke test's own "no AgentMap branding" check. In the shipped package: three files, all migration or the legacy filter. Users see "AgentMap" only in migration messages, and only when AgentMap-era data exists.
+
+## Local-data migration
+
+Sarvadrik's data roots are `~/Library/Application Support/Sarvadrik`, `$XDG_DATA_HOME/sarvadrik` (or `~/.local/share/sarvadrik`), and `%LOCALAPPDATA%\Sarvadrik`. On start, the existing copy → verify → activate migration now processes two sources: the AgentMap platform root (runs plus `settings.json`, copied only if Sarvadrik has none) and `~/.agentmap/runtime`. Each source is recorded in `migration.json` (`version: 2`) and is idempotent, non-destructive, and retried on failure. The whole migration is skipped when `SARVADRIK_DATA_DIR` is set. `doctor` reports each source; `data clear` never touches AgentMap locations. Verified with a copy of real AgentMap data under a fake home: 2 runs plus settings copied, originals intact, doctor reports "migrated … settings copied; original kept". Details: [data migration](../development/data-migration.md).
+
+## M7.4A release blockers resolved
+
+1. **Third-party notices.** `THIRD_PARTY_NOTICES.md` (49 components) is generated reproducibly from the esbuild metafile and recorded webpack modules, using each package's own license metadata and texts, and is shipped and verified from the installed tarball. See [third-party notices](../development/third-party-notices.md).
+2. **elkjs / EPL-2.0.** elkjs 0.10.2 is used unmodified and distributed in object form. The notices name it, state that it is unmodified, link its source, and include the full EPL-2.0 text. That meets the EPL's distribution conditions without changing Sarvadrik's Apache-2.0 license, so no project-license decision is required. This is an engineering summary, not a legal opinion.
+3. **Release artifact provenance.** `release:build` is the only release path. Everyday builds are `private: true`. `--publishable` exists only for the manual release workflow, which smoke-tests, hashes, and records provenance for the exact tarball its gated publish job would upload after verifying the checksum. Nothing was published.
+4. **Next.js telemetry.** Measured by hooking Node's network APIs: contributor `next build` previously posted to `telemetry.nextjs.org`. `apps/web/next.config.ts` now sets `NEXT_TELEMETRY_DISABLED` before Next creates its telemetry client, and builds make no outbound connections. The packaged product makes **no** non-loopback connection attempts (whole session: startup, dashboard, traces, hooks, shutdown). Remaining and documented: `next dev` checks `registry.npmjs.org` for the latest Next.js version (contributors only; no project data; no opt-out in Next 15.5).
+5. **GitHub Actions on Node 20.** `checkout` v4 → v7, `setup-node` v4 → v7, `setup-python` v5 → v7, `upload-artifact` v4 → v7, `pnpm/action-setup` v4 → v6, and `download-artifact` v8 in the release workflow, all `node24`. Breaking changes reviewed: automatic package-manager caching (we set `cache: pnpm`), removed `pip-install` input (unused), ESM upload-artifact (no API change), pnpm 11 support.
+6. **Final name.** Done as above.
+
+## Verification
+
+See the [release checklist](../releases/developer-preview.md) for the per-item record and [distribution CI](../development/distribution-ci.md) for runner results.

@@ -21,7 +21,7 @@ external APIs. Routes, modules, and files remain inspector detail. Service metad
 languages, technologies, ports, Compose identities, routes, files, evidence, and confidence.
 
 The system view is capped at 30 nodes. If detectors produce more, service nodes are retained and
-lower-confidence integrations are omitted from the default view with a diagnostic. AgentMap does
+lower-confidence integrations are omitted from the default view with a diagnostic. Avalok does
 not solve complexity by shrinking hundreds of file nodes.
 
 ## Relationships

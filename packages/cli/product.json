@@ -1,7 +1,21 @@
 {
-  "displayName": "AgentMap",
-  "cliName": "agentmap",
-  "packageName": "@visual-system/agentmap",
-  "description": "Local architecture and runtime map for AI applications (developer preview; working name).",
+  "displayName": "Avalok",
+  "cliName": "avalok",
+  "packageName": "avalok",
+  "tagline": "See your whole system.",
+  "description": "A local-first visual system for understanding how your code, infrastructure, agents, and runtime connect and execute.",
+  "homepage": "https://avalok.dev",
+  "repository": null,
+  "keywords": [
+    "architecture",
+    "visualization",
+    "opentelemetry",
+    "openinference",
+    "local-first",
+    "developer-tools",
+    "terraform",
+    "kubernetes",
+    "agents"
+  ],
   "legacyDataDirectoryName": ".agentmap"
 }

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Clean-install smoke test for the packed AgentMap artifact.
+// Clean-install smoke test for the packed Avalok artifact.
 //
 //   pnpm dist:smoke [--tarball <path>] [--hide-workspace] [--keep]
 //
 // 1. Copies the tarball and external fixture repositories into a fresh temporary directory
 //    whose path contains spaces (and a Unicode repository name).
 // 2. Installs the tarball with plain `npm install` — no links, no workspace protocol, no NODE_PATH.
-// 3. Optionally renames the AgentMap source checkout for the rest of the run so the installed
+// 3. Optionally renames the Avalok source checkout for the rest of the run so the installed
 //    package cannot silently resolve anything from it (restored in `finally`).
 // 4. Drives the installed CLI: --version/--help, doctor per fixture, startup, dashboard assets,
 //    repository/sample analysis, capabilities, test trace, OTLP JSON + protobuf, restart
@@ -24,6 +24,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -37,6 +38,7 @@ const option = (name) => {
   const index = argumentsList.indexOf(name);
   return index === -1 ? undefined : argumentsList[index + 1];
 };
+const product = JSON.parse(readFileSync(join(cliRoot, "product.json"), "utf8"));
 
 const results = [];
 function check(name, condition, detail = "") {
@@ -48,7 +50,9 @@ function check(name, condition, detail = "") {
 function newestTarball() {
   const directory = join(repositoryRoot, "artifacts");
   const candidates = existsSync(directory)
-    ? readdirSync(directory).filter((name) => name.endsWith(".tgz"))
+    ? readdirSync(directory).filter(
+        (name) => name.startsWith(`${product.packageName}-`) && name.endsWith(".tgz"),
+      )
     : [];
   if (!candidates.length)
     throw new Error("No tarball found. Run `pnpm dist:build && pnpm dist:pack`.");
@@ -78,7 +82,7 @@ function runSync(command, arguments_, options = {}) {
   return spawnSync(command, arguments_, { encoding: "utf8", ...options });
 }
 
-function startAgentMap(bin, target, ports, environment) {
+function startAvalok(bin, target, ports, environment) {
   const child = spawn(
     process.execPath,
     [
@@ -112,7 +116,7 @@ function startAgentMap(bin, target, ports, environment) {
     });
     void exited.then(({ code }) => {
       clearTimeout(timer);
-      reject(new Error(`AgentMap exited during startup (${code}).\n${stdout}\n${stderr}`));
+      reject(new Error(`Avalok exited during startup (${code}).\n${stdout}\n${stderr}`));
     });
   });
   return { child, exited, ready, output: () => ({ stdout, stderr }) };
@@ -139,6 +143,31 @@ async function stop(running) {
   ]);
 }
 
+// `fetch` cannot set Host, so browser-abuse checks use node:http with explicit headers.
+function raw(url, { method = "GET", headers = {}, body } = {}) {
+  const target = new URL(url);
+  return new Promise((resolveResponse, reject) => {
+    const request = httpRequest(
+      {
+        host: target.hostname,
+        port: target.port,
+        path: `${target.pathname}${target.search}`,
+        method,
+        headers: { Host: target.host, ...headers },
+        setHost: false,
+        agent: false,
+      },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolveResponse(response.statusCode));
+      },
+    );
+    request.once("error", reject);
+    if (body !== undefined) request.write(body);
+    request.end();
+  });
+}
+
 async function json(url, init) {
   const response = await fetch(url, init);
   return { status: response.status, body: await response.json() };
@@ -146,12 +175,14 @@ async function json(url, init) {
 
 const tarballSource = resolve(option("--tarball") ?? newestTarball());
 const expectedVersion = JSON.parse(readFileSync(join(cliRoot, "package.json"), "utf8")).version;
-const scratch = mkdtempSync(join(tmpdir(), "agentmap smoke "));
+// Former names; must not appear in anything a user sees.
+const legacyBrand = /agentmap|sarvadrik/i;
+const scratch = mkdtempSync(join(tmpdir(), "avalok smoke "));
 const install = join(scratch, "Install Dir With Spaces");
 const repositories = join(scratch, "External Repos");
-const dataRoot = join(scratch, "AgentMap Data");
-const outsideSentinel = join(scratch, "not-agentmap-data", "keep.txt");
-const hiddenWorkspace = `${repositoryRoot}.hidden-by-agentmap-smoke`;
+const dataRoot = join(scratch, "Avalok Data");
+const outsideSentinel = join(scratch, "not-avalok-data", "keep.txt");
+const hiddenWorkspace = `${repositoryRoot}.hidden-by-avalok-smoke`;
 let workspaceHidden = false;
 
 // Load everything needed from the workspace *before* it may be hidden.
@@ -174,7 +205,7 @@ const jsonPayload = {
       },
       scopeSpans: [
         {
-          scope: { name: "agentmap-smoke" },
+          scope: { name: "avalok-smoke" },
           spans: [
             {
               traceId: "5b8efff798038103d269b633813fc60c",
@@ -234,7 +265,7 @@ try {
   cpSync(tarballSource, join(install, basename(tarballSource)));
   writeFileSync(
     join(install, "package.json"),
-    JSON.stringify({ name: "agentmap-smoke-host", private: true }),
+    JSON.stringify({ name: "avalok-smoke-host", private: true }),
   );
   if (flag("--hide-workspace")) {
     if (existsSync(hiddenWorkspace))
@@ -259,19 +290,44 @@ try {
     installResult.status === 0,
     installResult.stderr.trim().split("\n").at(-1),
   );
-  const packageRoot = join(install, "node_modules", "@visual-system", "agentmap");
-  const bin = join(packageRoot, "bin", "agentmap.mjs");
+  const packageRoot = join(install, "node_modules", ...product.packageName.split("/"));
+  const bin = join(packageRoot, "bin", `${product.cliName}.mjs`);
   const shim = join(
     install,
     "node_modules",
     ".bin",
-    process.platform === "win32" ? "agentmap.cmd" : "agentmap",
+    process.platform === "win32" ? `${product.cliName}.cmd` : product.cliName,
   );
   check(
     "installed as a real directory (no link)",
     existsSync(bin) && !lstatSync(packageRoot).isSymbolicLink(),
   );
   check("bin shim created", existsSync(shim));
+  const installedManifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
+  check(
+    "package identity",
+    installedManifest.name === product.packageName &&
+      installedManifest.version === expectedVersion &&
+      installedManifest.homepage === product.homepage,
+    `${installedManifest.name}@${installedManifest.version}${installedManifest.private ? " (private)" : " (publishable)"}`,
+  );
+  check(
+    "LICENSE shipped",
+    /Apache License/.test(readFileSync(join(packageRoot, "LICENSE"), "utf8")),
+  );
+  const packageReadme = readFileSync(join(packageRoot, "README.md"), "utf8");
+  check(
+    "README shipped with product branding",
+    packageReadme.includes(product.displayName) && !legacyBrand.test(packageReadme),
+  );
+  const notices = readFileSync(join(packageRoot, "THIRD_PARTY_NOTICES.md"), "utf8");
+  check(
+    "third-party notices shipped (elkjs EPL-2.0 text and source)",
+    /\| elkjs \| [\d.]+ \| EPL-2\.0 \|/.test(notices) &&
+      notices.includes("Eclipse Public License - v 2.0") &&
+      notices.includes("github.com/kieler/elkjs"),
+    `${(notices.match(/^\| /gm) ?? []).length - 2} packages`,
+  );
   check(
     "no workspace node_modules shipped",
     !existsSync(join(packageRoot, "dashboard", "node_modules")),
@@ -279,14 +335,14 @@ try {
 
   const environment = {
     ...process.env,
-    AGENTMAP_DATA_DIR: dataRoot,
-    AGENTMAP_QUIET_NODE_WARNING: "1",
+    AVALOK_DATA_DIR: dataRoot,
+    AVALOK_QUIET_NODE_WARNING: "1",
     NODE_PATH: "",
     // A shell HOSTNAME must never widen the dashboard bind.
     HOSTNAME: "0.0.0.0",
   };
-  delete environment.AGENTMAP_DASHBOARD_DIR;
-  delete environment.AGENTMAP_SAMPLES_DIR;
+  delete environment.AVALOK_DASHBOARD_DIR;
+  delete environment.AVALOK_SAMPLES_DIR;
 
   // The npm-generated shim is exercised directly on POSIX. On Windows it is a .cmd file that
   // needs a shell, and shell argument joining would break this intentionally spaced path, so
@@ -294,11 +350,53 @@ try {
   const version = windows
     ? runSync(process.execPath, [bin, "--version"], { env: environment })
     : runSync(shim, ["--version"], { env: environment });
-  check("agentmap --version", version.stdout.trim() === expectedVersion, version.stdout.trim());
+  check("avalok --version", version.stdout.trim() === expectedVersion, version.stdout.trim());
   const help = runSync(process.execPath, [bin, "--help"], { env: environment });
-  check("agentmap --help", help.status === 0 && help.stdout.includes("agentmap doctor"));
+  check(
+    `${product.cliName} --help`,
+    help.status === 0 &&
+      help.stdout.includes(`${product.cliName} doctor`) &&
+      help.stdout.includes(product.displayName) &&
+      !legacyBrand.test(help.stdout),
+  );
   const path = runSync(process.execPath, [bin, "data", "path"], { env: environment });
-  check("agentmap data path", path.stdout.trim() === dataRoot, path.stdout.trim());
+  check("avalok data path", path.stdout.trim() === dataRoot, path.stdout.trim());
+
+  const importPage = join(scratch, "saved trace page.json");
+  const importRoot = join(scratch, "Import Data");
+  writeFileSync(
+    importPage,
+    JSON.stringify({
+      object: "list",
+      data: [
+        {
+          object: "agent.session.trace",
+          id: "turn_smoke",
+          session_id: "sess_smoke",
+          otlp: jsonPayload,
+        },
+      ],
+      first_id: "turn_smoke",
+      last_id: "turn_smoke",
+      has_more: false,
+    }),
+  );
+  const importEnvironment = { ...environment, AVALOK_DATA_DIR: importRoot };
+  const imported = runSync(process.execPath, [bin, "import", "openai", importPage], {
+    env: importEnvironment,
+  });
+  check(
+    "installed offline OpenAI trace import",
+    imported.status === 0 && imported.stdout.includes("1 distinct spans"),
+    imported.stderr.trim(),
+  );
+  const reimported = runSync(process.execPath, [bin, "import", "openai", importPage], {
+    env: importEnvironment,
+  });
+  check(
+    "installed trace reimport is idempotent",
+    reimported.status === 0 && readdirSync(join(importRoot, "runtime")).length === 1,
+  );
 
   const expectations = {
     "Simple JS App": /typescript/,
@@ -325,15 +423,24 @@ try {
 
   const ports = { dashboard: await freePort(), otlp: await freePort() };
   const target = join(repositories, "Polyglot Project");
-  let running = startAgentMap(bin, target, ports, environment);
+  let running = startAvalok(bin, target, ports, environment);
   await running.ready;
   const dashboard = `http://127.0.0.1:${ports.dashboard}`;
   const otlp = `http://127.0.0.1:${ports.otlp}`;
   check("startup summary names the target", running.output().stdout.includes("Polyglot Project"));
+  check(
+    "startup banner shows the product name only",
+    running.output().stdout.startsWith(product.displayName) &&
+      !legacyBrand.test(running.output().stdout),
+  );
 
   const page = await fetch(dashboard);
   const html = await page.text();
   check("dashboard HTML served", page.status === 200 && html.includes("<html"));
+  check(
+    "dashboard branding",
+    html.includes(`<title>${product.displayName}`) && !legacyBrand.test(html),
+  );
   const asset = html.match(/\/_next\/static\/[^"']+\.js/)?.[0];
   const assetResponse = asset ? await fetch(`${dashboard}${asset}`) : undefined;
   check("dashboard static asset served", assetResponse?.status === 200, asset);
@@ -373,7 +480,11 @@ try {
       capabilities.body.telemetry?.protocol,
     );
 
-  const testTrace = await json(`${dashboard}/api/telemetry/test`, { method: "POST" });
+  const testTrace = await json(`${dashboard}/api/telemetry/test`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
   check("Send Test Trace", testTrace.status === 200 && testTrace.body.synthetic === true);
 
   const jsonResponse = await fetch(`${otlp}/v1/traces`, {
@@ -411,6 +522,133 @@ try {
       exported.stdout.trim() || exported.stderr.trim().split("\n").at(-1),
     );
   }
+  // Local HTTP security (M7.4A) against the installed production servers.
+  const foreignHost = (port) => ({ Host: `attacker.example:${port}` });
+  const hook = JSON.stringify({
+    hook_event_name: "UserPromptSubmit",
+    session_id: "smoke-security",
+    prompt: "smoke",
+  });
+  const securityChecks = [
+    [
+      "dashboard rejects a foreign Host",
+      `${dashboard}/api/repository`,
+      {},
+      403,
+      foreignHost(ports.dashboard),
+    ],
+    [
+      "dashboard rejects a rebound Host on Codex reads",
+      `${dashboard}/api/codex/sessions/smoke-id`,
+      {},
+      403,
+      foreignHost(ports.dashboard),
+    ],
+    [
+      "dashboard rejects localhost.attacker.example",
+      `${dashboard}/api/runtime/runs`,
+      {},
+      403,
+      { Host: `localhost.attacker.example:${ports.dashboard}` },
+    ],
+    [
+      "dashboard page rejects a foreign Host",
+      `${dashboard}/`,
+      {},
+      403,
+      foreignHost(ports.dashboard),
+    ],
+    [
+      "dashboard accepts localhost Host",
+      `${dashboard}/api/health`,
+      {},
+      200,
+      { Host: `localhost:${ports.dashboard}` },
+    ],
+    [
+      "settings rejects a foreign Origin",
+      `${dashboard}/api/settings`,
+      { method: "POST", body: '{"gettingStartedDismissed":false}' },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+    [
+      "settings rejects Origin null",
+      `${dashboard}/api/settings`,
+      { method: "POST", body: '{"gettingStartedDismissed":false}' },
+      403,
+      { Origin: "null", "Content-Type": "application/json" },
+    ],
+    [
+      "settings rejects text/plain",
+      `${dashboard}/api/settings`,
+      { method: "POST", body: '{"gettingStartedDismissed":false}' },
+      415,
+      { "Content-Type": "text/plain" },
+    ],
+    [
+      "settings accepts the dashboard origin",
+      `${dashboard}/api/settings`,
+      { method: "POST", body: '{"gettingStartedDismissed":false}' },
+      200,
+      { Origin: dashboard, "Content-Type": "application/json" },
+    ],
+    [
+      "test trace proxy rejects a foreign Origin",
+      `${dashboard}/api/telemetry/test`,
+      { method: "POST", body: "{}" },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+    ["collector rejects a foreign Host", `${otlp}/health`, {}, 403, foreignHost(ports.otlp)],
+    [
+      "OTLP rejects a foreign Host",
+      `${otlp}/v1/traces`,
+      { method: "POST", body: JSON.stringify(jsonPayload) },
+      403,
+      { ...foreignHost(ports.otlp), "Content-Type": "application/json" },
+    ],
+    [
+      "Claude hook rejects text/plain",
+      `${otlp}/v1/claude/hooks`,
+      { method: "POST", body: hook },
+      415,
+      { "Content-Type": "text/plain" },
+    ],
+    [
+      "Claude hook rejects a foreign Origin",
+      `${otlp}/v1/claude/hooks`,
+      { method: "POST", body: hook },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+    [
+      "Claude hook accepts the Claude Code request",
+      `${otlp}/v1/claude/hooks`,
+      { method: "POST", body: hook },
+      200,
+      { "Content-Type": "application/json" },
+    ],
+    [
+      "test trace rejects a bodiless simple POST",
+      `${otlp}/v1/avalok/test-trace`,
+      { method: "POST" },
+      415,
+      {},
+    ],
+    [
+      "test trace rejects a foreign Origin",
+      `${otlp}/v1/avalok/test-trace`,
+      { method: "POST", body: "{}" },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+  ];
+  for (const [name, url, init, expected, headers] of securityChecks) {
+    const status = await raw(url, { ...init, headers });
+    check(`security: ${name}`, status === expected, `HTTP ${status}`);
+  }
+
   const unsupported = await fetch(`${otlp}/v1/traces`, {
     method: "POST",
     headers: { "content-type": "text/plain" },
@@ -434,7 +672,7 @@ try {
   if (!windows) check("Ctrl+C exits cleanly", stopped.code === 0, JSON.stringify(stopped));
   check("dashboard and OTLP ports released", await portsReleased(ports));
 
-  running = startAgentMap(bin, target, ports, environment);
+  running = startAvalok(bin, target, ports, environment);
   await running.ready;
   const persisted = await json(`${dashboard}/api/runtime/runs`);
   check(
@@ -446,7 +684,7 @@ try {
   if (!windows) check("second shutdown clean", stopped.code === 0);
   check("ports released after restart", await portsReleased(ports));
 
-  running = startAgentMap(bin, target, ports, environment);
+  running = startAvalok(bin, target, ports, environment);
   await running.ready;
   running.child.kill("SIGKILL");
   await running.exited;
@@ -454,11 +692,31 @@ try {
 
   const clear = runSync(process.execPath, [bin, "data", "clear", "--yes"], { env: environment });
   check("data clear", clear.status === 0);
-  check("AgentMap runs removed", !existsSync(join(dataRoot, "runtime")));
-  check("non-AgentMap data untouched", existsSync(outsideSentinel));
+  check("Avalok runs removed", !existsSync(join(dataRoot, "runtime")));
+  check("non-Avalok data untouched", existsSync(outsideSentinel));
   check("target repository untouched", existsSync(join(target, "docker-compose.yml")));
 } finally {
   if (workspaceHidden) {
+    // Next can recreate only its ignored build cache at the original checkout path while the
+    // workspace is hidden. Remove that cache only after checking the entire new tree's shape.
+    if (existsSync(repositoryRoot)) {
+      const onlyDirectory = (path, name) =>
+        lstatSync(path).isDirectory() &&
+        readdirSync(path).length === 1 &&
+        readdirSync(path)[0] === name;
+      const apps = join(repositoryRoot, "apps");
+      const web = join(apps, "web");
+      const next = join(web, ".next");
+      if (
+        !onlyDirectory(repositoryRoot, "apps") ||
+        !onlyDirectory(apps, "web") ||
+        !onlyDirectory(web, ".next") ||
+        !lstatSync(next).isDirectory()
+      ) {
+        throw new Error(`Workspace path was recreated with unexpected files: ${repositoryRoot}`);
+      }
+      rmSync(repositoryRoot, { recursive: true, force: true });
+    }
     renameSync(hiddenWorkspace, repositoryRoot);
     process.stdout.write(`Workspace restored: ${repositoryRoot}\n`);
   }

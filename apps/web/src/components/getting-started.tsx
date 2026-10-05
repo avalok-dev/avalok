@@ -80,7 +80,7 @@ export function GettingStarted({
       value: `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${endpoint}\nOTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf`,
     },
     python: {
-      note: "The standard opentelemetry-exporter-otlp-proto-http exporter sends protobuf directly to AgentMap. No Collector or JSON exporter is needed.",
+      note: "The standard opentelemetry-exporter-otlp-proto-http exporter sends protobuf directly to Avalok. No Collector or JSON exporter is needed.",
       value: `pip install opentelemetry-sdk opentelemetry-exporter-otlp-proto-http\n\nexport OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${endpoint}\n# Then start your normal OpenTelemetry-instrumented Python app.`,
     },
     node: {
@@ -88,7 +88,7 @@ export function GettingStarted({
       value: `npm install @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-proto\n\n# Configure its OTLPTraceExporter URL as:\n${endpoint}`,
     },
     openinference: {
-      note: "OpenInference adds AI semantics to OpenTelemetry spans and works over either OTLP/HTTP encoding. AgentMap currently normalizes agent, chain, LLM/model, tool, retriever, embedding, reranker, prompt, guardrail, evaluator, token, and supported GenAI attributes.",
+      note: "OpenInference adds AI semantics to OpenTelemetry spans and works over either OTLP/HTTP encoding. Avalok currently normalizes agent, chain, LLM/model, tool, retriever, embedding, reranker, prompt, guardrail, evaluator, token, and supported GenAI attributes.",
       value: `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${endpoint}\nOTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf`,
     },
   };
@@ -96,7 +96,11 @@ export function GettingStarted({
     setSending(true);
     setTestResult(undefined);
     try {
-      const response = await fetch("/api/telemetry/test", { method: "POST" });
+      const response = await fetch("/api/telemetry/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
       const body = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "Test trace failed.");
       setTestResult("Test trace received · synthetic fixture");
@@ -220,8 +224,8 @@ export function GettingStarted({
             </div>
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
               <p className="max-w-md text-[0.6875rem] leading-5 text-slate-600">
-                Local-first · AgentMap does not upload your repository, local agent sessions, or
-                telemetry to an AgentMap cloud service. AgentMap {report.version} · Data:{" "}
+                Local-first · Avalok does not upload your repository, local agent sessions, or
+                telemetry to an Avalok cloud service. Avalok {report.version} · Data:{" "}
                 {report.dataPath}
               </p>
               <div className="flex gap-2">

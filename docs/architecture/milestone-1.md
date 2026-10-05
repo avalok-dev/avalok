@@ -1,5 +1,7 @@
 # Milestone 1 implementation plan
 
+> **Historical record.** Written while the product's working name was AgentMap (later Sarvadrik); the product is now **Avalok** (CLI `avalok`, environment variables `AVALOK_*`). Commands and names below are as they were at the time.
+
 ## Goal
 
 Ship a local-first visual prototype that presents one architecture graph in two synchronized views: a quiet static map and a replayable simulated runtime execution.

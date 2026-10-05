@@ -16,6 +16,34 @@ describe("runtime privacy policy", () => {
     expect(result.stats.redactedFields).toBe(3);
   });
 
+  it("redacts cloud and key-file credential names, including OTLP-style dotted keys", () => {
+    const result = sanitizeValue({
+      AWS_SECRET_ACCESS_KEY: "fake",
+      "aws.secret_access_key": "fake",
+      AWS_SESSION_TOKEN: "fake",
+      secret_key: "fake",
+      private_key: "-----BEGIN PRIVATE KEY-----",
+      GOOGLE_APPLICATION_CREDENTIALS: "/fake/path.json",
+      db_passwd: "fake",
+      ssh_passphrase: "fake",
+      "http.request.header.authorization": "Bearer fake",
+      "http.request.header.cookie": "session=fake",
+      OPENAI_API_KEY: "fake",
+      "llm.token_count.prompt": 12,
+      "aws.region": "us-east-1",
+    });
+    const value = result.value as Record<string, unknown>;
+    expect(value["llm.token_count.prompt"]).toBe(12);
+    expect(value["aws.region"]).toBe("us-east-1");
+    expect(result.stats.redactedFields).toBe(11);
+    expect(JSON.stringify(result.value)).not.toMatch(/fake|BEGIN PRIVATE/);
+  });
+
+  it("keeps markup-like values as inert text for React to escape", () => {
+    const payload = "<img src=x onerror=alert(1)><script>alert(1)</script>";
+    expect(sanitizeValue({ output: payload }).value).toEqual({ output: payload });
+  });
+
   it("retains explicit truncation metadata", () => {
     const result = sanitizeValue(
       { output: "123456", items: [1, 2, 3] },

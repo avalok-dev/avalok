@@ -1,11 +1,11 @@
-# Python → AgentMap with the standard OTLP exporter
+# Python → Avalok with the standard OTLP exporter
 
 Sends one OpenInference-shaped trace (agent → retriever, LLM, tool) using only the maintained
 OpenTelemetry packages: `opentelemetry-sdk` and `opentelemetry-exporter-otlp-proto-http`
-(OTLP/HTTP **protobuf**). No AgentMap-specific exporter, no JSON workaround, no Collector, no
+(OTLP/HTTP **protobuf**). No Avalok-specific exporter, no JSON workaround, no Collector, no
 model or network API call.
 
-Start AgentMap first (`agentmap .`), then in an isolated environment:
+Start Avalok first (`avalok .`), then in an isolated environment:
 
 ```sh
 python3 -m venv .venv

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RuntimeSnapshot } from "@visual-system/runtime-adapter";
 import type { CapabilityReport } from "@visual-system/capabilities";
 import { RadioTower } from "lucide-react";
@@ -12,6 +12,11 @@ import { RunsPanel } from "./runs-panel";
 import { SourcePanel } from "./source-panel";
 import { TopBar } from "./top-bar";
 import { GettingStarted } from "./getting-started";
+import { ActivityStatisticsLine } from "./observability-statistics";
+import {
+  selectConnectionObservation,
+  selectTelemetryObservability,
+} from "@/lib/observability-view";
 import { demoArchitecture, demoRun } from "@/lib/fixtures";
 import {
   displayedArchitecture,
@@ -29,6 +34,7 @@ export function VisualizerWorkspace() {
   const dataset = useVisualizationStore((state) => state.dataset);
   const setMode = useVisualizationStore((state) => state.setMode);
   const selectedEntityId = useVisualizationStore((state) => state.selectedEntityId);
+  const selectedConnectionId = useVisualizationStore((state) => state.selectedConnectionId);
   const snapshot = useVisualizationStore((state) => state.snapshot);
   const tick = useVisualizationStore((state) => state.tick);
   const replayRun = useVisualizationStore((state) => state.replayRun);
@@ -223,16 +229,48 @@ export function VisualizerWorkspace() {
     const payload = (await response.json()) as { runs?: PublicSessionSummary[] };
     const session =
       payload.runs?.find(
-        (item) => item.source === "telemetry" && item.serviceName === "AgentMap Synthetic Fixture",
+        (item) =>
+          item.source === "telemetry" &&
+          // Runs migrated from AgentMap-era data keep the fixture's former service name.
+          (item.serviceName === "Avalok Synthetic Fixture" ||
+            item.serviceName === "AgentMap Synthetic Fixture"),
       ) ?? payload.runs?.find((item) => item.source === "telemetry");
     if (session) selectSession(session);
     setMode("live");
     closeSetup();
   };
 
-  const visibleArchitecture = displayedArchitecture({ dataset, showExecution, layerFilter });
+  const visibleArchitecture = useMemo(
+    () => displayedArchitecture({ dataset, showExecution, layerFilter }),
+    [dataset, showExecution, layerFilter],
+  );
+  const observability = useMemo(() => selectTelemetryObservability(dataset), [dataset]);
   const selectedEntity = visibleArchitecture.entities.find(
     (entity) => entity.id === selectedEntityId,
+  );
+  const selectedStatistics = selectedEntity
+    ? observability?.nodeById[selectedEntity.id]
+    : undefined;
+  const selectedConnection = visibleArchitecture.edges.find(
+    (edge) => edge.id === selectedConnectionId,
+  );
+  const connectionObservation = useMemo(
+    () =>
+      selectedConnection
+        ? selectConnectionObservation(
+            selectedConnection,
+            visibleArchitecture,
+            dataset.run.events,
+            observability,
+          )
+        : undefined,
+    [selectedConnection, visibleArchitecture, dataset.run.events, observability],
+  );
+  const connectionSource = visibleArchitecture.entities.find(
+    (entity) => entity.id === selectedConnection?.source,
+  );
+  const connectionTarget = visibleArchitecture.entities.find(
+    (entity) => entity.id === selectedConnection?.target,
   );
   const connectedIds = selectedEntity
     ? visibleArchitecture.edges.flatMap((edge) => {
@@ -280,7 +318,7 @@ export function VisualizerWorkspace() {
         }}
       />
       <section className="relative min-h-0 min-w-0">
-        <ArchitectureCanvas />
+        <ArchitectureCanvas observability={observability} />
         {mode === "map" && visibleArchitecture.entities.length === 0 ? (
           <div className="absolute inset-0 z-20 grid place-items-center p-6">
             <div className="max-w-sm rounded-xl border border-white/[0.08] bg-[#10151d]/95 p-5 text-center shadow-2xl">
@@ -316,8 +354,8 @@ export function VisualizerWorkspace() {
               <RadioTower className="mx-auto size-5 text-cyan-300" />
               <h2 className="mt-3 text-sm font-semibold text-slate-100">Nothing live yet</h2>
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                AgentMap is ready. Select an available local agent session or connect your
-                application with telemetry.
+                Avalok is ready. Select an available local agent session or connect your application
+                with telemetry.
               </p>
               <Button size="sm" className="mt-4" onClick={connectTelemetry}>
                 Connect telemetry
@@ -326,11 +364,30 @@ export function VisualizerWorkspace() {
           </div>
         ) : null}
         {mode === "runs" ? (
-          <RunsPanel onReplay={replayRun} onConnectTelemetry={connectTelemetry} />
+          <RunsPanel
+            onReplay={replayRun}
+            onConnectTelemetry={connectTelemetry}
+            {...(observability ? { observability } : {})}
+          />
         ) : null}
       </section>
       <Inspector
         entity={selectedEntity}
+        {...(connectionSource && connectionTarget
+          ? {
+              connection: {
+                source: connectionSource,
+                target: connectionTarget,
+                ...(connectionObservation?.status === "observed"
+                  ? {
+                      observedActivity: (
+                        <ActivityStatisticsLine statistics={connectionObservation.statistics} />
+                      ),
+                    }
+                  : { emptyReason: connectionObservation?.status ?? "unobserved" }),
+              },
+            }
+          : {})}
         currentEvent={mode === "live" ? snapshot.currentEvent : undefined}
         connectedEntities={connectedEntities}
         isLive={mode === "live"}
@@ -357,6 +414,11 @@ export function VisualizerWorkspace() {
                 : dataset.source === "telemetry"
                   ? "Local telemetry trace"
                   : "Local Codex session"
+        }
+        observedActivity={
+          selectedStatistics ? (
+            <ActivityStatisticsLine statistics={selectedStatistics} />
+          ) : undefined
         }
         repositoryFiles={architectureFiles}
         runtimeActivity={

@@ -1,5 +1,7 @@
 # Milestone 7.2 — first-run UX and local operability
 
+> **Historical record.** Written while the product's working name was AgentMap (later Sarvadrik); the product is now **Avalok** (CLI `avalok`, environment variables `AVALOK_*`). Commands and names below are as they were at the time.
+
 Milestone 7.2 productizes the local M7.1 startup path without changing analyzers or adding cloud services.
 
 ## First run

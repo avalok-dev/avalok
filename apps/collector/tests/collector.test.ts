@@ -27,7 +27,7 @@ afterEach(async () =>
 );
 
 async function collector(maxBodyBytes = 1024 * 1024) {
-  const store = new LocalRuntimeStore(await mkdtemp(join(tmpdir(), "agentmap-collector-")));
+  const store = new LocalRuntimeStore(await mkdtemp(join(tmpdir(), "avalok-collector-")));
   const server = createCollectorServer({ store, maxBodyBytes });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -63,7 +63,11 @@ const tracePayload = {
 describe("local collector", () => {
   it("ingests the built-in synthetic trace with unmistakable fixture labels", async () => {
     const { store, url } = await collector();
-    const response = await fetch(`${url}/v1/agentmap/test-trace`, { method: "POST" });
+    const response = await fetch(`${url}/v1/avalok/test-trace`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ synthetic: true, fixture: "m7.2-test-trace" });
     const [run] = await store.list("telemetry");
@@ -265,6 +269,6 @@ describe("local collector", () => {
   });
 
   it("refuses accidental public binding", () => {
-    expect(() => collectorConfiguration({ AGENTMAP_OTLP_HOST: "0.0.0.0" })).toThrow("Refusing");
+    expect(() => collectorConfiguration({ AVALOK_OTLP_HOST: "0.0.0.0" })).toThrow("Refusing");
   });
 });

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
@@ -15,8 +15,9 @@
     "@visual-system/capabilities": "workspace:*",
     "@visual-system/codex-adapter": "workspace:*",
     "@visual-system/graph": "workspace:*",
-    "@visual-system/replay": "workspace:*",
+    "@visual-system/local-security": "workspace:*",
     "@visual-system/reconcile": "workspace:*",
+    "@visual-system/replay": "workspace:*",
     "@visual-system/runtime-adapter": "workspace:*",
     "@visual-system/schema": "workspace:*",
     "@visual-system/telemetry-adapter": "workspace:*",

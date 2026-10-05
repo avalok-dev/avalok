@@ -1,5 +1,5 @@
 {
-  "name": "ai-system-visualizer",
+  "name": "avalok-monorepo",
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
@@ -8,7 +8,7 @@
     "node": ">=24.19.0 <25"
   },
   "scripts": {
-    "agentmap": "node packages/cli/agentmap.mjs",
+    "avalok": "node packages/cli/avalok.mjs",
     "build": "turbo run build",
     "dev": "turbo run dev --filter=@visual-system/web --filter=@visual-system/collector",
     "lint": "turbo run lint",
@@ -18,7 +18,9 @@
     "format:check": "prettier --check .",
     "dist:build": "node packages/cli/scripts/build-distribution.mjs",
     "dist:pack": "node packages/cli/scripts/pack-distribution.mjs",
-    "dist:smoke": "node packages/cli/scripts/smoke-installed.mjs"
+    "dist:smoke": "node packages/cli/scripts/smoke-installed.mjs",
+    "release:build": "node packages/cli/scripts/release-build.mjs",
+    "schema:smoke": "node packages/schema/scripts/smoke-packed.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",

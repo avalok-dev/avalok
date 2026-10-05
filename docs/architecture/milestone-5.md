@@ -1,5 +1,7 @@
 # Milestone 5: universal repository intelligence V1
 
+> **Historical record.** Written while the product's working name was AgentMap (later Sarvadrik); the product is now **Avalok** (CLI `avalok`, environment variables `AVALOK_*`). Commands and names below are as they were at the time.
+
 ## Baseline
 
 Milestone 5 extends the working Milestones 1-4 system. It does not replace the existing

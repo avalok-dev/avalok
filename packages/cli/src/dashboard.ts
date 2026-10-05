@@ -31,8 +31,8 @@ export function resolveDashboardLayout(
   exists: (path: string) => boolean = existsSync,
 ): DashboardLayout {
   const moduleDirectory = dirname(fileURLToPath(moduleUrl));
-  if (environment.AGENTMAP_DASHBOARD_DIR) {
-    const directory = resolve(environment.AGENTMAP_DASHBOARD_DIR);
+  if (environment.AVALOK_DASHBOARD_DIR) {
+    const directory = resolve(environment.AVALOK_DASHBOARD_DIR);
     return { kind: exists(join(directory, "server.js")) ? "packaged" : "source", directory };
   }
   const installRoot = resolve(moduleDirectory, "..");
@@ -62,7 +62,7 @@ export function launchDashboard(options: {
   environment?: NodeJS.ProcessEnv;
 }): DashboardHandle {
   const layout = options.directory
-    ? resolveDashboardLayout({ ...options.environment, AGENTMAP_DASHBOARD_DIR: options.directory })
+    ? resolveDashboardLayout({ ...options.environment, AVALOK_DASHBOARD_DIR: options.directory })
     : resolveDashboardLayout(options.environment);
   const { directory } = layout;
   const marker = layout.kind === "packaged" ? "server.js" : "package.json";
@@ -70,10 +70,10 @@ export function launchDashboard(options: {
     throw new StartupError(
       `Dashboard assets were not found at ${directory}.`,
       layout.kind === "packaged"
-        ? "Reinstall AgentMap; the installed package is incomplete."
-        : "Set AGENTMAP_DASHBOARD_DIR to the AgentMap web application directory.",
+        ? "Reinstall Avalok; the installed package is incomplete."
+        : "Set AVALOK_DASHBOARD_DIR to the Avalok web application directory.",
     );
-  const requestedMode = options.environment?.AGENTMAP_DASHBOARD_MODE;
+  const requestedMode = options.environment?.AVALOK_DASHBOARD_MODE;
   const mode =
     layout.kind === "packaged"
       ? "start"
@@ -83,7 +83,7 @@ export function launchDashboard(options: {
           ? "start"
           : "dev";
   // Argument arrays only: no shell, and no user-controlled path is ever interpolated into a command.
-  const launcher = join(directory, "agentmap-launch.cjs");
+  const launcher = join(directory, "avalok-launch.cjs");
   const argumentsForMode =
     layout.kind === "packaged"
       ? [existsSync(launcher) ? launcher : join(directory, "server.js")]
@@ -95,24 +95,26 @@ export function launchDashboard(options: {
           "-p",
           String(options.port),
         ];
-  const samples = layout.samples ?? options.environment?.AGENTMAP_SAMPLES_DIR;
+  const samples = layout.samples ?? options.environment?.AVALOK_SAMPLES_DIR;
   const child = spawn(process.execPath, argumentsForMode, {
     cwd: directory,
     env: {
       ...process.env,
       ...options.environment,
-      AGENTMAP_CLI_MODE: "1",
-      AGENTMAP_TARGET_ROOT: options.target,
-      AGENTMAP_DATA_DIR: options.dataDirectory,
-      AGENTMAP_DATA_ROOT: options.dataRoot,
-      AGENTMAP_OTLP_PORT: String(options.otlpPort),
-      AGENTMAP_VERSION: options.version,
-      AGENTMAP_PARENT_PID: String(process.pid),
-      ...(samples ? { AGENTMAP_SAMPLES_DIR: samples } : {}),
+      AVALOK_CLI_MODE: "1",
+      AVALOK_TARGET_ROOT: options.target,
+      AVALOK_DATA_DIR: options.dataDirectory,
+      AVALOK_DATA_ROOT: options.dataRoot,
+      AVALOK_OTLP_PORT: String(options.otlpPort),
+      AVALOK_VERSION: options.version,
+      AVALOK_PARENT_PID: String(process.pid),
+      ...(samples ? { AVALOK_SAMPLES_DIR: samples } : {}),
       // The standalone server reads HOSTNAME/PORT. Shells commonly export HOSTNAME as the
       // machine name, so always pin the loopback host explicitly.
       HOSTNAME: options.host,
       PORT: String(options.port),
+      // The dashboard's Host/Origin guard validates requests against this exact port.
+      AVALOK_DASHBOARD_PORT: String(options.port),
       NEXT_TELEMETRY_DISABLED: "1",
       // Next's graceful close waits for open live-update streams (an open Live tab), which
       // stalls Ctrl+C until the SIGKILL fallback. The dashboard holds no state that needs
@@ -127,11 +129,11 @@ export function launchDashboard(options: {
   let log = "";
   child.stdout?.on("data", (chunk: Buffer) => {
     log = boundedLog(log, chunk);
-    if (options.environment?.AGENTMAP_DEBUG === "1") process.stderr.write(chunk);
+    if (options.environment?.AVALOK_DEBUG === "1") process.stderr.write(chunk);
   });
   child.stderr?.on("data", (chunk: Buffer) => {
     log = boundedLog(log, chunk);
-    if (options.environment?.AGENTMAP_DEBUG === "1") process.stderr.write(chunk);
+    if (options.environment?.AVALOK_DEBUG === "1") process.stderr.write(chunk);
   });
   const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
     (resolveExit) => {
@@ -198,7 +200,7 @@ export async function waitForDashboard(
       const detail = dashboard.logs?.trim();
       throw new StartupError(
         `Dashboard stopped during startup${exited.code === null ? "" : ` (exit ${exited.code})`}.${detail ? ` ${detail.split("\n").at(-1)}` : ""}`,
-        "Run the AgentMap build, then try again.",
+        "Run the Avalok build, then try again.",
       );
     }
     if (await healthy(`${url}/api/health`)) return;

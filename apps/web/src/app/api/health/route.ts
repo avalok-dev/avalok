@@ -5,7 +5,7 @@ export async function GET() {
   return Response.json(
     {
       status: "ok",
-      cli: process.env.AGENTMAP_CLI_MODE === "1",
+      cli: process.env.AVALOK_CLI_MODE === "1",
     },
     { headers: { "Cache-Control": "no-store" } },
   );

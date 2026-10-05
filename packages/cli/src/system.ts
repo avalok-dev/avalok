@@ -45,7 +45,7 @@ export async function resolveTarget(target: string | undefined, cwd = process.cw
   if (resolved === parse(resolved).root)
     throw new StartupError(
       "The filesystem root is too broad to analyze safely.",
-      "Run AgentMap from a repository or pass its directory explicitly.",
+      "Run Avalok from a repository or pass its directory explicitly.",
     );
   return resolved;
 }

@@ -3,10 +3,11 @@ import { pathToFileURL } from "node:url";
 import type { EventEmitter } from "node:events";
 import { productIdentity } from "./identity.ts";
 import { helpText, parseCliOptions } from "./options.ts";
-import { maybeOpenBrowser, startAgentMap, startupSummary } from "./orchestrator.ts";
+import { maybeOpenBrowser, startAvalok, startupSummary } from "./orchestrator.ts";
 import { StartupError } from "./system.ts";
 import { dataPath, runDataClear } from "./data.ts";
 import { runDoctor } from "./doctor.ts";
+import { importOpenAiTraceFiles } from "@visual-system/telemetry-adapter";
 
 export async function runCli(
   arguments_ = process.argv.slice(2),
@@ -34,12 +35,19 @@ export async function runCli(
     output.write(result.message);
     return 0;
   }
+  if (options.command === "import-openai") {
+    const result = await importOpenAiTraceFiles(options.files ?? []);
+    output.write(
+      `Imported ${result.traces} traces and ${result.spans} distinct spans from ${result.files} saved pages.${result.malformed ? ` Skipped ${result.malformed} malformed items.` : ""}\n`,
+    );
+    return result.malformed ? 1 : 0;
+  }
   if (options.command === "doctor") {
     const result = await runDoctor(options);
     output.write(result.output);
     return result.exitCode;
   }
-  const running = await startAgentMap(options);
+  const running = await startAvalok(options);
   output.write(startupSummary(running, options.port));
   for (const status of [running.sources.codex, running.sources.claude])
     if (status.warning) errorOutput.write(`Warning: ${status.warning}\n`);
@@ -54,7 +62,7 @@ export async function runCli(
 export const shutdownSignals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
 
 export async function waitForShutdown(
-  running: Awaited<ReturnType<typeof startAgentMap>>,
+  running: Awaited<ReturnType<typeof startAvalok>>,
   signals: Pick<EventEmitter, "once" | "removeListener">,
   output: Pick<NodeJS.WriteStream, "write">,
 ) {
@@ -78,7 +86,7 @@ export async function waitForShutdown(
         if (!stopping)
           throw new StartupError(
             `Dashboard stopped unexpectedly${code === null ? "" : ` with exit code ${code}`}${signal ? ` (${signal})` : ""}.`,
-            "Run AgentMap again. If the problem continues, rebuild the dashboard.",
+            "Run Avalok again. If the problem continues, rebuild the dashboard.",
           );
       }),
       shutdownSignal,

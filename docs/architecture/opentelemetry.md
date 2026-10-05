@@ -2,7 +2,7 @@
 
 ## Supported
 
-AgentMap includes a small local receiver bound to `127.0.0.1:4318` by default. It accepts OTLP/HTTP trace export requests encoded as protobuf (`application/x-protobuf`, the default of most official exporters) or JSON (`application/json`) at `POST /v1/traces`, preserves trace/span hierarchy and timing, normalizes OpenInference semantic attributes when present, persists normalized runs locally, and updates the existing Live view through SSE.
+Avalok includes a small local receiver bound to `127.0.0.1:4318` by default. It accepts OTLP/HTTP trace export requests encoded as protobuf (`application/x-protobuf`, the default of most official exporters) or JSON (`application/json`) at `POST /v1/traces`, preserves trace/span hierarchy and timing, normalizes OpenInference semantic attributes when present, persists normalized runs locally, and updates the existing Live view through SSE.
 
 The endpoint is:
 
@@ -22,7 +22,7 @@ Milestone 4 introduced OTLP/HTTP JSON. Milestone 7.3 added OTLP/HTTP protobuf th
 
 ## Classification
 
-OpenInference `AGENT`, `CHAIN`, `LLM`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `RERANKER`, `PROMPT`, `GUARDRAIL`, and `EVALUATOR` spans are mapped to existing AgentMap categories. MCP is used only when the tool identity explicitly indicates MCP.
+OpenInference `AGENT`, `CHAIN`, `LLM`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `RERANKER`, `PROMPT`, `GUARDRAIL`, and `EVALUATOR` spans are mapped to existing Avalok categories. MCP is used only when the tool identity explicitly indicates MCP.
 
 Generic spans remain conservative:
 
@@ -45,7 +45,7 @@ curl -sS -X POST http://127.0.0.1:4319/prompt \
   -d '{"prompt":"Explain the local fixture"}'
 ```
 
-Open AgentMap at `http://localhost:3000`, choose **Telemetry**, and select the newest `instrumented-ai-app` trace. The expected path is:
+Open Avalok at `http://localhost:3000`, choose **Telemetry**, and select the newest `instrumented-ai-app` trace. The expected path is:
 
 ```text
 User → instrumented-ai-app → Fixture Research Agent
@@ -56,14 +56,14 @@ User → instrumented-ai-app → Fixture Research Agent
 User/request → Return response
 ```
 
-Exporters deliver completed spans, so the trace appears immediately after the example request completes. AgentMap accurately presents these as completed observations received live; it does not fabricate a span-start signal.
+Exporters deliver completed spans, so the trace appears immediately after the example request completes. Avalok accurately presents these as completed observations received live; it does not fabricate a span-start signal.
 
 ## Configuration and security
 
-- `AGENTMAP_OTLP_HOST` changes the bind host.
-- `AGENTMAP_OTLP_PORT` changes the port.
-- `AGENTMAP_ALLOW_REMOTE_OTLP=1` is required before a non-loopback bind is accepted.
-- `AGENTMAP_DATA_DIR` changes the local persistence directory.
+- `AVALOK_OTLP_HOST` changes the bind host.
+- `AVALOK_OTLP_PORT` changes the port.
+- `AVALOK_ALLOW_REMOTE_OTLP=1` is required before a non-loopback bind is accepted.
+- `AVALOK_DATA_DIR` changes the local persistence directory.
 - request bodies default to a 5 MiB maximum;
 - gzip bodies are bounded after decompression;
 - malformed spans are rejected or reported as partial success without terminating the collector.

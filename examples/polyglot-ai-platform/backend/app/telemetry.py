@@ -73,11 +73,11 @@ def emit_trace(prompt="Explain the fixture"):
     payload = {"resourceSpans": [
         {
             "resource": {"attributes": [attribute("service.name", "research-api")]},
-            "scopeSpans": [{"scope": {"name": "agentmap.python-example"}, "spans": backend_spans}],
+            "scopeSpans": [{"scope": {"name": "avalok.python-example"}, "spans": backend_spans}],
         },
         {
             "resource": {"attributes": [attribute("service.name", "research-worker")]},
-            "scopeSpans": [{"scope": {"name": "agentmap.python-example"}, "spans": worker_spans}],
+            "scopeSpans": [{"scope": {"name": "avalok.python-example"}, "spans": worker_spans}],
         },
     ]}
     endpoint = os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://127.0.0.1:4318/v1/traces")

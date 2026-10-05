@@ -8,6 +8,7 @@ export interface GraphNodeData extends Record<string, unknown> {
   entity: Entity;
   state: "idle" | "active" | "completed";
   dimmed: boolean;
+  activity?: { calls: number; failures: number };
 }
 
 export type GraphNodeModel = Node<GraphNodeData, "entity">;
@@ -43,7 +44,7 @@ const kindTone: Record<Entity["kind"], string> = {
 };
 
 export function GraphNode({ data, selected }: NodeProps<GraphNodeModel>) {
-  const { entity, state, dimmed } = data;
+  const { entity, state, dimmed, activity } = data;
   return (
     <div
       className={cn(
@@ -54,7 +55,7 @@ export function GraphNode({ data, selected }: NodeProps<GraphNodeModel>) {
         dimmed && "opacity-35 saturate-50",
         selected && "ring-1 ring-cyan-300/75 ring-offset-2 ring-offset-[#080a0f]",
       )}
-      aria-label={`${entity.name}, ${entity.kind.replaceAll("_", " ")}`}
+      aria-label={`${entity.name}, ${entity.kind.replaceAll("_", " ")}${activity ? `, ${activity.calls} observed calls, ${activity.failures} failures` : ""}`}
     >
       <Handle
         type="target"
@@ -79,7 +80,15 @@ export function GraphNode({ data, selected }: NodeProps<GraphNodeModel>) {
           <Check className="size-3.5 text-cyan-500/75" aria-label="Completed" />
         ) : null}
       </div>
-      <div className="absolute inset-x-3.5 bottom-2.5 h-px overflow-hidden rounded bg-white/[0.055]">
+      {activity ? (
+        <div className="absolute bottom-2.5 left-3.5 flex gap-2 font-mono text-[0.625rem] tabular-nums text-slate-400">
+          <span>{activity.calls} calls</span>
+          {activity.failures ? (
+            <span className="text-amber-300">{activity.failures} failed</span>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="absolute inset-x-3.5 bottom-1.5 h-px overflow-hidden rounded bg-white/[0.055]">
         <div
           className={cn("h-full w-0 bg-current transition-all", state === "active" && "w-full")}
         />

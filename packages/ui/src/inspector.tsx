@@ -1,7 +1,7 @@
 "use client";
 
 import type { Entity, RuntimeEvent } from "@visual-system/schema";
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -17,6 +17,12 @@ import { EntityIcon } from "./entity-icon";
 
 export interface InspectorProps {
   entity: Entity | undefined;
+  connection?: {
+    source: Entity;
+    target: Entity;
+    observedActivity?: React.ReactNode;
+    emptyReason?: "unobserved" | "ambiguous";
+  };
   currentEvent: RuntimeEvent | undefined;
   connectedEntities: readonly Entity[];
   isLive: boolean;
@@ -31,6 +37,7 @@ export interface InspectorProps {
     stage?: string;
   }>;
   runLabel?: string;
+  observedActivity?: React.ReactNode;
   repositoryFiles?:
     | ReadonlyArray<{
         path: string;
@@ -103,6 +110,7 @@ const titleCase = (value: string) =>
 
 export function Inspector({
   entity,
+  connection,
   currentEvent,
   connectedEntities,
   isLive,
@@ -110,6 +118,7 @@ export function Inspector({
   traceEvents = [],
   diagnostics = [],
   runLabel = "Run",
+  observedActivity,
   repositoryFiles = [],
   runtimeActivity,
   onSelectEntity,
@@ -139,6 +148,35 @@ export function Inspector({
   const childCount = currentEvent?.spanId
     ? traceEvents.filter((event) => event.parentSpanId === currentEvent.spanId).length
     : 0;
+  if (connection) {
+    return (
+      <aside
+        className="h-full overflow-y-auto border-l border-white/[0.065] bg-[#0c0f15]/88 p-5"
+        aria-label="Connection inspector"
+      >
+        <div className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-slate-600">
+          Inspector / connection
+        </div>
+        <h2 className="mt-5 text-base font-semibold leading-6 text-slate-100">
+          {connection.source.name} <ArrowRight className="inline size-4 text-cyan-300/75" />{" "}
+          {connection.target.name}
+        </h2>
+        <dl className="mt-6 grid gap-5">
+          <Detail label="Source">{connection.source.name}</Detail>
+          <Detail label="Destination">{connection.target.name}</Detail>
+          <Detail label="Observed connection statistics">
+            {connection.observedActivity ?? (
+              <span className="text-xs leading-5 text-slate-500">
+                {connection.emptyReason === "ambiguous"
+                  ? "Connection identities are ambiguous, so observed activity cannot be assigned reliably."
+                  : "No observed statistics for this connection in the selected run."}
+              </span>
+            )}
+          </Detail>
+        </dl>
+      </aside>
+    );
+  }
   if (!entity && !currentEvent) {
     return (
       <aside className="flex h-full flex-col border-l border-white/[0.065] bg-[#0c0f15]/88 p-5">
@@ -223,6 +261,9 @@ export function Inspector({
               </span>
             </Detail>
             <Detail label="Run">{runLabel}</Detail>
+            {observedActivity ? (
+              <Detail label="Observed node statistics">{observedActivity}</Detail>
+            ) : null}
             {entity.metadata?.averageLatency ? (
               <Detail label="Avg latency">{String(entity.metadata.averageLatency)}</Detail>
             ) : null}

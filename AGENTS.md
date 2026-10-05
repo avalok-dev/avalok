@@ -1,8 +1,8 @@
-# AgentMap contributor instructions
+# Avalok contributor instructions
 
 ## Start here
 
-- AgentMap is a pnpm/Turborepo monorepo. Milestones 1-6 are complete and working; extend the existing system rather than rebuilding it.
+- Avalok (formerly the working name AgentMap, then briefly Sarvadrik) is a pnpm/Turborepo monorepo. Milestones 1-6 and M7.1–M7.4C are complete; extend the existing system rather than rebuilding it.
 - Read `docs/PROJECT_CONTEXT.md` before architecture, milestone, or cross-package work. Read only the narrower architecture document needed for the task.
 - Respect more-specific `AGENTS.md` files under `apps/web`, `packages/analyzer`, and `packages/reconcile`.
 - Preserve the established UI and all Demo and local Codex-session behavior unless the user explicitly requests a redesign or breaking change.
@@ -22,6 +22,11 @@
 - In a non-interactive runner, prefix pnpm commands with `CI=true`.
 - Distribution (M7.3): `pnpm dist:build && pnpm dist:pack && pnpm dist:smoke --hide-workspace`. Run it after changes to the CLI, dashboard routes, collector, or anything the installed package loads; never publish.
 - Packages bundled into the dashboard must not call `path` functions through a conditional function value (e.g. `(a ? win32.join : posix.join)(…)`); Next's build-time file tracer crashes on it. Use explicit branches.
+- In dashboard-bundled code, take `homedir()` as a parameter default (`home = homedir()`), never inline inside a path expression, and do not build arrays of joined paths: Next's tracer evaluates them and, on Windows across drives, globs the home directory (`packages/cli/tests/build-tracing.test.ts` guards this).
+- Release artifacts come from `pnpm release:build` (neutral temp path, path-leak scan, packaged smoke, SHA-256 + provenance), never an in-place `dist:build`. Never run `npm publish` or create releases; publication goes through `.github/workflows/release.yml` only with explicit maintainer approval.
+- Product identity (name, CLI, package, homepage) lives only in `packages/cli/product.json`; the version only in `packages/cli/package.json`. Legacy AgentMap names appear only in the data migration and legacy fixtures (see `docs/architecture/milestone-7-4b.md`); the Sarvadrik name appears only in historical records and legacy build exclusions (see `docs/architecture/milestone-7-4c.md`).
+- Third-party notices are generated during `dist:build`; a new bundled dependency must have license metadata or the build fails.
+- Local HTTP (M7.4A): every dashboard request passes `apps/web/src/middleware.ts`; collector routes pass `guardCollectorRequest`. New mutation routes must accept JSON only; never add `Access-Control-*` headers. See `docs/security/local-http.md`.
 
 ## Architectural invariants
 

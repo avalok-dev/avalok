@@ -15,7 +15,7 @@ import {
 const fixture = (name: string) => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 
 describe("repository analyzer", () => {
-  it("discovers the AgentMap workspace without repository-specific analyzer rules", async () => {
+  it("discovers the Avalok workspace without repository-specific analyzer rules", async () => {
     const root = fileURLToPath(new URL("../../..", import.meta.url));
     const analysis = await analyzeRepository(root, { force: true });
     const names = analysis.graph.entities.map((entity) => entity.name);
@@ -46,7 +46,9 @@ describe("repository analyzer", () => {
         ),
       );
     }
-  }, 15_000);
+    // Whole-repository analysis while every package's suite runs in parallel: ~12s on 2-core
+    // CI runners (under 1s alone), so give it headroom rather than a flaky limit.
+  }, 60_000);
 
   it("detects a Next.js route and evidence-backed integrations", async () => {
     const analysis = await analyzeRepository(fixture("next-app"), { force: true });
@@ -84,7 +86,7 @@ describe("repository analyzer", () => {
   });
 
   it("detects Anthropic usage and a meaningful literal external HTTP service", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-python-integrations-"));
+    const root = await mkdtemp(join(tmpdir(), "avalok-python-integrations-"));
     await writeFile(
       join(root, "pyproject.toml"),
       [
@@ -241,7 +243,7 @@ describe("repository analyzer", () => {
   });
 
   it("ignores Python environments and external symlinks", async () => {
-    const root = await mkdtemp(join(tmpdir(), "agentmap-python-safety-"));
+    const root = await mkdtemp(join(tmpdir(), "avalok-python-safety-"));
     await writeFile(join(root, "requirements.txt"), "fastapi\n", "utf8");
     await writeFile(
       join(root, "main.py"),
@@ -296,7 +298,7 @@ describe("repository analyzer", () => {
 
   it("keeps the architecture cache warm for documentation-only edits", async () => {
     clearAnalysisCache();
-    const root = await mkdtemp(join(tmpdir(), "agentmap-doc-cache-"));
+    const root = await mkdtemp(join(tmpdir(), "avalok-doc-cache-"));
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({ name: "doc-cache", type: "module" }),

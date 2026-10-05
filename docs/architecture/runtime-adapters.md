@@ -1,6 +1,6 @@
 # Runtime adapters
 
-AgentMap runtime sources implement a small vendor-neutral contract in `@visual-system/runtime-adapter`. The contract describes the source, declares capabilities, and returns normalized snapshots and deltas containing an execution graph, a `Run`, bounded raw observations, and diagnostics.
+Avalok runtime sources implement a small vendor-neutral contract in `@visual-system/runtime-adapter`. The contract describes the source, declares capabilities, and returns normalized snapshots and deltas containing an execution graph, a `Run`, bounded raw observations, and diagnostics.
 
 | Source      | Historical            | Live                        | Persistence          | Primary interface                                |
 | ----------- | --------------------- | --------------------------- | -------------------- | ------------------------------------------------ |

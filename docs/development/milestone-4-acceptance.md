@@ -1,5 +1,7 @@
 # Milestone 4 manual acceptance guide
 
+> **Historical record.** Written while the product's working name was AgentMap (later Sarvadrik); the product is now **Avalok** (CLI `avalok`, environment variables `AVALOK_*`). Commands and names below are as they were at the time.
+
 Run all commands from the repository root unless a step says otherwise. Keep `pnpm dev` running in its own terminal; it starts both the web application on `http://localhost:3000` and the loopback collector on `http://127.0.0.1:4318`.
 
 ## 1. Milestone 1 regression

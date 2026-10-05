@@ -1,7 +1,7 @@
 import type { Server } from "node:http";
 import { analyzeRepository, type RepositoryAnalysis } from "@visual-system/analyzer";
 import {
-  agentMapDataPaths,
+  avalokDataPaths,
   compactUserPath,
   migrateLegacyData,
   type MigrationResult,
@@ -19,7 +19,7 @@ export interface SourceStatus {
   claude: { detected: boolean; count: number; warning?: string };
 }
 
-export interface RunningAgentMap {
+export interface RunningAvalok {
   target: string;
   analysis: RepositoryAnalysis;
   dashboardUrl: string;
@@ -55,7 +55,7 @@ const defaultDependencies: StartDependencies = {
 };
 
 export function defaultCliDataDirectory(environment = process.env) {
-  return agentMapDataPaths(environment).runtime;
+  return avalokDataPaths(environment).runtime;
 }
 
 async function listen(server: Server, port: number, host: string) {
@@ -105,14 +105,14 @@ async function discoverSources(
   };
 }
 
-export async function startAgentMap(
+export async function startAvalok(
   options: CliOptions,
   configuration: {
     cwd?: string;
     environment?: NodeJS.ProcessEnv;
     dependencies?: Partial<StartDependencies>;
   } = {},
-): Promise<RunningAgentMap> {
+): Promise<RunningAvalok> {
   const dependencies = { ...defaultDependencies, ...configuration.dependencies };
   const environment = configuration.environment ?? process.env;
   const target = await resolveTarget(options.target, configuration.cwd);
@@ -121,12 +121,12 @@ export async function startAgentMap(
     analysis = await dependencies.analyze(target);
   } catch (error) {
     throw new StartupError(
-      `AgentMap could not analyze this repository. ${error instanceof Error ? error.message : "Unknown analyzer error."}`,
+      `Avalok could not analyze this repository. ${error instanceof Error ? error.message : "Unknown analyzer error."}`,
       "Check repository permissions and run again.",
     );
   }
   const dashboardPort = await dependencies.findDashboardPort(options.port, cliDefaults.host);
-  const dataPaths = agentMapDataPaths(environment);
+  const dataPaths = avalokDataPaths(environment);
   const dataDirectory = dataPaths.runtime;
   // Safe, non-destructive copy of provisional M7.1 data; failure never blocks startup.
   const migration = await dependencies
@@ -183,12 +183,12 @@ function compactPath(path: string) {
   return compactUserPath(path);
 }
 
-export function startupSummary(running: RunningAgentMap, requestedPort: number) {
+export function startupSummary(running: RunningAvalok, requestedPort: number) {
   const technologies = running.analysis.technologies;
   const source = (label: string, detected: boolean, count: number) =>
     `  ${label.padEnd(12)}${detected ? `detected (${count})` : "not detected"}`;
   return [
-    productIdentity.displayName,
+    `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}`,
     "",
     "Repository",
     `  ${compactPath(running.target)}`,
@@ -220,20 +220,25 @@ export function startupSummary(running: RunningAgentMap, requestedPort: number) 
 }
 
 export function migrationSummary(migration: MigrationResult) {
-  if (migration.status === "migrated")
-    return [
-      `  Copied ${migration.copied} earlier run${migration.copied === 1 ? "" : "s"} from ~/.agentmap/runtime (original kept)`,
-    ];
-  if (migration.status === "failed")
-    return [
-      `  Earlier runs in ~/.agentmap/runtime were not copied: ${migration.error ?? "unknown error"}`,
-      "  The original data is untouched; AgentMap will retry next start.",
-    ];
-  return [];
+  const sources = migration.sources ?? [
+    { label: "~/.agentmap/runtime", ...migration, settingsCopied: false },
+  ];
+  return sources.flatMap((source) => {
+    if (source.status === "migrated")
+      return [
+        `  Copied ${source.copied} earlier AgentMap run${source.copied === 1 ? "" : "s"}${source.settingsCopied ? " and settings" : ""} from ${source.label} (original kept)`,
+      ];
+    if (source.status === "failed")
+      return [
+        `  Earlier AgentMap data in ${source.label} was not copied: ${source.error ?? "unknown error"}`,
+        "  The original data is untouched; Avalok will retry next start.",
+      ];
+    return [];
+  });
 }
 
 export async function maybeOpenBrowser(
-  running: RunningAgentMap,
+  running: RunningAvalok,
   enabled: boolean,
   opener: (url: string) => Promise<void> = openBrowser,
 ) {

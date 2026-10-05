@@ -1,6 +1,6 @@
 # OTLP/HTTP protobuf ingestion
 
-Standard OpenTelemetry exporters commonly default to OTLP/HTTP with binary protobuf. Since M7.3 AgentMap accepts it directly on the standard trace path; OTLP/HTTP JSON continues to work unchanged.
+Standard OpenTelemetry exporters commonly default to OTLP/HTTP with binary protobuf. Since M7.3 Avalok accepts it directly on the standard trace path; OTLP/HTTP JSON continues to work unchanged.
 
 ## Pipeline
 
@@ -47,7 +47,7 @@ Media types are compared case-insensitively and parameters such as `charset` are
 
 ## Tests
 
-- `packages/telemetry-adapter/tests/protobuf.test.ts` — protobuf produced by the official OpenTelemetry JS SDK `ProtobufTraceSerializer` (independent of AgentMap's decoder) decodes to exactly the same canonical spans as the SDK's JSON serializer; hierarchy, resource/`service.name`, scope, status, timestamps, attribute types, OpenInference tokens, redaction, empty and malformed bodies, response encoding, descriptor drift, and the checked-in fixture.
+- `packages/telemetry-adapter/tests/protobuf.test.ts` — protobuf produced by the official OpenTelemetry JS SDK `ProtobufTraceSerializer` (independent of Avalok's decoder) decodes to exactly the same canonical spans as the SDK's JSON serializer; hierarchy, resource/`service.name`, scope, status, timestamps, attribute types, OpenInference tokens, redaction, empty and malformed bodies, response encoding, descriptor drift, and the checked-in fixture.
 - `apps/collector/tests/collector.test.ts` — HTTP content types, gzip/deflate, 400/413/415 bodies, JSON regression.
 - `apps/collector/tests/standard-exporters.test.ts` — the official `@opentelemetry/exporter-trace-otlp-proto` and `exporter-trace-otlp-http` exporters export directly and report `SUCCESS`.
 - `examples/python-otel-direct` — the standard Python exporter, run by the clean-install smoke test with `--python`.

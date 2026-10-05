@@ -1,5 +1,7 @@
 # Milestone 7.1: CLI and one-command local startup
 
+> **Historical record.** Written while the product's working name was AgentMap (later Sarvadrik); the product is now **Avalok** (CLI `avalok`, environment variables `AVALOK_*`). Commands and names below are as they were at the time.
+
 ## Outcome
 
 The `@visual-system/cli` workspace package owns the `agentmap` executable and presents AgentMap as one local command. During source development, run it from the workspace root:
