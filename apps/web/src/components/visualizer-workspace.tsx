@@ -18,6 +18,8 @@ import {
   selectTelemetryObservability,
 } from "@/lib/observability-view";
 import { demoArchitecture, demoRun } from "@/lib/fixtures";
+import { pickLandingSession } from "@/lib/landing";
+import { fetchLocalSessions } from "@/lib/sessions-client";
 import {
   displayedArchitecture,
   useVisualizationStore,
@@ -151,17 +153,20 @@ export function VisualizerWorkspace() {
     setSourceOpen(false);
   };
 
-  const selectSession = (session: PublicSessionSummary) => {
-    const source = session.source ?? "codex";
-    if (session.id === streamTarget?.id && source === streamTarget.source) {
-      setSourceLoading(false);
-      setSourceOpen(false);
-      return;
-    }
-    setSourceLoading(true);
-    setSourceError(undefined);
-    setStreamTarget({ source, id: session.id });
-  };
+  const selectSession = useCallback(
+    (session: PublicSessionSummary) => {
+      const source = session.source ?? "codex";
+      if (session.id === streamTarget?.id && source === streamTarget.source) {
+        setSourceLoading(false);
+        setSourceOpen(false);
+        return;
+      }
+      setSourceLoading(true);
+      setSourceError(undefined);
+      setStreamTarget({ source, id: session.id });
+    },
+    [setSourceError, setSourceLoading, streamTarget],
+  );
 
   const selectRepository = useCallback(
     async (
@@ -184,8 +189,10 @@ export function VisualizerWorkspace() {
         }
         loadRepository(payload);
         if (!force) setSourceOpen(false);
+        return payload.repository.rootPath;
       } catch (caught) {
         setSourceError(caught instanceof Error ? caught.message : "Repository analysis failed.");
+        return undefined;
       }
     },
     [loadRepository, setSourceError, setSourceLoading],
@@ -199,15 +206,17 @@ export function VisualizerWorkspace() {
       .then((health) => {
         if (active && health.cli && !initialRepositoryRequested.current) {
           initialRepositoryRequested.current = true;
-          void Promise.all([
-            selectRepository(),
-            refreshCapabilities(),
-            fetch("/api/settings", { cache: "no-store" })
-              .then((response) => response.json() as Promise<{ gettingStartedDismissed?: boolean }>)
-              .then((settings) => {
-                if (active && !settings.gettingStartedDismissed) setSetupOpen(true);
-              }),
-          ]);
+          void refreshCapabilities();
+          // Landing rule: open the newest local session from this repository if there is one;
+          // otherwise show the repository map with the source picker. Never a blocking dialog.
+          void selectRepository().then(async (rootPath) => {
+            if (!active) return;
+            const sessions = await fetchLocalSessions().catch(() => []);
+            if (!active) return;
+            const landing = pickLandingSession(rootPath, sessions);
+            if (landing) selectSession(landing);
+            else setSourceOpen(true);
+          });
         }
       })
       .catch(() => {
@@ -216,7 +225,12 @@ export function VisualizerWorkspace() {
     return () => {
       active = false;
     };
-  }, [refreshCapabilities, selectRepository]);
+  }, [refreshCapabilities, selectRepository, selectSession]);
+
+  const openSources = () => {
+    setMode("map");
+    setSourceOpen(true);
+  };
 
   const connectTelemetry = () => {
     setSetupView("telemetry");
@@ -306,7 +320,11 @@ export function VisualizerWorkspace() {
     <main className="visualizer-shell grid h-dvh min-h-[700px] grid-cols-[minmax(0,1fr)_320px] grid-rows-[56px_minmax(0,1fr)_176px] overflow-hidden bg-[#080a0f] text-slate-200">
       <TopBar
         mode={mode}
-        onModeChange={setMode}
+        onModeChange={(nextMode) => {
+          setMode(nextMode);
+          // Runs has its own "Choose a session" action; the picker would cover its content.
+          if (nextMode === "runs") setSourceOpen(false);
+        }}
         isPlaying={snapshot.isPlaying}
         sourceLabel={sourceLabel}
         isTailConnected={tailConnected}
@@ -325,11 +343,17 @@ export function VisualizerWorkspace() {
               <h2 className="text-sm font-semibold text-slate-100">Repository analyzed</h2>
               <p className="mt-2 text-xs leading-5 text-slate-500">
                 No supported static architecture was inferred. Detected languages remain visible in
-                Setup, and runtime telemetry can still build an execution view.
+                Setup. You can still open a local agent session to see what it did, or explore the
+                demo.
               </p>
-              <Button size="sm" className="mt-4" onClick={connectTelemetry}>
-                Connect telemetry
-              </Button>
+              <div className="mt-4 flex justify-center gap-2">
+                <Button size="sm" onClick={openSources}>
+                  Choose a session
+                </Button>
+                <Button size="sm" variant="ghost" onClick={selectDemo}>
+                  Explore the demo
+                </Button>
+              </div>
             </div>
           </div>
         ) : null}
@@ -354,19 +378,25 @@ export function VisualizerWorkspace() {
               <RadioTower className="mx-auto size-5 text-cyan-300" />
               <h2 className="mt-3 text-sm font-semibold text-slate-100">Nothing live yet</h2>
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Avalok is ready. Select an available local agent session or connect your application
-                with telemetry.
+                Pick a local agent session to watch, or start one in another terminal and it will
+                appear here. Everything stays on this machine.
               </p>
-              <Button size="sm" className="mt-4" onClick={connectTelemetry}>
-                Connect telemetry
-              </Button>
+              <div className="mt-4 flex justify-center gap-2">
+                <Button size="sm" onClick={openSources}>
+                  Choose a session
+                </Button>
+                <Button size="sm" variant="ghost" onClick={selectDemo}>
+                  Explore the demo
+                </Button>
+              </div>
             </div>
           </div>
         ) : null}
         {mode === "runs" ? (
           <RunsPanel
             onReplay={replayRun}
-            onConnectTelemetry={connectTelemetry}
+            onChooseSource={openSources}
+            onDemo={selectDemo}
             {...(observability ? { observability } : {})}
           />
         ) : null}

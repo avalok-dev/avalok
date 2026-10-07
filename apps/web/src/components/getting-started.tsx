@@ -121,7 +121,7 @@ export function GettingStarted({
               {view === "overview" ? "Getting started" : "Local telemetry setup"}
             </div>
             <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-100">
-              {view === "overview" ? "Your system is ready" : "Connect Telemetry"}
+              {view === "overview" ? "Your system is ready" : "OpenTelemetry setup"}
             </h1>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close Getting Started">
@@ -230,7 +230,7 @@ export function GettingStarted({
               </p>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={() => onViewChange("telemetry")}>
-                  <RadioTower className="size-3.5" /> Connect telemetry
+                  <RadioTower className="size-3.5" /> OpenTelemetry setup
                 </Button>
                 <Button size="sm" onClick={onViewMap}>
                   View System Map <ArrowRight className="size-3.5" />

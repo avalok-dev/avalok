@@ -47,13 +47,44 @@ function ObservedRows({ title, rows }: { title: string; rows: ObservedStatistics
   );
 }
 
+export function EmptyRunsState({
+  onChooseSource,
+  onDemo,
+}: {
+  onChooseSource: () => void;
+  onDemo: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-20 grid place-items-center bg-[#080b10]/65 p-6 backdrop-blur-[4px]">
+      <section className="w-full max-w-lg rounded-2xl border border-white/[0.09] bg-[#10141c] p-6 text-center shadow-2xl">
+        <RadioTower className="mx-auto size-6 text-cyan-300/80" />
+        <h2 className="mt-3 text-base font-semibold text-slate-100">No runs yet</h2>
+        <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">
+          Open a local Codex or Claude Code session to see its runs. Everything is read on this
+          machine and nothing is sent anywhere.
+        </p>
+        <div className="mt-4 flex justify-center gap-2">
+          <Button size="sm" onClick={onChooseSource}>
+            Choose a session
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onDemo}>
+            Explore the demo
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function RunsPanel({
   onReplay,
-  onConnectTelemetry,
+  onChooseSource,
+  onDemo,
   observability,
 }: {
   onReplay: () => void;
-  onConnectTelemetry: () => void;
+  onChooseSource: () => void;
+  onDemo: () => void;
   observability?: ObservabilityView;
 }) {
   const dataset = useVisualizationStore((state) => state.dataset);
@@ -88,21 +119,7 @@ export function RunsPanel({
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
   if (run.events.length === 0) {
-    return (
-      <div className="absolute inset-0 z-20 grid place-items-center bg-[#080b10]/65 p-6 backdrop-blur-[4px]">
-        <section className="w-full max-w-lg rounded-2xl border border-white/[0.09] bg-[#10141c] p-6 text-center shadow-2xl">
-          <RadioTower className="mx-auto size-6 text-cyan-300/80" />
-          <h2 className="mt-3 text-base font-semibold text-slate-100">No runs yet</h2>
-          <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">
-            Runs appear after Avalok observes an available Codex or Claude Code source, or receives
-            OpenTelemetry/OpenInference activity.
-          </p>
-          <Button size="sm" className="mt-4" onClick={onConnectTelemetry}>
-            Connect telemetry
-          </Button>
-        </section>
-      </div>
-    );
+    return <EmptyRunsState onChooseSource={onChooseSource} onDemo={onDemo} />;
   }
   return (
     <div className="absolute inset-0 z-20 grid place-items-center bg-[#080b10]/75 p-6 backdrop-blur-[6px]">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Database,
   Boxes,
@@ -19,6 +19,7 @@ import type { RepositoryAnalysis } from "@visual-system/analyzer";
 import type { CapabilityReport } from "@visual-system/capabilities";
 import { Badge, Button, cn } from "@visual-system/ui";
 import type { DataSource, PublicSessionSummary } from "@/store/visualization-store";
+import { relativeTime, sessionBelongsToRepository, sortSessionsNewestFirst } from "@/lib/landing";
 
 function sessionLabel(session: PublicSessionSummary) {
   const directory = session.cwd?.split("/").filter(Boolean).at(-1);
@@ -92,13 +93,15 @@ export function SourcePanel({
         ...payload.sessions.map((session) => ({ ...session, source: "codex" as const })),
       ];
       setSessions(
-        discovered.filter(
-          (session, index) =>
-            discovered.findIndex(
-              (candidate) =>
-                (candidate.source ?? "codex") === (session.source ?? "codex") &&
-                candidate.id === session.id,
-            ) === index,
+        sortSessionsNewestFirst(
+          discovered.filter(
+            (session, index) =>
+              discovered.findIndex(
+                (candidate) =>
+                  (candidate.source ?? "codex") === (session.source ?? "codex") &&
+                  candidate.id === session.id,
+              ) === index,
+          ),
         ),
       );
     } catch (caught) {
@@ -107,6 +110,20 @@ export function SourcePanel({
       if (!background) setDiscovering(false);
     }
   }, []);
+
+  const repositoryRoot = repository?.repository.rootPath;
+  const { orderedSessions, repositoryCount } = useMemo(() => {
+    const inRepository = sessions.filter((session) =>
+      sessionBelongsToRepository(session, repositoryRoot),
+    );
+    const others = sessions.filter(
+      (session) => !sessionBelongsToRepository(session, repositoryRoot),
+    );
+    return {
+      orderedSessions: [...inRepository, ...others],
+      repositoryCount: Math.min(inRepository.length, 40),
+    };
+  }, [sessions, repositoryRoot]);
 
   useEffect(() => {
     if (!open) return;
@@ -358,44 +375,60 @@ export function SourcePanel({
         ) : null}
 
         <div className="grid gap-1">
-          {sessions.slice(0, 40).map((session) => {
+          {orderedSessions.slice(0, 40).map((session, index) => {
+            const groupLabel =
+              repositoryCount > 0 && index === 0
+                ? "In this repository"
+                : repositoryCount > 0 && index === repositoryCount
+                  ? "Other sessions on this machine"
+                  : undefined;
             const selected =
               (currentSource === (session.source ?? "codex") || currentSource === "repository") &&
               currentSessionId === session.id;
             return (
-              <button
-                key={`${session.source ?? "codex"}:${session.id}`}
-                type="button"
-                onClick={() => onSession(session)}
-                className={cn(
-                  "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors hover:bg-white/[0.035]",
-                  selected && "border-cyan-300/15 bg-cyan-300/[0.05]",
-                )}
-              >
-                {session.source === "telemetry" ? (
-                  <RadioTower className="size-4 text-slate-600" />
-                ) : (
-                  <TerminalSquare className="size-4 text-slate-600" />
-                )}
-                <span className="min-w-0">
-                  <span className="block truncate text-xs font-medium text-slate-300">
-                    {sessionLabel(session)}
-                  </span>
-                  <span className="mt-1 block truncate font-mono text-[0.625rem] text-slate-600">
-                    {(session.source ?? "codex") === "codex"
-                      ? "Codex"
-                      : session.source === "claude"
-                        ? "Claude Code"
-                        : "OTLP"}
-                    {" · "}
-                    {new Date(session.startedAt ?? session.modifiedAt).toLocaleString()}
-                    {selected ? ` · ${currentEventCount} events` : ""}
-                  </span>
-                </span>
-                {selected && loading ? (
-                  <LoaderCircle className="size-3.5 animate-spin text-cyan-300" />
+              <Fragment key={`${session.source ?? "codex"}:${session.id}`}>
+                {groupLabel ? (
+                  <div className="px-3 pb-0.5 pt-2 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-slate-600">
+                    {groupLabel}
+                  </div>
                 ) : null}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onSession(session)}
+                  className={cn(
+                    "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors hover:bg-white/[0.035]",
+                    selected && "border-cyan-300/15 bg-cyan-300/[0.05]",
+                  )}
+                >
+                  {session.source === "telemetry" ? (
+                    <RadioTower className="size-4 text-slate-600" />
+                  ) : (
+                    <TerminalSquare className="size-4 text-slate-600" />
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs font-medium text-slate-300">
+                      {sessionLabel(session)}
+                    </span>
+                    <span className="mt-1 block truncate font-mono text-[0.625rem] text-slate-600">
+                      {(session.source ?? "codex") === "codex"
+                        ? "Codex"
+                        : session.source === "claude"
+                          ? "Claude Code"
+                          : "OTLP"}
+                      {" · "}
+                      {relativeTime(session.modifiedAt)}
+                      {selected
+                        ? ` · ${currentEventCount} events`
+                        : typeof session.eventCount === "number" && session.eventCount > 0
+                          ? ` · ${session.eventCount} events`
+                          : ""}
+                    </span>
+                  </span>
+                  {selected && loading ? (
+                    <LoaderCircle className="size-3.5 animate-spin text-cyan-300" />
+                  ) : null}
+                </button>
+              </Fragment>
             );
           })}
         </div>
@@ -406,8 +439,8 @@ export function SourcePanel({
             onClick={onConnectTelemetry}
             className="mx-2 mt-3 w-[calc(100%-16px)] rounded-lg border border-cyan-300/10 bg-cyan-300/[0.025] p-3 text-left text-[0.6875rem] leading-5 text-slate-500 hover:text-slate-300"
           >
-            Nothing live yet. Avalok is ready to receive OTLP/HTTP traces.{" "}
-            <span className="text-cyan-300">Connect telemetry →</span>
+            Have OpenTelemetry traces? Avalok listens on this machine only.{" "}
+            <span className="text-cyan-300">OpenTelemetry setup →</span>
           </button>
         ) : null}
         {!sessions.some((session) => session.source === "claude") ? (
