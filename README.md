@@ -10,7 +10,7 @@ Avalok is a local-first visual system for understanding how your code, infrastru
 
 ## Quick Start
 
-Requires Node.js **24.19 or newer in the Node 24 line**.
+Requires Node.js **22.12 or newer** (tested on Node 22 LTS and Node 24 LTS). Building from a clone needs Node 24.19 (see [CONTRIBUTING](CONTRIBUTING.md)).
 
 **After publication** (not available yet):
 
@@ -124,7 +124,7 @@ Details: [Privacy](docs/privacy.md) · [Security](SECURITY.md) · [Local HTTP se
 - Infrastructure analysis describes repository configuration, not live cloud or cluster state. It does not evaluate Terraform expressions, modules, `count`/`for_each`, or Helm control flow.
 - OTLP/HTTP traces only: no OTLP/gRPC, metrics, or logs.
 - One repository per run; no repository watcher (use Rescan).
-- Requires Node.js 24; the installed size is large (≈350 MB, mostly Next.js).
+- Requires Node.js 22.12 or newer; the installed size is large (≈350 MB, mostly Next.js).
 
 ## Development
 

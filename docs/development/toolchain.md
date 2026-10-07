@@ -7,7 +7,7 @@ The repository source of truth is:
 - `package.json#packageManager`: pnpm `11.19.0`;
 - GitHub Actions: the same Node and pnpm versions.
 
-Node 24 is the supported LTS line selected for modern Next.js, React, TypeScript, and Node services. Node 20 is end-of-life and is not supported by pnpm 11.
+The published `avalok` package supports Node 22.12+ (`packages/cli/product.json#nodeRange`); the settings below are the _development_ toolchain for building this repository. Node 24 is the LTS line selected for modern Next.js, React, TypeScript, and Node services. Node 20 is end-of-life and is not supported by pnpm 11.
 
 With nvm:
 

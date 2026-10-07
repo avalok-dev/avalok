@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -15,10 +15,6 @@ import { browserCommand } from "../src/system";
 import { runDoctor } from "../src/doctor";
 import { legacyAgentMapDirectoryNames, platformDataRoot } from "@visual-system/telemetry-adapter";
 
-const rootManifest = JSON.parse(
-  await readFile(resolve(import.meta.dirname, "../../../package.json"), "utf8"),
-) as { engines: { node: string } };
-
 describe("identity and version", () => {
   it("has one version source and centralized naming", () => {
     expect(productIdentity.version).toBe(manifest.version);
@@ -28,13 +24,16 @@ describe("identity and version", () => {
     expect(productIdentity.packageName).toBe(product.packageName);
   });
 
-  it("keeps the Node policy aligned with package engines", () => {
-    expect(supportedNodeRange).toBe(rootManifest.engines.node);
+  it("keeps the published Node policy in product.json and separate from the dev toolchain pin", () => {
+    expect(supportedNodeRange).toBe(product.nodeRange);
+    expect(nodeSupport("22.12.0")).toBe("supported");
+    expect(nodeSupport("v22.23.3")).toBe("supported");
     expect(nodeSupport("24.19.0")).toBe("supported");
     expect(nodeSupport("v24.30.2")).toBe("supported");
-    expect(nodeSupport("24.18.9")).toBe("unsupported");
-    expect(nodeSupport("22.12.0")).toBe("unsupported");
-    expect(nodeSupport("26.1.0")).toBe("untested-newer");
+    expect(nodeSupport("22.11.9")).toBe("unsupported");
+    expect(nodeSupport("20.19.0")).toBe("unsupported");
+    expect(nodeSupport("23.9.0")).toBe("untested");
+    expect(nodeSupport("26.1.0")).toBe("untested");
   });
 });
 

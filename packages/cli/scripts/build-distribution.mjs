@@ -183,19 +183,19 @@ function writeLauncher() {
   writeFileSync(
     launcher,
     `#!/usr/bin/env node
-import { minimumNodeVersion, nodeSupport, supportedNodeRange } from "../lib/node-support.mjs";
+import { nodeSupport, supportedNodeRange, testedNodeLines } from "../lib/node-support.mjs";
 
 const support = nodeSupport(process.versions.node);
 if (support === "unsupported") {
   process.stderr.write(
     "${product.displayName} requires Node.js " + supportedNodeRange + " (found " + process.versions.node + ").\\n" +
-      "Install Node.js " + minimumNodeVersion + " or newer in the Node 24 LTS line and try again.\\n",
+      "Install " + testedNodeLines + " (nodejs.org) and try again.\\n",
   );
   process.exit(1);
 }
-if (support === "untested-newer" && process.env.AVALOK_QUIET_NODE_WARNING !== "1")
+if (support === "untested" && process.env.AVALOK_QUIET_NODE_WARNING !== "1")
   process.stderr.write(
-    "Warning: Node.js " + process.versions.node + " is newer than the tested range " + supportedNodeRange + ".\\n",
+    "Warning: Node.js " + process.versions.node + " is outside the tested lines (" + testedNodeLines + "); it may work.\\n",
   );
 
 const { formatCliError, runCli } = await import("../lib/cli.mjs");
@@ -270,7 +270,7 @@ function writeManifest() {
     keywords: product.keywords,
     type: "module",
     bin: { [product.cliName]: `bin/${product.cliName}.mjs` },
-    engines: { node: rootManifest.engines.node },
+    engines: { node: product.nodeRange },
     files: ["bin", "lib", "dashboard", "samples", "THIRD_PARTY_NOTICES.md"],
     dependencies: Object.fromEntries(externalRuntime.map((name) => [name, installedVersion(name)])),
   };
@@ -293,7 +293,7 @@ ${product.cliName} data path         # show Avalok-owned local data
 ${product.cliName} data clear        # clear Avalok-owned local data
 \`\`\`
 
-Requires Node.js ${rootManifest.engines.node}. Everything runs locally; both servers bind to 127.0.0.1.
+Requires Node.js ${product.nodeRange} (tested on Node 22 LTS and Node 24 LTS). Everything runs locally; both servers bind to 127.0.0.1.
 OTLP/HTTP traces (protobuf or JSON) are accepted at http://127.0.0.1:4318/v1/traces.
 
 Terraform, Kubernetes, Helm, and AWS support analyzes configuration files in your repository;

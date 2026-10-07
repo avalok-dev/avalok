@@ -17,5 +17,6 @@
     "kubernetes",
     "agents"
   ],
-  "legacyDataDirectoryName": ".agentmap"
+  "legacyDataDirectoryName": ".agentmap",
+  "nodeRange": ">=22.12.0"
 }
