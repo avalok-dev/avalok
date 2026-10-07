@@ -151,6 +151,7 @@ export async function startAvalok(
       dataRoot: dataPaths.root,
       otlpPort: options.otlpPort,
       version: productIdentity.version,
+      ...(options.demo ? { demo: true } : {}),
       environment,
     });
     const dashboardUrl = `http://${cliDefaults.host}:${dashboardPort}`;

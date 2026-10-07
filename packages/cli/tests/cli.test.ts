@@ -62,6 +62,7 @@ const options = (overrides: Partial<CliOptions> = {}): CliOptions => ({
   port: cliDefaults.dashboardPort,
   otlpPort: cliDefaults.otlpPort,
   open: false,
+  demo: false,
   help: false,
   version: false,
   yes: false,
@@ -82,6 +83,13 @@ describe("CLI options", () => {
       command: "doctor",
       target: "../project",
     });
+    expect(parseCliOptions(["demo", "--no-open"])).toMatchObject({
+      command: "start",
+      demo: true,
+      open: false,
+    });
+    expect(parseCliOptions(["./demo"])).toMatchObject({ demo: false, target: "./demo" });
+    expect(() => parseCliOptions(["demo", "../project"])).toThrow(/does not need a repository/);
     expect(parseCliOptions(["data", "path"])).toMatchObject({ command: "data-path" });
     expect(parseCliOptions(["data", "clear", "--yes"])).toMatchObject({
       command: "data-clear",

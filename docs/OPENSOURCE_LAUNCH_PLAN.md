@@ -59,7 +59,7 @@ Goal: know exactly what works before changing anything.
 
 1. **L1/L2:** Runs says "No runs yet" with a "Connect telemetry" button while the Setup panel reports 154 Codex sessions. A user with Codex sessions should land on their latest session, or at least see "Open your latest Codex session".
 2. **L1/L2:** the Codex session picker is one flat list of 154 entries that all show the same project-folder name plus a date. Add a "latest" shortcut, grouping by day or repository, and a human-readable label.
-3. **L1:** at about 1024 px wide the source name overlaps the Map button in the header. Fix the narrow layout.
+3. **L1:** at about 1024 px wide the source name overlaps the Map button in the header. Fix the narrow layout. **Fixed 2026-10-06 in code (the mode switcher is only absolutely centered from the `xl` breakpoint up); not yet re-checked visually because the browser pane was not displayed.**
 4. **L3 (privacy):** a run's title is the raw first user prompt, and it can include attachment file paths. Exports, recaps and the HTML replay must never include run titles or prompt text. Add this to the leak tests.
 5. **Minor:** the console logs a React Flow warning ("parent container needs a width and a height") on first render.
 6. **Still unverified:** live-session replay and failure coloring (a click on "Replay run" showed no visible change in the pane; recheck by hand).
@@ -86,11 +86,11 @@ Goal: first command succeeds on a clean machine, on current Node LTS, quickly.
    - Measure first: record installed size and cold `npx avalok@<tarball>` time on a clean directory. Report numbers before and after.
    - Investigate, in this order of expected value: (a) trace the Next standalone output so the dashboard ships only what it needs and stop installing the full `next` package; (b) bundle `typescript` (parser only) into the analyzer bundle instead of installing it as a runtime dependency; (c) check `react`/`react-dom` duplication.
    - Targets (aspirations to verify, not promises): installed size well under 150 MB; cold first run under about 60 seconds on ordinary broadband. If a target is not reachable, document why and what was achieved.
-4. **First-run commands and diagnostics.**
+4. **First-run commands and diagnostics.** **Status 2026-10-06: `avalok demo` done and verified in the packaged build (opens the built-in demo from an empty folder with no dialog); README documents the landing behavior and the demo. `avalok doctor` already reports node, repository, sources and ports; shortening its output is still open.**
    - `avalok` with no args in a repo must show a real map within about 10 seconds on a typical repo (the landing rule above decides which view).
    - Add `avalok demo` (or confirm `avalok --demo`): opens the bundled demo with no repository needed.
    - Keep `avalok doctor`. Make its output actionable and short.
-5. **Placeholder replacement plan (document, do not publish).** The `latest` dist-tag currently points to the `0.0.1` placeholder. Add to the release checklist: publish `0.1.0-alpha.N` with the intended dist-tags, then verify `npm view avalok dist-tags` and that `npx avalok@latest --version` works from a clean directory before announcing. Update `.github/workflows/release.yml` and `docs/development/release-build.md` if they assume a different tag.
+5. **Placeholder replacement plan (document, do not publish).** **Status 2026-10-06: documented in the release checklist (dist-tag step added; the workflow default `latest` takes over from the placeholder).** The `latest` dist-tag currently points to the `0.0.1` placeholder. Add to the release checklist: publish `0.1.0-alpha.N` with the intended dist-tags, then verify `npm view avalok dist-tags` and that `npx avalok@latest --version` works from a clean directory before announcing. Update `.github/workflows/release.yml` and `docs/development/release-build.md` if they assume a different tag.
 6. **README quick start** becomes: `npx avalok`, with Node versions stated honestly, plus the build-from-clone path in a collapsed section.
 
 **Gate:** clean-machine install and first run verified on macOS, Linux and Windows CI (Node 22 and 24); installed size and first-run time reported; unsupported-Node message tested; zero-outbound-connections check passes.

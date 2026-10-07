@@ -77,5 +77,6 @@ Measured in an uncached run (`turbo --force`), not from the turbo cache:
 - [ ] Tag `v0.1.0-alpha.1`
 - [ ] Run the **Release** workflow with `publish: false`; inspect the `avalok-release` artifact and provenance
 - [ ] Run the **Release** workflow with `publish: true` and approve the environment (npm publish)
-- [ ] Verify `npx avalok@0.1.0-alpha.1 --version` from a clean machine
+- [ ] Dist-tags: `npm view avalok dist-tags` currently shows `latest: 0.0.1` (the placeholder). The Release workflow's `dist-tag` input defaults to `latest`, so publishing `0.1.0-alpha.1` with the default replaces the placeholder as `latest`; confirm that is intended (alternative: publish under `next` and move `latest` later with `npm dist-tag add avalok@0.1.0-alpha.1 latest`). Afterwards re-run `npm view avalok dist-tags`.
+- [ ] Verify `npx avalok --version` (resolves `latest`) and `npx avalok@0.1.0-alpha.1 --version` from a clean machine, once on Node 22 and once on Node 24
 - [ ] GitHub release with notes, the tarball, and its `.sha256`

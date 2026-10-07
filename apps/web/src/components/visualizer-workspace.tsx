@@ -141,7 +141,7 @@ export function VisualizerWorkspace() {
     };
   }, [applyLiveDelta, loadDataset, setSourceError, setTailConnected, streamTarget]);
 
-  const selectDemo = () => {
+  const selectDemo = useCallback(() => {
     setStreamTarget(undefined);
     loadDataset({
       source: "demo",
@@ -151,7 +151,7 @@ export function VisualizerWorkspace() {
       diagnostics: [],
     });
     setSourceOpen(false);
-  };
+  }, [loadDataset]);
 
   const selectSession = useCallback(
     (session: PublicSessionSummary) => {
@@ -202,11 +202,16 @@ export function VisualizerWorkspace() {
     if (initialRepositoryRequested.current) return;
     let active = true;
     void fetch("/api/health", { cache: "no-store" })
-      .then((response) => response.json() as Promise<{ cli?: boolean }>)
+      .then((response) => response.json() as Promise<{ cli?: boolean; demo?: boolean }>)
       .then((health) => {
         if (active && health.cli && !initialRepositoryRequested.current) {
           initialRepositoryRequested.current = true;
           void refreshCapabilities();
+          if (health.demo) {
+            // `avalok demo`: straight into the built-in demo; other sources stay in the picker.
+            selectDemo();
+            return;
+          }
           // Landing rule: open the newest local session from this repository if there is one;
           // otherwise show the repository map with the source picker. Never a blocking dialog.
           void selectRepository().then(async (rootPath) => {
@@ -225,7 +230,7 @@ export function VisualizerWorkspace() {
     return () => {
       active = false;
     };
-  }, [refreshCapabilities, selectRepository, selectSession]);
+  }, [refreshCapabilities, selectDemo, selectRepository, selectSession]);
 
   const openSources = () => {
     setMode("map");

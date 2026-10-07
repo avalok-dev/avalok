@@ -13,6 +13,8 @@ export interface CliOptions {
   port: number;
   otlpPort: number;
   open: boolean;
+  /** `avalok demo`: open the built-in demo first instead of analyzing a repository view. */
+  demo?: boolean;
   help: boolean;
   version: boolean;
   yes: boolean;
@@ -35,12 +37,16 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     port: cliDefaults.dashboardPort,
     otlpPort: cliDefaults.otlpPort,
     open: true,
+    demo: false,
     help: false,
     version: false,
     yes: false,
   };
   const input = [...arguments_];
-  if (input[0] === "doctor") {
+  if (input[0] === "demo") {
+    options.demo = true;
+    input.shift();
+  } else if (input[0] === "doctor") {
     options.command = "doctor";
     input.shift();
   } else if (input[0] === "data") {
@@ -82,6 +88,8 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     return options;
   }
   if (positional.length > 1) throw new CliUsageError("Only one repository path may be provided.");
+  if (positional.length && options.demo)
+    throw new CliUsageError("The demo does not need a repository path.");
   if (positional.length && options.command.startsWith("data-"))
     throw new CliUsageError("Data commands do not accept a repository path.");
   if (positional[0]) options.target = positional[0];
@@ -89,5 +97,5 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
 }
 
 export function helpText() {
-  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm Avalok-owned data clearing\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
+  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} demo [options]        Open the built-in demo (needs no repository or agent session)\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm Avalok-owned data clearing\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
 }

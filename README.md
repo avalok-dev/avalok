@@ -31,9 +31,12 @@ cd /path/to/your/repository
 avalok .
 ```
 
-Avalok analyzes the repository, starts a dashboard at `http://127.0.0.1:4737` and a local OTLP receiver at `http://127.0.0.1:4318`, and opens your browser. Press Ctrl+C to stop.
+Avalok analyzes the repository, starts a dashboard at `http://127.0.0.1:4737` and a local OTLP receiver at `http://127.0.0.1:4318`, and opens your browser. If a local Codex or Claude Code session ran in this repository, the newest one opens straight away over the architecture map; otherwise you see the map and a list of sessions to pick from. Avalok asks for no permission and sends nothing anywhere. Press Ctrl+C to stop.
+
+No repository or agent session handy? `avalok demo` opens the built-in demo.
 
 ```sh
+avalok demo           # open the built-in demo
 avalok doctor         # check the setup without starting anything
 avalok --help
 avalok data path      # where Avalok keeps its own data
