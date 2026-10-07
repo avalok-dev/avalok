@@ -43,10 +43,24 @@ const cliManifest = readJson(join(cliRoot, "package.json"));
 const rootManifest = readJson(join(repositoryRoot, "package.json"));
 const product = readJson(join(cliRoot, "product.json"));
 
-// Runtime packages that cannot be bundled: the standalone dashboard requires Next/React from
-// node_modules, the analyzer uses the TypeScript compiler API, and the HCL parser loads an
-// adjacent WebAssembly file. Versions are pinned to exactly what the dashboard was built with.
-const externalRuntime = ["next", "react", "react-dom", "typescript", "@cdktf/hcl2json"];
+// Runtime packages installed by npm alongside Avalok: the analyzer uses the TypeScript compiler
+// API, and the HCL parser loads an adjacent WebAssembly file. Versions are pinned to exactly what
+// the dashboard was built with. Next, React, and Next's other runtime dependencies are not
+// installed this way; the dashboard ships its own pruned copy (see shipDashboardModules).
+const externalRuntime = ["typescript", "@cdktf/hcl2json"];
+
+// Packages from Next's traced standalone output that must not ship: sharp's native binaries are
+// platform-specific and Avalok never uses next/image; the compiler binary is build-time only;
+// the two externals above are resolved from the package's own dependencies.
+const excludedDashboardModules = [
+  /^@img\//,
+  /^sharp$/,
+  /^@next\/swc-/,
+  /^typescript$/,
+  /^@cdktf\/hcl2json$/,
+];
+// package.json files of every module shipped in dashboard/node_modules (for the notices).
+let dashboardModuleManifests = [];
 
 // Allowlisted analysis samples offered by the dashboard source selector.
 const samples = {
@@ -125,6 +139,7 @@ function buildDashboard() {
     // Dependencies come from the installed package's node_modules, never the workspace.
     filter: (source) => basename(source) !== "node_modules",
   });
+  shipDashboardModules(join(webRoot, ".next", "standalone"), destination);
   // Build traces and the workspace manifest are build-time metadata, not runtime inputs.
   rmSync(join(destination, "package.json"), { force: true });
   rmSync(join(destination, ".next", "cache"), { recursive: true, force: true });
@@ -139,6 +154,60 @@ function buildDashboard() {
     join(destination, "package.json"),
     `${JSON.stringify({ type: "commonjs" }, null, 2)}\n`,
   );
+}
+
+// Ships the pruned runtime dependencies Next traced into its standalone output as real files in
+// dashboard/node_modules. Installing the whole `next` package instead costs about 150 MB plus a
+// platform compiler binary of about 125 MB. npm drops symlinks from tarballs, so pnpm's symlinked
+// virtual store is flattened: every package is copied by value into one flat node_modules. Two
+// different versions of one package cannot be flattened, so that fails the build loudly.
+function shipDashboardModules(standaloneRoot, destination) {
+  step("Shipping the dashboard's pruned runtime modules");
+  const store = join(standaloneRoot, "node_modules", ".pnpm");
+  if (!existsSync(store)) throw new Error("Next.js standalone output has no traced node_modules.");
+  const target = join(destination, "node_modules");
+  const shipped = new Map();
+  dashboardModuleManifests = [];
+  const candidates = [];
+  for (const virtual of readdirSync(store, { withFileTypes: true })) {
+    const modules = join(store, virtual.name, "node_modules");
+    if (!virtual.isDirectory() || !existsSync(modules)) continue;
+    // A package's own directory is a real directory; its dependencies are symlinks, which
+    // Dirent reports as non-directories, so only real packages are collected here.
+    for (const entry of readdirSync(modules, { withFileTypes: true })) {
+      if (entry.name.startsWith("@") && entry.isDirectory()) {
+        for (const scoped of readdirSync(join(modules, entry.name), { withFileTypes: true }))
+          if (scoped.isDirectory()) candidates.push(join(modules, entry.name, scoped.name));
+      } else if (entry.isDirectory()) candidates.push(join(modules, entry.name));
+    }
+  }
+  for (const directory of candidates.sort()) {
+    const manifest = readJson(join(directory, "package.json"));
+    if (
+      typeof manifest.name !== "string" ||
+      excludedDashboardModules.some((p) => p.test(manifest.name))
+    )
+      continue;
+    const earlier = shipped.get(manifest.name);
+    if (earlier) {
+      if (earlier !== manifest.version)
+        throw new Error(
+          `Cannot flatten ${manifest.name}: versions ${earlier} and ${manifest.version} are both traced.`,
+        );
+      continue;
+    }
+    shipped.set(manifest.name, manifest.version);
+    const destinationDirectory = join(target, ...manifest.name.split("/"));
+    cpSync(directory, destinationDirectory, {
+      recursive: true,
+      dereference: true,
+      filter: (source) => basename(source) !== "node_modules",
+    });
+    dashboardModuleManifests.push(join(destinationDirectory, "package.json"));
+  }
+  if (!shipped.has("next") || !shipped.has("react") || !shipped.has("react-dom"))
+    throw new Error("The traced dashboard modules are missing next, react, or react-dom.");
+  step(`${shipped.size} dashboard runtime packages shipped`);
 }
 
 async function bundleCli() {
@@ -230,6 +299,7 @@ function writeNotices() {
   const packages = new Map();
   mergePackages(packages, collectPackages(cliInputs), "cli");
   mergePackages(packages, collectPackages(dashboardFiles), "dashboard");
+  mergePackages(packages, collectPackages(dashboardModuleManifests), "dashboard-runtime");
   const runtimeDependencies = externalRuntime.map((name) => {
     const manifest = installedManifest(name);
     return { name, version: manifest.version, license: manifest.license ?? "UNKNOWN" };
@@ -342,9 +412,16 @@ function verifyIndependence() {
   }
   const forbidden =
     /^(\.env(\..*)?|node_modules|\.git|\.agentmap|\.sarvadrik|\.avalok|coverage|\.turbo|\.venv|__pycache__|.*\.tfstate|.*\.tfvars)$/;
-  for (const file of files(output))
+  // dashboard/node_modules is the one allowed node_modules: flat, real files only (files() rejects
+  // symlinks). It must not contain a pnpm store or secret-like files.
+  const dashboardModules = join(output, "dashboard", "node_modules") + sep;
+  const forbiddenInModules = /^(\.pnpm|\.env(\..*)?|\.git|.*\.tfstate|.*\.tfvars)$/;
+  for (const file of files(output)) {
+    const inModules = file.startsWith(dashboardModules);
     for (const part of relative(output, file).split(sep))
-      if (forbidden.test(part)) problems.push(`artifact contains ${relative(output, file)}`);
+      if ((inModules ? forbiddenInModules : forbidden).test(part))
+        problems.push(`artifact contains ${relative(output, file)}`);
+  }
   if (problems.length)
     throw new Error(`Distribution is not self-contained:\n- ${problems.join("\n- ")}`);
 }

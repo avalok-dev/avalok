@@ -50,6 +50,8 @@ const nextConfig: NextConfig = {
   // The installable package ships Next's standalone server. Contributor builds keep the
   // default output so `next start` and `pnpm dev` behave as before.
   ...(process.env.AVALOK_DASHBOARD_STANDALONE === "1" ? { output: "standalone" as const } : {}),
+  // Avalok does not use next/image; the packaged dashboard ships without sharp's native binaries.
+  images: { unoptimized: true },
   serverExternalPackages: ["@cdktf/hcl2json"],
   webpack(config, { isServer }) {
     if (isServer) {

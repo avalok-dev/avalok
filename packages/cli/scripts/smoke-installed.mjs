@@ -328,9 +328,24 @@ try {
       notices.includes("github.com/kieler/elkjs"),
     `${(notices.match(/^\| /gm) ?? []).length - 2} packages`,
   );
+  const dashboardModules = join(packageRoot, "dashboard", "node_modules");
+  const hasSymlink = (directory) =>
+    readdirSync(directory, { withFileTypes: true }).some((entry) =>
+      entry.isSymbolicLink()
+        ? true
+        : entry.isDirectory() && hasSymlink(join(directory, entry.name)),
+    );
   check(
-    "no workspace node_modules shipped",
-    !existsSync(join(packageRoot, "dashboard", "node_modules")),
+    "dashboard ships its own flat runtime modules (no pnpm store, symlinks, or platform binaries)",
+    existsSync(join(dashboardModules, "next", "package.json")) &&
+      existsSync(join(dashboardModules, "react", "package.json")) &&
+      !existsSync(join(dashboardModules, ".pnpm")) &&
+      !existsSync(join(dashboardModules, "@img")) &&
+      !existsSync(join(dashboardModules, "sharp")) &&
+      !(existsSync(join(dashboardModules, "@next"))
+        ? readdirSync(join(dashboardModules, "@next")).some((name) => name.startsWith("swc-"))
+        : false) &&
+      !hasSymlink(dashboardModules),
   );
 
   const environment = {
