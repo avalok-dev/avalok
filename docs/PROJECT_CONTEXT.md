@@ -22,6 +22,8 @@ Avalok ("See your whole system.", https://avalok.dev) was developed under the wo
 - **Cloud export foundation:** Runs can explicitly prepare a content-free, versioned v1 JSON snapshot, preview its exact bytes, and download it locally. The shared schema and public/private repository boundary are documented in [run export v1](architecture/run-export-v1.md). The `@visual-system/schema` package now has a compiled, ESM-only `0.2.0-alpha.1` packing candidate and a clean-install smoke command; it remains unpublished and `private: true`. No upload or service exists in this repository.
 - **Working tree after M7.4C:** a [product and release plan](PRODUCT_PLAN.md) records the free/paid boundary, first paid Solo offer, hosting/operations, and a phased ChatGPT Dots path. Local run findings now summarize observed failures, slow steps, retries and memory/retrieval activity; selected telemetry maps show node call/failure badges and connection traffic/failure cues. These changes are not part of the verified M7.4C release candidate until checks and installed-product smoke pass.
 
+- **Priority decision (2026-10-06):** the open-source launch track in [OPENSOURCE_LAUNCH_PLAN.md](OPENSOURCE_LAUNCH_PLAN.md) (easy install without the Node 24 pin, agent setup, shareable recap/HTML replay exports, launch assets) is the active work. `avalok-cloud` is paused at C1. The npm name `avalok` holds a `0.0.1` placeholder; the real package is unpublished.
+
 ## Package map
 
 | Area                                  | Responsibility                                                       |
