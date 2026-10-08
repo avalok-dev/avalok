@@ -56,6 +56,14 @@ const tones: Record<Entity["kind"], string> = {
   identity: "#cbd5e1",
 };
 
+/** Pixel size of an SVG produced by this package (read from the root element). */
+export function svgSize(svg: string) {
+  const match = svg.match(/^<svg [^>]*?width="(\d+)" height="(\d+)"/);
+  return match
+    ? { width: Number(match[1]), height: Number(match[2]) }
+    : { width: 1200, height: 630 };
+}
+
 function svgRoot(width: number, height: number, title: string, body: string) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(title)}">
 <title>${escapeXml(title)}</title>

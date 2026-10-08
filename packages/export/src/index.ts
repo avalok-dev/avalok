@@ -8,5 +8,11 @@ export {
   type RecapOptions,
   type SessionRecap,
 } from "./recap";
-export { renderDiagramSvg, renderRecapSvg, type BrandOptions, type DiagramOptions } from "./svg";
+export {
+  renderDiagramSvg,
+  renderRecapSvg,
+  svgSize,
+  type BrandOptions,
+  type DiagramOptions,
+} from "./svg";
 export { renderRecapMarkdown } from "./markdown";

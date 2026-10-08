@@ -101,6 +101,9 @@ importers:
       "@visual-system/codex-adapter":
         specifier: workspace:*
         version: link:../../packages/codex-adapter
+      "@visual-system/export":
+        specifier: workspace:*
+        version: link:../../packages/export
       "@visual-system/graph":
         specifier: workspace:*
         version: link:../../packages/graph

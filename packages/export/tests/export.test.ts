@@ -8,6 +8,7 @@ import {
   renderRecapSvg,
   safeLabel,
   summarizeSession,
+  svgSize,
 } from "../src";
 
 // Deliberately nasty names and text: none of it may ever reach an exported image or message.
@@ -250,6 +251,15 @@ describe("SVG output", () => {
     expect(recapSvg).toContain("Not observed: cost");
     expect(recapSvg).toContain("nothing uploaded");
     expect(diagram).toContain("not a complete picture");
+  });
+});
+
+describe("svgSize", () => {
+  it("reads the pixel size of the exported images", () => {
+    expect(svgSize(allOutputs(false).recapSvg)).toEqual({ width: 1200, height: 630 });
+    const diagram = svgSize(allOutputs(false).diagram);
+    expect(diagram.width).toBeGreaterThan(400);
+    expect(diagram.height).toBeGreaterThan(200);
   });
 });
 
