@@ -7,7 +7,8 @@ import type { CodexSessionData, CodexSessionSummary } from "@visual-system/codex
 import type { PositionedGraph } from "@visual-system/graph";
 import type { ArchitectureGraph, Run, RuntimeEvent } from "@visual-system/schema";
 import { CliUsageError, parseCliOptions, type RecapOptions } from "../src/options";
-import { runRecap, type RecapDependencies } from "../src/recap";
+import { win32 } from "node:path";
+import { readmeEmbedPath, runRecap, type RecapDependencies } from "../src/recap";
 
 // Everything runs in a temporary directory with injected dependencies: no real sessions, no real
 // home directory, no repository analysis.
@@ -327,6 +328,29 @@ describe("avalok recap", () => {
     const anonymous = await recap({ format: "md", anonymize: true, brand: false });
     expect(anonymous.text).not.toContain("Terminal");
     expect(anonymous.text).not.toContain("Made with");
+  });
+});
+
+describe("readmeEmbedPath", () => {
+  it("returns a forward-slash relative path for a file inside the repository", () => {
+    expect(readmeEmbedPath("/work/shop", "/work/shop/docs/architecture.svg")).toBe(
+      "docs/architecture.svg",
+    );
+    expect(readmeEmbedPath("C:\\work\\shop", "C:\\work\\shop\\docs\\architecture.svg", win32)).toBe(
+      "docs/architecture.svg",
+    );
+  });
+
+  it("returns nothing for files outside the repository, never an absolute path", () => {
+    expect(readmeEmbedPath("/work/shop", "/elsewhere/architecture.svg")).toBeUndefined();
+    expect(readmeEmbedPath("/work/shop", "/work/shop")).toBeUndefined();
+    // Windows, different drives: `relative` returns the absolute path of the file.
+    expect(
+      readmeEmbedPath("D:\\work\\shop", "C:\\Users\\dev\\avalok-diagram.svg", win32),
+    ).toBeUndefined();
+    expect(
+      readmeEmbedPath("C:\\work\\shop", "C:\\Users\\dev\\avalok-diagram.svg", win32),
+    ).toBeUndefined();
   });
 });
 
