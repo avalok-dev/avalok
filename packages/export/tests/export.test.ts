@@ -192,7 +192,9 @@ describe("golden output (reviewed by eye)", () => {
 });
 
 describe("with the real layout engine", () => {
-  it("lays out and renders a diagram in Node", async () => {
+  // The first ELK layout loads a large bundle; on a cold, busy CI runner (Windows) that can pass
+  // the default 5 s. It is fast on a normal machine (about 0.3 s), so this only guards slow hosts.
+  it("lays out and renders a diagram in Node", { timeout: 60_000 }, async () => {
     const layout = await new ElkLayoutEngine().layout(graph);
     const svg = renderDiagramSvg(graph, layout, { anonymize: true });
     expect(svg).toContain("<svg ");
