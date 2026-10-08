@@ -5,3 +5,5 @@ packages/analyzer/tests/fixtures/malformed-kubernetes/bad.yaml
 # Helm templates are source fixtures, not plain YAML; Prettier rewrites {{ }} expressions.
 packages/analyzer/tests/fixtures/**/templates/*.yaml
 examples/infrastructure-ai-platform/**/templates/*.yaml
+# Golden outputs must stay byte-exact
+packages/export/tests/snapshots

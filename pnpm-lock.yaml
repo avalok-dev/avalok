@@ -310,6 +310,22 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.4)(jiti@1.21.7)(supports-color@7.2.0)(tsx@4.23.15)(yaml@2.9.1)
 
+  packages/export:
+    dependencies:
+      "@visual-system/graph":
+        specifier: workspace:*
+        version: link:../graph
+      "@visual-system/schema":
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.4)(jiti@1.21.7)(supports-color@7.2.0)(tsx@4.23.15)(yaml@2.9.1)
+
   packages/graph:
     dependencies:
       "@visual-system/schema":

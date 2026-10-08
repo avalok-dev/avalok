@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="556" viewBox="0 0 980 556" role="img" aria-label="System architecture diagram">
+<title>System architecture diagram</title>
+<rect width="980" height="556" fill="#080a0f"/>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#475569"/></marker></defs>
+<text x="32" y="40" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="18" font-weight="700" fill="#e2e8f0">System architecture</text>
+<path d="M224 106 C248 106 236 106 260 106" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" opacity="0.9"/>
+<path d="M444 106 C468 106 456 106 480 106" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" opacity="0.9"/>
+<path d="M444 106 C536 106 168 216 260 216" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" opacity="0.9"/>
+<path d="M664 216 C688 216 676 216 700 216" fill="none" stroke="#334155" stroke-width="1.4" marker-end="url(#arrow)" opacity="0.9"/>
+<g opacity="1">
+<rect x="40" y="64" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="40" y="78" width="4" height="56" rx="2" fill="#cbd5e1"/>
+<text x="58" y="103" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">User 1</text>
+<text x="58" y="122" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">USER</text>
+</g>
+<g opacity="1">
+<rect x="260" y="64" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="260" y="78" width="4" height="56" rx="2" fill="#67e8f9"/>
+<text x="278" y="103" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Agent 1</text>
+<text x="278" y="122" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">AGENT</text>
+</g>
+<g opacity="1">
+<rect x="480" y="64" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="480" y="78" width="4" height="56" rx="2" fill="#facc15"/>
+<text x="498" y="103" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Tool 1</text>
+<text x="498" y="122" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">TOOL</text>
+</g>
+<g opacity="1">
+<rect x="700" y="64" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="700" y="78" width="4" height="56" rx="2" fill="#fb923c"/>
+<text x="718" y="103" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Storage 1</text>
+<text x="718" y="122" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">STORAGE</text>
+</g>
+<g opacity="1">
+<rect x="40" y="174" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="40" y="188" width="4" height="56" rx="2" fill="#facc15"/>
+<text x="58" y="213" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Tool 2</text>
+<text x="58" y="232" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">TOOL</text>
+</g>
+<g opacity="1">
+<rect x="260" y="174" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="260" y="188" width="4" height="56" rx="2" fill="#c084fc"/>
+<text x="278" y="213" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Model 1</text>
+<text x="278" y="232" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">MODEL</text>
+</g>
+<g opacity="1">
+<rect x="480" y="174" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="480" y="188" width="4" height="56" rx="2" fill="#818cf8"/>
+<text x="498" y="213" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Service 1</text>
+<text x="498" y="232" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">SERVICE</text>
+</g>
+<g opacity="1">
+<rect x="700" y="174" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="700" y="188" width="4" height="56" rx="2" fill="#fb923c"/>
+<text x="718" y="213" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Database 2</text>
+<text x="718" y="232" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">DATABASE</text>
+</g>
+<g opacity="1">
+<rect x="40" y="284" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="40" y="298" width="4" height="56" rx="2" fill="#818cf8"/>
+<text x="58" y="323" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Service 2</text>
+<text x="58" y="342" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">SERVICE</text>
+</g>
+<g opacity="1">
+<rect x="260" y="284" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="260" y="298" width="4" height="56" rx="2" fill="#818cf8"/>
+<text x="278" y="323" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Service 3</text>
+<text x="278" y="342" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">SERVICE</text>
+</g>
+<g opacity="1">
+<rect x="480" y="284" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="480" y="298" width="4" height="56" rx="2" fill="#fb923c"/>
+<text x="498" y="323" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Database 1</text>
+<text x="498" y="342" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">DATABASE</text>
+</g>
+<g opacity="1">
+<rect x="700" y="284" width="184" height="84" rx="12" fill="#10151d" stroke="#1f2733" stroke-width="1"/>
+<rect x="700" y="298" width="4" height="56" rx="2" fill="#818cf8"/>
+<text x="718" y="323" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">Service 4</text>
+<text x="718" y="342" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#64748b" letter-spacing="1">SERVICE</text>
+</g>
+<text x="32" y="532" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="13" fill="#64748b">Detected from configuration and observed activity; not a complete picture.</text>
+<text x="948" y="532" text-anchor="end" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="13" fill="#67e8f9">Made with Avalok · avalok.dev</text>
+</svg>
