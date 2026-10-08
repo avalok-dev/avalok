@@ -271,6 +271,18 @@ importers:
       "@visual-system/collector":
         specifier: workspace:*
         version: link:../../apps/collector
+      "@visual-system/export":
+        specifier: workspace:*
+        version: link:../export
+      "@visual-system/graph":
+        specifier: workspace:*
+        version: link:../graph
+      "@visual-system/reconcile":
+        specifier: workspace:*
+        version: link:../reconcile
+      "@visual-system/schema":
+        specifier: workspace:*
+        version: link:../schema
       "@visual-system/telemetry-adapter":
         specifier: workspace:*
         version: link:../telemetry-adapter

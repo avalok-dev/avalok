@@ -41,6 +41,7 @@ avalok doctor         # check the setup without starting anything
 avalok --help
 avalok data path      # where Avalok keeps its own data
 avalok data clear     # delete Avalok's runs and settings
+avalok recap          # summarize the newest agent session in this repository
 ```
 
 ## What Avalok sees
@@ -109,6 +110,23 @@ Avalok observes Claude Code through two supported interfaces, both opt-in:
 - **Hooks:** run `avalok setup claude` in your project to see the exact settings. It writes nothing; `avalok setup claude --apply` adds them to the project's `.claude/settings.local.json` after you confirm (existing files are backed up first, `--remove` undoes it). Or add `"type": "http"` hooks pointing at `http://127.0.0.1:4318/v1/claude/hooks` yourself.
 
 Hooks are observational only; Avalok never blocks or changes Claude Code. Full configuration: [docs/architecture/claude-code.md](docs/architecture/claude-code.md).
+
+## Share what your agent did
+
+Everything below is generated on your machine from local session files. You review it before sharing; nothing is uploaded.
+
+- **In the dashboard:** the **Share** button opens a preview with a recap card (SVG or PNG), an **interactive replay** (one HTML file anyone can open in a browser), the architecture diagram, and a Markdown summary for pull requests.
+- **From the terminal:**
+
+```sh
+avalok recap                                  # Markdown summary of the newest session that ran in this repo (paste into a PR)
+avalok recap --format svg                     # recap card  -> avalok-recap.svg
+avalok recap --format html                    # interactive replay -> avalok-replay.html
+avalok recap --format diagram --out docs/architecture.svg   # architecture diagram for your README
+avalok wrapped                                # your agent week as a card -> avalok-wrapped.svg (counts only)
+```
+
+Add `--anonymize` to replace names with generic labels, `--no-brand` to drop the "Made with Avalok" footer, and `--force` to overwrite an existing file. Prompts, run titles, commands and file paths are never included, and secret-looking values are hidden. Names of system parts are included by default, so read the preview. Counts only cover steps Avalok actually observed; anything it could not observe (such as cost) is listed as not observed rather than estimated.
 
 ## Privacy and local-first
 

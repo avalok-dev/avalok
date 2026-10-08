@@ -1,29 +1,12 @@
 import type { PublicSessionSummary } from "@/store/visualization-store";
 
-function normalizePath(path: string) {
-  return path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
-}
+import {
+  pickSessionForRepository,
+  sessionBelongsToRepository,
+  sortSessionsNewestFirst,
+} from "@visual-system/export";
 
-/** True when the session ran inside the repository (same folder or a subfolder). */
-export function sessionBelongsToRepository(
-  session: Pick<PublicSessionSummary, "cwd">,
-  repositoryRoot: string | undefined,
-) {
-  if (!session.cwd || !repositoryRoot) return false;
-  const cwd = normalizePath(session.cwd);
-  const root = normalizePath(repositoryRoot);
-  return cwd === root || cwd.startsWith(`${root}/`);
-}
-
-function modifiedTime(session: PublicSessionSummary) {
-  const time = Date.parse(session.modifiedAt);
-  return Number.isNaN(time) ? 0 : time;
-}
-
-/** Newest sessions first. Does not mutate the input. */
-export function sortSessionsNewestFirst(sessions: readonly PublicSessionSummary[]) {
-  return [...sessions].sort((a, b) => modifiedTime(b) - modifiedTime(a));
-}
+export { sessionBelongsToRepository, sortSessionsNewestFirst };
 
 /**
  * Landing rule: open the most recent session that ran inside the current repository.
@@ -33,9 +16,7 @@ export function pickLandingSession(
   repositoryRoot: string | undefined,
   sessions: readonly PublicSessionSummary[],
 ) {
-  return sortSessionsNewestFirst(sessions).find(
-    (session) => session.eventCount !== 0 && sessionBelongsToRepository(session, repositoryRoot),
-  );
+  return pickSessionForRepository(repositoryRoot, sessions);
 }
 
 export function relativeTime(iso: string | null | undefined, now = Date.now()) {

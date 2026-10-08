@@ -21,6 +21,10 @@
     "@visual-system/capabilities": "workspace:*",
     "@visual-system/codex-adapter": "workspace:*",
     "@visual-system/collector": "workspace:*",
+    "@visual-system/export": "workspace:*",
+    "@visual-system/graph": "workspace:*",
+    "@visual-system/reconcile": "workspace:*",
+    "@visual-system/schema": "workspace:*",
     "@visual-system/telemetry-adapter": "workspace:*",
     "next": "^15.3.3",
     "tsx": "^4.23.15"

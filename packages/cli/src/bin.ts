@@ -6,6 +6,8 @@ import { helpText, parseCliOptions } from "./options.ts";
 import { maybeOpenBrowser, startAvalok, startupSummary } from "./orchestrator.ts";
 import { StartupError, resolveTarget } from "./system.ts";
 import { runSetupClaude } from "./setup-claude.ts";
+import { runRecap } from "./recap.ts";
+import { runWrapped } from "./wrapped.ts";
 import { createInterface } from "node:readline/promises";
 import { discoverCodexSessions } from "@visual-system/codex-adapter";
 import { dataPath, runDataClear } from "./data.ts";
@@ -44,6 +46,18 @@ export async function runCli(
       `Imported ${result.traces} traces and ${result.spans} distinct spans from ${result.files} saved pages.${result.malformed ? ` Skipped ${result.malformed} malformed items.` : ""}\n`,
     );
     return result.malformed ? 1 : 0;
+  }
+  if (options.command === "wrapped" && options.recap) {
+    return runWrapped({
+      days: options.days ?? 7,
+      recap: options.recap,
+      cwd: process.cwd(),
+      output,
+    });
+  }
+  if (options.command === "recap" && options.recap) {
+    const target = await resolveTarget(options.target);
+    return runRecap({ target, recap: options.recap, cwd: process.cwd(), output });
   }
   if (options.command === "setup-claude") {
     const target = await resolveTarget(options.target);

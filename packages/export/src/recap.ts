@@ -27,6 +27,10 @@ export interface SessionRecap {
   failures: number;
   retries: number;
   slowSteps: number;
+  /** Sum of the recorded durations of all steps (time spent in steps, not wall-clock time). */
+  stepTimeMs: number;
+  /** The longest single recorded step. */
+  longestStepMs: number;
   /** Counts for the well-known Codex entities; 0 when the source does not report them. */
   commands: number;
   fileOperations: number;
@@ -104,6 +108,8 @@ export function summarizeSession(
   let failures = 0;
   let retries = 0;
   let slowSteps = 0;
+  let stepTimeMs = 0;
+  let longestStepMs = 0;
   let commands = 0;
   let fileOperations = 0;
   let testRuns = 0;
@@ -115,6 +121,8 @@ export function summarizeSession(
     if (failed) failures += 1;
     if (event.metadata?.retryObserved === true) retries += 1;
     if (slow) slowSteps += 1;
+    stepTimeMs += event.durationMs ?? 0;
+    longestStepMs = Math.max(longestStepMs, event.durationMs ?? 0);
     if (event.targetEntityId === "terminal") commands += 1;
     if (event.targetEntityId === "files") fileOperations += 1;
     if (event.targetEntityId === "tests") testRuns += 1;
@@ -162,6 +170,8 @@ export function summarizeSession(
     failures,
     retries,
     slowSteps,
+    stepTimeMs,
+    longestStepMs,
     commands,
     fileOperations,
     testRuns,

@@ -28,3 +28,18 @@ export {
   type ReplayOptions,
   type ReplayResult,
 } from "./replay";
+export {
+  pickSessionForRepository,
+  sessionBelongsToRepository,
+  sortSessionsNewestFirst,
+  type SessionLike,
+} from "./sessions";
+export {
+  periodLabel,
+  renderWrappedMarkdown,
+  renderWrappedSvg,
+  shortDay,
+  summarizeWrapped,
+  type WrappedInput,
+  type WrappedStats,
+} from "./wrapped";
