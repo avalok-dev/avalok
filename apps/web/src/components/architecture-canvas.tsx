@@ -14,7 +14,7 @@ import {
   type NodeMouseHandler,
   type NodeTypes,
 } from "@xyflow/react";
-import { deriveGraphRuntimeState, ElkLayoutEngine } from "@visual-system/graph";
+import { deriveDwellState, deriveGraphRuntimeState, ElkLayoutEngine } from "@visual-system/graph";
 import { GraphNode, SignalEdge, type GraphEdgeModel, type GraphNodeModel } from "@visual-system/ui";
 import { displayedArchitecture, useVisualizationStore } from "@/store/visualization-store";
 import { selectConnectionObservation, type ObservabilityView } from "@/lib/observability-view";
@@ -91,6 +91,13 @@ function CanvasGraph({ observability }: { observability: ObservabilityView | und
     [architecture, mode, run.events, showExecution, snapshot.currentTimestamp, source],
   );
 
+  // Where time is being spent right now. Only while replaying or tailing (Live), never for the
+  // static repository overlay, where there is no "now".
+  const dwell = useMemo(
+    () => (mode === "live" ? deriveDwellState(run.events, snapshot.currentTimestamp) : undefined),
+    [mode, run.events, snapshot.currentTimestamp],
+  );
+
   const hasActiveSignal = runtime.activeEntityIds.size + runtime.completedEntityIds.size > 0;
   const overlayActive = mode === "live" || (source === "repository" && showExecution);
   const telemetry = source === "telemetry" || sessionSource === "telemetry";
@@ -100,6 +107,7 @@ function CanvasGraph({ observability }: { observability: ObservabilityView | und
         const isActive = runtime.activeEntityIds.has(entity.id);
         const isCompleted = runtime.completedEntityIds.has(entity.id);
         const activity = observability?.nodeById[entity.id];
+        const glow = dwell?.get(entity.id);
         return {
           id: entity.id,
           type: "entity",
@@ -110,6 +118,7 @@ function CanvasGraph({ observability }: { observability: ObservabilityView | und
             entity,
             state: isActive ? "active" : isCompleted ? "completed" : "idle",
             dimmed: overlayActive && hasActiveSignal && !isActive && !isCompleted,
+            ...(glow ? { glow } : {}),
             ...(activity
               ? {
                   activity: {
@@ -123,6 +132,7 @@ function CanvasGraph({ observability }: { observability: ObservabilityView | und
       }),
     [
       architecture.entities,
+      dwell,
       hasActiveSignal,
       observability,
       overlayActive,

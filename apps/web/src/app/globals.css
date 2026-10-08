@@ -123,6 +123,52 @@ button {
   animation: node-breathe 1.8s ease-in-out infinite;
 }
 
+.graph-node[data-glow="dwell"] {
+  border-color: color-mix(in srgb, currentColor calc(35% + var(--glow, 0) * 45%), transparent);
+  box-shadow:
+    0 0 0 calc(var(--glow, 0) * 1.5px)
+      color-mix(in srgb, currentColor calc(var(--glow, 0) * 60%), transparent),
+    0 0 calc(16px + var(--glow, 0) * 38px)
+      color-mix(in srgb, currentColor calc(var(--glow, 0) * 42%), transparent),
+    0 16px 42px rgb(0 0 0 / 0.34);
+}
+
+.graph-node[data-glow="dwell"][data-inflight="true"] {
+  animation: node-dwell 1.8s ease-in-out infinite;
+}
+
+/* A slow step (the same 10 s threshold as the run findings) gets a warmer, wider ring. */
+.graph-node[data-glow="dwell"][data-slow="true"] {
+  box-shadow:
+    0 0 0 calc(var(--glow, 0) * 1.5px) rgb(251 191 36 / calc(var(--glow, 0) * 0.55)),
+    0 0 calc(18px + var(--glow, 0) * 46px) rgb(251 191 36 / calc(var(--glow, 0) * 0.22)),
+    0 16px 42px rgb(0 0 0 / 0.34);
+}
+
+.graph-node[data-glow="caller"] {
+  box-shadow:
+    0 0 calc(8px + var(--glow, 0) * 22px)
+      color-mix(in srgb, currentColor calc(var(--glow, 0) * 32%), transparent),
+    0 14px 38px rgb(0 0 0 / 0.28);
+}
+
+@keyframes node-dwell {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-node[data-glow],
+  .graph-node.is-active::before {
+    animation: none;
+  }
+}
+
 .graph-node.is-completed {
   border-color: color-mix(in srgb, currentColor 24%, transparent);
 }

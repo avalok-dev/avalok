@@ -91,7 +91,31 @@ export function normalizeForSyntaxCheck(body: string) {
  * This means Avalok's parser could not read the file; it does not prove the code is invalid.
  */
 export function hasPythonParseProblem(body: string) {
-  return treeContainsError(body) && treeContainsError(normalizeForSyntaxCheck(body));
+  return pythonParseProblemLine(body) !== undefined;
+}
+
+/**
+ * One-based line of the first place the parser gave up, or undefined when the file parses (after
+ * the known gaps are worked around). Offsets are preserved by the rewrites, so the line is exact
+ * for the original text. An error at the very end (an unclosed bracket) reports the last line.
+ */
+export function pythonParseProblemLine(body: string) {
+  if (!treeContainsError(body)) return undefined;
+  const normalized = normalizeForSyntaxCheck(body);
+  let offset: number | undefined;
+  parser.parse(normalized).iterate({
+    enter: (node) => {
+      if (offset !== undefined) return false;
+      if (node.type.isError) {
+        offset = node.from;
+        return false;
+      }
+      return undefined;
+    },
+  });
+  if (offset === undefined) return undefined;
+  const lineCount = body.replace(/\n$/, "").split("\n").length;
+  return Math.min(body.slice(0, offset).split("\n").length, lineCount);
 }
 
 function treeContainsError(body: string) {
@@ -145,14 +169,15 @@ export async function parsePythonSource(
 ): Promise<SourceModule | undefined> {
   if (file.extension !== ".py" || file.role === "generated") return undefined;
   const body = await readFile(file.absolutePath, "utf8");
-  const hasSyntaxError = hasPythonParseProblem(body);
-  if (hasSyntaxError) {
+  const parseProblemLine = pythonParseProblemLine(body);
+  if (parseProblemLine !== undefined) {
     diagnostics.push({
       severity: "info",
       code: "source.python-syntax",
       message:
         "Avalok's Python parser could not fully read this file. It may be incomplete, or it may use newer syntax the parser does not support yet, so some detected imports or routes could be missing. This does not necessarily mean your code is invalid.",
       file: file.path,
+      line: parseProblemLine,
       stage: "building-imports",
     });
   }
@@ -258,6 +283,6 @@ export async function parsePythonSource(
     calls,
     decorators,
     connectionSchemes,
-    ...(hasSyntaxError ? { parseError: "python syntax diagnostics present" } : {}),
+    ...(parseProblemLine !== undefined ? { parseError: "python syntax diagnostics present" } : {}),
   };
 }

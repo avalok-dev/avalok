@@ -1,6 +1,8 @@
 import type { ElkNode } from "elkjs/lib/elk-api";
 import type { ArchitectureGraph, Entity, GraphEdge, RuntimeEvent } from "@visual-system/schema";
 
+export { deriveDwellState, slowStepMs, type DwellGlow, type DwellOptions } from "./dwell";
+
 export interface GraphIndex {
   entities: ReadonlyMap<string, Entity>;
   edges: ReadonlyMap<string, GraphEdge>;
