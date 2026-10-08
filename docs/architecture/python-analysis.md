@@ -45,3 +45,11 @@ targets are not guessed.
 This is architecture analysis, not Python type checking. V1 does not resolve dynamic imports,
 metaprogramming, framework plugin loading, computed decorators, dependency injection semantics, or
 runtime settings. It intentionally favors explainable partial results over false certainty.
+
+## Parser limits and the `source.python-syntax` diagnostic
+
+Python is parsed with `@lezer/python` (1.1.19, the latest release), which cannot read some valid modern syntax. Avalok therefore never treats a parse error as proof that code is invalid: the diagnostic is `info` severity and says the parser could not fully read the file, so some detected imports or routes may be missing.
+
+Before reporting, the analyzer re-checks the file with same-length rewrites of the gaps it knows how to work around (`normalizeForSyntaxCheck` in `packages/analyzer/src/python-parser.ts`): float literals ending in a dot (`2.`), decorators with an arbitrary expression (`@a.b[0](1)`), and t-strings. The rewritten text is used only for that check, never for extracting signals.
+
+Valid syntax that is still reported as parser-limited: parenthesized `with (a as b, c as d):` and a star in a subscript (`a[*b]`). Tests pin both lists (`packages/analyzer/tests/python-parse-gaps.test.ts`), using Python 3.14's own `ast.parse` as ground truth. Found 2026-10-07 when 5 of 56 valid files in a real repository were flagged because of trailing-dot floats.
