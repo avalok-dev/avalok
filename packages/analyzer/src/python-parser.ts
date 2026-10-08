@@ -65,6 +65,35 @@ function resolvePythonImport(
   return expectedLocal ? { expectedLocal: true } : {};
 }
 
+/**
+ * Same-length rewrites of valid Python that `@lezer/python` (1.1.19, the latest release) cannot
+ * parse yet. The result is used only to decide whether a file has a real syntax problem; it is
+ * never used to extract signals, so strings and comments are free to be touched. Offsets stay
+ * identical. Gaps still covered here:
+ *   - float literals ending in a dot (`2.`, `1. / x`), common in numeric code
+ *   - decorators with an arbitrary expression (`@a.b[0](1)`, PEP 614)
+ *   - t-strings (`t"..."`, Python 3.14), rewritten as f-strings
+ * Gaps NOT covered (Python 3.10+ syntax Lezer rejects): parenthesized `with (a as b, c as d):`
+ * and a star in a subscript (`a[*b]`). Files using them are reported as parser-limited.
+ */
+export function normalizeForSyntaxCheck(body: string) {
+  return body
+    .replace(/(?<![\w.])(\d[\d_]*)\.(?![\w.])/g, (_match, digits: string) => `${digits}0`)
+    .replace(/^([ \t]*@)([^\n#]*)/gm, (_match, at: string, expression: string) => {
+      const trimmed = expression.replace(/\s+$/, "");
+      return `${at}${"a".repeat(trimmed.length)}${expression.slice(trimmed.length)}`;
+    })
+    .replace(/(?<![\w])([rRbBuU]?)([tT])(?=["'])/g, (_match, prefix: string) => `${prefix}f`);
+}
+
+/**
+ * True only when the file still fails to parse after the known parser gaps are worked around.
+ * This means Avalok's parser could not read the file; it does not prove the code is invalid.
+ */
+export function hasPythonParseProblem(body: string) {
+  return treeContainsError(body) && treeContainsError(normalizeForSyntaxCheck(body));
+}
+
 function treeContainsError(body: string) {
   const cursor = parser.parse(body).cursor();
   let found = false;
@@ -116,13 +145,13 @@ export async function parsePythonSource(
 ): Promise<SourceModule | undefined> {
   if (file.extension !== ".py" || file.role === "generated") return undefined;
   const body = await readFile(file.absolutePath, "utf8");
-  const hasSyntaxError = treeContainsError(body);
+  const hasSyntaxError = hasPythonParseProblem(body);
   if (hasSyntaxError) {
     diagnostics.push({
-      severity: "warning",
+      severity: "info",
       code: "source.python-syntax",
       message:
-        "Python parser found incomplete or invalid syntax; recoverable signals were retained.",
+        "Avalok's Python parser could not fully read this file. It may be incomplete, or it may use newer syntax the parser does not support yet, so some detected imports or routes could be missing. This does not necessarily mean your code is invalid.",
       file: file.path,
       stage: "building-imports",
     });
