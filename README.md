@@ -95,18 +95,18 @@ export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
 export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf   # or http/json
 ```
 
-The standard Python exporter (`opentelemetry-exporter-otlp-proto-http`) works as-is; see [`examples/python-otel-direct`](examples/python-otel-direct). The dashboard's **Setup → Connect telemetry → Send Test Trace** sends a clearly labeled synthetic trace to prove the path. Generic HTTP/database spans stay generic; only OpenInference or GenAI semantics are shown as agent activity.
+The standard Python exporter (`opentelemetry-exporter-otlp-proto-http`) works as-is; see [`examples/python-otel-direct`](examples/python-otel-direct). The dashboard's **Setup → OpenTelemetry setup → Send Test Trace** sends a clearly labeled synthetic trace to prove the path. Generic HTTP/database spans stay generic; only OpenInference or GenAI semantics are shown as agent activity.
 
 ## Codex
 
-Avalok discovers Codex session files in `~/.codex/sessions` (or `$CODEX_HOME`), replays them, and tails active sessions live. It shows commands, file changes, MCP calls, model responses, and errors. It never reconstructs hidden reasoning and never writes to Codex's directory.
+Avalok discovers Codex session files in `~/.codex/sessions` (or `$CODEX_HOME`), replays them, and tails active sessions live. It shows commands, file changes, MCP calls, model responses, and errors. It never reconstructs hidden reasoning and never writes to Codex's directory. There is nothing to set up; `avalok setup codex` shows how many sessions Avalok can read.
 
 ## Claude Code
 
 Avalok observes Claude Code through two supported interfaces, both opt-in:
 
 - **Traces:** launch Claude Code with `CLAUDE_CODE_ENABLE_TELEMETRY=1`, `OTEL_TRACES_EXPORTER=otlp`, and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces`.
-- **Hooks:** add `"type": "http"` hooks pointing at `http://127.0.0.1:4318/v1/claude/hooks` to your Claude Code settings.
+- **Hooks:** run `avalok setup claude` in your project to see the exact settings. It writes nothing; `avalok setup claude --apply` adds them to the project's `.claude/settings.local.json` after you confirm (existing files are backed up first, `--remove` undoes it). Or add `"type": "http"` hooks pointing at `http://127.0.0.1:4318/v1/claude/hooks` yourself.
 
 Hooks are observational only; Avalok never blocks or changes Claude Code. Full configuration: [docs/architecture/claude-code.md](docs/architecture/claude-code.md).
 

@@ -5,7 +5,11 @@ register();
 
 const { formatCliError, runCli } = await import("./src/bin.ts");
 
-runCli().catch((error) => {
-  process.stderr.write(formatCliError(error));
-  process.exitCode = 1;
-});
+runCli()
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((error) => {
+    process.stderr.write(formatCliError(error));
+    process.exitCode = 1;
+  });

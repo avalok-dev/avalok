@@ -97,6 +97,8 @@ Goal: first command succeeds on a clean machine, on current Node LTS, quickly.
 
 ### L2 - Agent setup without friction
 
+**Status 2026-10-06/07: implemented and verified end to end in a scratch project.** `avalok setup claude [path]` prints the hooks (writes nothing); `--apply` shows a summary, asks to confirm (`--yes` when not interactive), backs up an existing file, merges only Avalok's entries and writes atomically; `--remove` undoes it; invalid JSON is never edited; idempotent; port follows `--otlp-port`; `avalok setup codex` explains there is nothing to set up and shows the session count. 15 new tests use temp directories only. The dashboard's Claude source now says to run `avalok setup claude`. Not done: a copy button and a live "waiting for first event" indicator inside the Setup panel, and a documented manual run with a real Claude Code session (needs the maintainer).
+
 Goal: Claude Code and Codex users get value without reading telemetry docs.
 
 - [ ] `avalok setup claude`: **print** the exact hook / OTel configuration for the user's Claude Code settings and where to put it. Add an explicit `--apply` that shows a diff and asks for confirmation before editing any settings file, makes a timestamped backup, and is idempotent and reversible (`avalok setup claude --remove`). Default never writes.

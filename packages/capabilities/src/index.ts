@@ -417,7 +417,7 @@ export async function buildCapabilityReport(options: {
             : claude.configured
               ? "Observation hook configured, but the local listener is unavailable"
               : claude.available
-                ? "Available; local observation hook is not configured"
+                ? "Available. Run `avalok setup claude` in your project to see the hook settings (nothing is changed unless you add --apply)."
                 : "Not detected; no configuration was changed"),
       ...(latest(claudeRuns) ? { latestActivity: latest(claudeRuns)! } : {}),
       ...(claude.configurationError ? { error: claude.configurationError } : {}),
