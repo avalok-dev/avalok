@@ -7,13 +7,14 @@ import {
   renderDiagramSvg,
   renderRecapMarkdown,
   renderRecapSvg,
+  renderReplayHtml,
   summarizeSession,
   svgSize,
 } from "@visual-system/export";
 import type { ArchitectureGraph, Run } from "@visual-system/schema";
 import { Button, cn } from "@visual-system/ui";
 
-type Kind = "recap" | "diagram" | "markdown";
+type Kind = "recap" | "replay" | "diagram" | "markdown";
 
 const layoutEngine = new ElkLayoutEngine();
 
@@ -74,6 +75,7 @@ export function ExportDialog({
   const [anonymize, setAnonymize] = useState(false);
   const [brand, setBrand] = useState(true);
   const [layout, setLayout] = useState<PositionedGraph>();
+  const [replayLayout, setReplayLayout] = useState<PositionedGraph>();
   const [message, setMessage] = useState<string>();
 
   useEffect(() => {
@@ -90,6 +92,17 @@ export function ExportDialog({
     };
   }, [diagramGraph]);
 
+  // The replay uses the full graph the events refer to (not the map's layer filter), so the
+  // replay shows the whole story even when the overlay is off.
+  useEffect(() => {
+    if (kind !== "replay" || !hasActivity) return;
+    let active = true;
+    void layoutEngine.layout(recapGraph).then((result) => active && setReplayLayout(result));
+    return () => {
+      active = false;
+    };
+  }, [hasActivity, kind, recapGraph]);
+
   const recap = useMemo(
     () => (hasActivity ? summarizeSession(run, recapGraph, { anonymize }) : undefined),
     [anonymize, hasActivity, recapGraph, run],
@@ -100,12 +113,20 @@ export function ExportDialog({
       return layout ? renderDiagramSvg(diagramGraph, layout, { anonymize, brand }) : undefined;
     return undefined;
   }, [anonymize, brand, diagramGraph, kind, layout, recap]);
+  const replay = useMemo(
+    () =>
+      kind === "replay" && hasActivity && replayLayout
+        ? renderReplayHtml(recapGraph, replayLayout, run, { anonymize, brand })
+        : undefined,
+    [anonymize, brand, hasActivity, kind, recapGraph, replayLayout, run],
+  );
   const markdown = useMemo(
     () => (recap ? renderRecapMarkdown(recap, { brand }) : undefined),
     [brand, recap],
   );
   const preview = svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : undefined;
-  const base = kind === "recap" ? "avalok-recap" : "avalok-diagram";
+  const base =
+    kind === "recap" ? "avalok-recap" : kind === "replay" ? "avalok-replay" : "avalok-diagram";
 
   const flash = (text: string) => {
     setMessage(text);
@@ -115,6 +136,11 @@ export function ExportDialog({
     if (!svg) return;
     download(new Blob([svg], { type: "image/svg+xml" }), `${base}.svg`);
     flash(`Saved ${base}.svg`);
+  };
+  const saveHtml = () => {
+    if (!replay) return;
+    download(new Blob([replay.html], { type: "text/html" }), `${base}.html`);
+    flash(`Saved ${base}.html`);
   };
   const savePng = async () => {
     if (!svg) return;
@@ -137,6 +163,7 @@ export function ExportDialog({
 
   const tabs: { id: Kind; label: string; disabled: boolean }[] = [
     { id: "recap", label: "Recap card", disabled: !hasActivity },
+    { id: "replay", label: "Interactive replay", disabled: !hasActivity },
     { id: "diagram", label: "Diagram", disabled: false },
     { id: "markdown", label: "Markdown", disabled: !hasActivity },
   ];
@@ -216,7 +243,21 @@ export function ExportDialog({
           </div>
 
           <div className="mt-4 overflow-hidden rounded-lg border border-white/[0.08] bg-black/30">
-            {kind === "markdown" ? (
+            {kind === "replay" ? (
+              replay ? (
+                // The preview is the saved file itself, run in a sandbox with no access to this page.
+                <iframe
+                  title="Preview of the interactive replay that will be saved"
+                  sandbox="allow-scripts"
+                  srcDoc={replay.html}
+                  className="block h-[440px] w-full border-0 bg-[#080a0f]"
+                />
+              ) : (
+                <div className="grid h-56 place-items-center text-xs text-slate-500">
+                  Preparing the replay…
+                </div>
+              )
+            ) : kind === "markdown" ? (
               <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-5 text-slate-300">
                 {markdown}
               </pre>
@@ -236,6 +277,15 @@ export function ExportDialog({
             )}
           </div>
 
+          {kind === "replay" ? (
+            <p className="mt-3 text-[0.6875rem] leading-5 text-slate-500">
+              One self-contained HTML file: anyone can open it in a browser, with nothing to
+              install. Playback is compressed so long sessions are watchable; real times are shown.
+              {replay?.truncated
+                ? ` This session has ${replay.totalSteps} steps; the first ${replay.includedSteps} are included.`
+                : ""}
+            </p>
+          ) : null}
           <p className="mt-3 text-[0.6875rem] leading-5 text-slate-500">
             This preview is exactly what will be saved. It includes the names of system parts
             {anonymize ? " only as generic labels (names are anonymized)" : ""}; it never includes
@@ -256,6 +306,10 @@ export function ExportDialog({
             {kind === "markdown" ? (
               <Button size="sm" onClick={() => void copyMarkdown()} disabled={!markdown}>
                 <Copy className="size-3.5" /> Copy Markdown
+              </Button>
+            ) : kind === "replay" ? (
+              <Button size="sm" onClick={saveHtml} disabled={!replay}>
+                <Download className="size-3.5" /> Download HTML
               </Button>
             ) : (
               <>

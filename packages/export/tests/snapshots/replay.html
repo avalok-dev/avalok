@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>acme-platform replay</title>
+<style>
+:root{--bg:#080a0f;--panel:#10151d;--border:#1f2733;--text:#e2e8f0;--muted:#64748b;--accent:#67e8f9;--warn:#fbbf24;--bad:#fb7185}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;min-height:100vh;display:flex;flex-direction:column}
+header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline}
+h1{margin:0;font-size:18px}
+header p{margin:0;color:var(--muted);font-size:13px}
+main{flex:1;display:flex;flex-direction:column;min-height:0}
+.stage{flex:1;min-height:320px;padding:8px 16px;overflow:auto}
+svg{display:block;width:100%;height:auto;max-height:68vh}
+.node rect{fill:var(--panel);stroke:var(--border);stroke-width:1;transition:stroke .2s}
+.node .bar{fill:var(--c);stroke:none}
+.node .name{fill:var(--text);font:600 14px Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif}
+.node .kind{fill:var(--muted);font:10.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;letter-spacing:1px}
+.node{transition:opacity .2s}
+.dim .node{opacity:.45}
+.dim .node[data-role]{opacity:1}
+.node[data-role=dwell] rect:first-child{stroke:var(--c);stroke-width:calc(1px + var(--g,0) * 1.5px)}
+.node[data-role=dwell]{filter:drop-shadow(0 0 calc(4px + var(--g,0) * 18px) var(--c))}
+.node[data-role=dwell][data-slow="1"] rect:first-child{stroke:var(--warn)}
+.node[data-role=dwell][data-slow="1"]{filter:drop-shadow(0 0 calc(5px + var(--g,0) * 22px) rgba(251,191,36,.8))}
+.node[data-role=caller]{filter:drop-shadow(0 0 calc(3px + var(--g,0) * 10px) var(--c))}
+.node[data-inflight="1"][data-role=dwell]{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.82}}
+.edge{fill:none;stroke:#334155;stroke-width:1.4;opacity:.9}
+.edge.on{stroke:var(--accent);stroke-width:2.2;stroke-dasharray:6 5;animation:flow .8s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-11}}
+.controls{border-top:1px solid var(--border);background:var(--panel);padding:12px 24px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+button,select{background:#0b1017;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font:13px Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;cursor:pointer}
+button:hover,select:hover{border-color:#334155}
+button.primary{background:var(--accent);color:#06222a;border-color:var(--accent);font-weight:600;min-width:84px}
+input[type=range]{flex:1;min-width:200px;accent-color:var(--accent)}
+.now{font:13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;color:var(--muted);min-width:180px}
+.step{padding:10px 24px;font-size:13px;color:var(--text);min-height:44px;border-top:1px solid var(--border)}
+.step .bad{color:var(--bad)} .step .slow{color:var(--warn)} .step .muted{color:var(--muted)}
+footer{padding:10px 24px;color:var(--muted);font-size:12px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 24px;border-top:1px solid var(--border)}
+footer .brand{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.node[data-inflight="1"][data-role=dwell],.edge.on{animation:none}}
+</style>
+</head>
+<body>
+<header>
+<h1>acme-platform replay</h1>
+<p>Replay of a local agent session · 30m 00s real time · 6 steps shown</p>
+</header>
+<main>
+<div class="stage" id="stage">
+<svg id="map" viewBox="0 0 980 480" role="img" aria-label="acme-platform replay">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#475569"/></marker></defs>
+<path class="edge" data-e="0" d="M224 82 C248 82 236 82 260 82" marker-end="url(#arrow)"/>
+<path class="edge" data-e="1" d="M444 82 C468 82 456 82 480 82" marker-end="url(#arrow)"/>
+<path class="edge" data-e="2" d="M444 82 C536 82 168 192 260 192" marker-end="url(#arrow)"/>
+<path class="edge" data-e="3" d="M664 192 C688 192 676 192 700 192" marker-end="url(#arrow)"/>
+<g class="node" data-n="0" style="--c:#cbd5e1"><rect x="40" y="40" width="184" height="84" rx="12"/><rect class="bar" x="40" y="54" width="4" height="56" rx="2"/><text class="name" x="58" y="79">User</text><text class="kind" x="58" y="98">USER</text></g>
+<g class="node" data-n="1" style="--c:#67e8f9"><rect x="260" y="40" width="184" height="84" rx="12"/><rect class="bar" x="260" y="54" width="4" height="56" rx="2"/><text class="name" x="278" y="79">Codex</text><text class="kind" x="278" y="98">AGENT</text></g>
+<g class="node" data-n="2" style="--c:#facc15"><rect x="480" y="40" width="184" height="84" rx="12"/><rect class="bar" x="480" y="54" width="4" height="56" rx="2"/><text class="name" x="498" y="79">Terminal</text><text class="kind" x="498" y="98">TOOL</text></g>
+<g class="node" data-n="3" style="--c:#fb923c"><rect x="700" y="40" width="184" height="84" rx="12"/><rect class="bar" x="700" y="54" width="4" height="56" rx="2"/><text class="name" x="718" y="79">Files</text><text class="kind" x="718" y="98">STORAGE</text></g>
+<g class="node" data-n="4" style="--c:#facc15"><rect x="40" y="150" width="184" height="84" rx="12"/><rect class="bar" x="40" y="164" width="4" height="56" rx="2"/><text class="name" x="58" y="189">Tests</text><text class="kind" x="58" y="208">TOOL</text></g>
+<g class="node" data-n="5" style="--c:#c084fc"><rect x="260" y="150" width="184" height="84" rx="12"/><rect class="bar" x="260" y="164" width="4" height="56" rx="2"/><text class="name" x="278" y="189">gpt-5</text><text class="kind" x="278" y="208">MODEL</text></g>
+<g class="node" data-n="6" style="--c:#818cf8"><rect x="480" y="150" width="184" height="84" rx="12"/><rect class="bar" x="480" y="164" width="4" height="56" rx="2"/><text class="name" x="498" y="189">api-gateway</text><text class="kind" x="498" y="208">SERVICE</text></g>
+<g class="node" data-n="7" style="--c:#fb923c"><rect x="700" y="150" width="184" height="84" rx="12"/><rect class="bar" x="700" y="164" width="4" height="56" rx="2"/><text class="name" x="718" y="189">orders-db</text><text class="kind" x="718" y="208">DATABASE</text></g>
+<g class="node" data-n="8" style="--c:#818cf8"><rect x="40" y="260" width="184" height="84" rx="12"/><rect class="bar" x="40" y="274" width="4" height="56" rx="2"/><text class="name" x="58" y="299">payments</text><text class="kind" x="58" y="318">SERVICE</text></g>
+<g class="node" data-n="9" style="--c:#818cf8"><rect x="260" y="260" width="184" height="84" rx="12"/><rect class="bar" x="260" y="274" width="4" height="56" rx="2"/><text class="name" x="278" y="299">[redacted]</text><text class="kind" x="278" y="318">SERVICE</text></g>
+<g class="node" data-n="10" style="--c:#fb923c"><rect x="480" y="260" width="184" height="84" rx="12"/><rect class="bar" x="480" y="274" width="4" height="56" rx="2"/><text class="name" x="498" y="299">[redacted]</text><text class="kind" x="498" y="318">DATABASE</text></g>
+<g class="node" data-n="11" style="--c:#818cf8"><rect x="700" y="260" width="184" height="84" rx="12"/><rect class="bar" x="700" y="274" width="4" height="56" rx="2"/><text class="name" x="718" y="299">a&amp;b &lt;i onclick=1&gt; &#39;q&#39;…</text><text class="kind" x="718" y="318">SERVICE</text></g>
+</svg>
+</div>
+<div class="step" id="step" aria-live="polite"></div>
+<div class="controls">
+<button class="primary" id="play" type="button" aria-label="Play or pause">Play</button>
+<button id="restart" type="button">Restart</button>
+<input id="scrub" type="range" min="0" max="10748" value="0" step="1" aria-label="Position in the replay">
+<label class="muted">Speed <select id="speed" aria-label="Playback speed"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
+<span class="now" id="now"></span>
+</div>
+</main>
+<footer>
+<span>Playback is compressed: long steps are shortened so you can follow the story. Times shown are real. Only names of system parts are included; no prompts, commands or file paths. Detected and observed activity; not a complete picture.</span>
+<span class="brand">Made with Avalok · avalok.dev</span>
+</footer>
+<script type="application/json" id="data">{"steps":[[0,0,0,1,[],false],[180,4000,1,2,[6,8,3],true],[2180,1925,1,2,[],false],[3143,4000,1,4,[],true],[5143,1409,1,3,[],false],[5848,4000,1,5,[],true]],"meta":[[0,0,"prompt",0],[1000,900000,"tool",0],[910000,4000,"tool",0],[920000,120000,"error",1],[1050000,2000,"tool",0],[1100000,300000,"model",0]],"names":["User","Codex","Terminal","Files","Tests","gpt-5","api-gateway","orders-db","payments","[redacted]","[redacted]","a\u0026b \u003ci onclick=1\u003e 'q' \"z\""],"totalMs":10748,"totalSteps":6,"includedSteps":6,"edges":[[0,1],[1,2],[1,5],[6,7]],"realTotal":"30m 00s"}</script>
+<script>
+(function () {
+function glowAt(steps, p) {
+  var out = {};
+  function consider(i, role, strength, slow, inFlight) {
+    var intensity = strength * (role === "caller" ? 0.45 : 1);
+    if (intensity <= 0.01) return;
+    var e = out[i];
+    var better = !e || (role === "dwell" && e.role === "caller") || (role === e.role && intensity > e.intensity);
+    if (better) out[i] = { intensity: intensity, role: role, slow: slow, inFlight: inFlight };
+  }
+  for (var k = 0; k < steps.length; k++) {
+    var s = steps[k];
+    if (s[0] > p) break;
+    var has = s[1] > 220;
+    var end = s[0] + (has ? s[1] : 220);
+    var fade = has ? 700 : 250;
+    var strength, inFlight;
+    if (p <= end) { strength = has ? 1 : 0.7; inFlight = true; }
+    else if (p <= end + fade) { strength = (has ? 1 : 0.7) * (1 - (p - end) / fade); inFlight = false; }
+    else continue;
+    var dwell = s[3] !== null ? s[3] : s[2];
+    if (dwell !== null) consider(dwell, "dwell", strength, s[5], inFlight);
+    if (s[3] !== null && s[2] !== null) consider(s[2], "caller", strength, s[5], inFlight);
+    for (var j = 0; j < s[4].length; j++) consider(s[4][j], "dwell", strength, s[5], inFlight);
+  }
+  return out;
+}
+var D = JSON.parse(document.getElementById("data").textContent);
+var nodes = document.querySelectorAll(".node");
+var edges = document.querySelectorAll(".edge");
+var svg = document.getElementById("map");
+var scrub = document.getElementById("scrub");
+var playBtn = document.getElementById("play");
+var nowEl = document.getElementById("now");
+var stepEl = document.getElementById("step");
+var speedEl = document.getElementById("speed");
+var pos = 0, playing = false, last = 0;
+function fmt(ms) {
+  var s = Math.round(ms / 1000);
+  if (s < 60) return s + "s";
+  var m = Math.floor(s / 60);
+  if (m < 60) return m + "m " + ("0" + (s % 60)).slice(-2) + "s";
+  var h = Math.floor(m / 60);
+  return h + "h " + ("0" + (m % 60)).slice(-2) + "m";
+}
+function span(cls, text) { var el = document.createElement("span"); if (cls) el.className = cls; el.textContent = text; return el; }
+function setStep(parts) { while (stepEl.firstChild) stepEl.removeChild(stepEl.firstChild); for (var q = 0; q < parts.length; q++) stepEl.appendChild(parts[q]); }
+function render() {
+  var glow = glowAt(D.steps, pos);
+  var any = false;
+  for (var i = 0; i < nodes.length; i++) {
+    var g = glow[i], n = nodes[i];
+    if (g) {
+      any = true;
+      n.setAttribute("data-role", g.role);
+      n.setAttribute("data-inflight", g.inFlight ? "1" : "0");
+      n.setAttribute("data-slow", g.slow ? "1" : "0");
+      n.style.setProperty("--g", g.intensity.toFixed(3));
+    } else {
+      n.removeAttribute("data-role"); n.removeAttribute("data-inflight"); n.removeAttribute("data-slow"); n.style.removeProperty("--g");
+    }
+  }
+  svg.classList.toggle("dim", any);
+  var live = {};
+  var current = -1;
+  for (var k = 0; k < D.steps.length; k++) {
+    var s = D.steps[k];
+    if (s[0] > pos) break;
+    current = k;
+    if (pos <= s[0] + Math.max(s[1], 220) && s[2] !== null && s[3] !== null) live[s[2] + "-" + s[3]] = 1;
+  }
+  for (var e = 0; e < edges.length; e++) edges[e].classList.toggle("on", !!live[D.edges[e][0] + "-" + D.edges[e][1]]);
+  if (current < 0) {
+    setStep([span("muted", "Press Play, or drag the slider.")]);
+    nowEl.textContent = "0s into the session";
+  } else {
+    var s2 = D.steps[current], m = D.meta[current];
+    var who = (s2[2] !== null ? D.names[s2[2]] : "") + (s2[2] !== null && s2[3] !== null ? " → " : "") + (s2[3] !== null ? D.names[s2[3]] : "");
+    var parts = [span("", who || "Step"), span("muted", " · " + m[2] + (m[1] > 0 ? " · took " + fmt(m[1]) : ""))];
+    if (m[3]) parts.push(span("bad", " failed"));
+    if (s2[5]) parts.push(span("slow", " slow step"));
+    setStep(parts);
+    nowEl.textContent = fmt(m[0]) + " into the session";
+  }
+  scrub.value = String(Math.round(pos));
+  playBtn.textContent = playing ? "Pause" : (pos >= D.totalMs ? "Replay" : "Play");
+}
+function tick(t) {
+  if (!playing) return;
+  var dt = Math.min(100, t - last); last = t;
+  pos += dt * Number(speedEl.value);
+  if (pos >= D.totalMs) { pos = D.totalMs; playing = false; }
+  render();
+  if (playing) requestAnimationFrame(tick);
+}
+playBtn.addEventListener("click", function () {
+  if (playing) { playing = false; render(); return; }
+  if (pos >= D.totalMs) pos = 0;
+  playing = true; last = performance.now(); render(); requestAnimationFrame(tick);
+});
+document.getElementById("restart").addEventListener("click", function () { pos = 0; playing = false; render(); });
+scrub.addEventListener("input", function () { pos = Number(scrub.value); render(); });
+document.addEventListener("keydown", function (e) {
+  if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
+  if (e.key === " ") { e.preventDefault(); playBtn.click(); }
+  if (e.key === "ArrowRight") { pos = Math.min(D.totalMs, pos + 1500); render(); }
+  if (e.key === "ArrowLeft") { pos = Math.max(0, pos - 1500); render(); }
+});
+render();
+})();
+</script>
+</body>
+</html>

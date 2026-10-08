@@ -118,4 +118,10 @@ describe("deriveDwellState", () => {
     expect([...deriveDwellState(events, 2_000).keys()]).toEqual(["a"]);
     expect([...deriveDwellState(events, 9_000).keys()]).toEqual(["b"]);
   });
+
+  it("lets the caller decide what is slow (used when durations are remapped for playback)", () => {
+    const remapped = event({ id: "r", timestamp: 0, durationMs: 3_000, targetEntityId: "x" });
+    expect(deriveDwellState([remapped], 100).get("x")!.slow).toBe(false);
+    expect(deriveDwellState([remapped], 100, { isSlow: () => true }).get("x")!.slow).toBe(true);
+  });
 });

@@ -16,3 +16,15 @@ export {
   type DiagramOptions,
 } from "./svg";
 export { renderRecapMarkdown } from "./markdown";
+export {
+  buildPlaybackPlan,
+  glowAtPlaybackPosition,
+  glowScript,
+  planAsEvents,
+  playbackLength,
+  renderReplayHtml,
+  type PlaybackPlan,
+  type PlaybackStep,
+  type ReplayOptions,
+  type ReplayResult,
+} from "./replay";

@@ -11,6 +11,8 @@ export interface DwellOptions {
   /** Fade-out after an event that has a real duration. */
   fadeMs?: number;
   slowMs?: number;
+  /** Overrides the slow check (for example when durations were remapped for playback). */
+  isSlow?: (event: RuntimeEvent) => boolean;
 }
 
 export interface DwellGlow {
@@ -81,7 +83,7 @@ export function deriveDwellState(
       inFlight = false;
     } else continue;
 
-    const glow = { slow: duration >= slowMs, inFlight };
+    const glow = { slow: options.isSlow ? options.isSlow(event) : duration >= slowMs, inFlight };
     const dwellId = event.targetEntityId ?? event.sourceEntityId;
     if (dwellId) consider(dwellId, "dwell", strength, glow);
     if (event.targetEntityId && event.sourceEntityId)
