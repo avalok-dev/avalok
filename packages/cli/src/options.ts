@@ -14,7 +14,9 @@ export interface CliOptions {
     | "data-clear"
     | "import-openai"
     | "setup-claude"
-    | "setup-codex";
+    | "setup-codex"
+    | "recap"
+    | "wrapped";
   target?: string;
   files?: string[];
   port: number;
@@ -25,9 +27,24 @@ export interface CliOptions {
   /** `avalok setup claude --apply` / `--remove` */
   apply?: boolean;
   remove?: boolean;
+  /** `avalok recap` and `avalok wrapped` settings. */
+  recap?: RecapOptions;
+  /** `avalok wrapped`: how many days back to look. */
+  days?: number;
   help: boolean;
   version: boolean;
   yes: boolean;
+}
+
+export type RecapFormat = "md" | "svg" | "html" | "diagram";
+export interface RecapOptions {
+  /** `latest` (the newest session that ran in this repository) or a Codex session id. */
+  session: string;
+  format: RecapFormat;
+  out?: string;
+  anonymize: boolean;
+  brand: boolean;
+  force: boolean;
 }
 
 export class CliUsageError extends Error {}
@@ -71,6 +88,27 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     if (tool === "claude") options.command = "setup-claude";
     else if (tool === "codex") options.command = "setup-codex";
     else throw new CliUsageError("Setup requires 'claude' or 'codex'.");
+  } else if (input[0] === "recap") {
+    options.command = "recap";
+    options.recap = {
+      session: "latest",
+      format: "md",
+      anonymize: false,
+      brand: true,
+      force: false,
+    };
+    input.shift();
+  } else if (input[0] === "wrapped") {
+    options.command = "wrapped";
+    options.days = 7;
+    options.recap = {
+      session: "latest",
+      format: "svg",
+      anonymize: false,
+      brand: true,
+      force: false,
+    };
+    input.shift();
   } else if (input[0] === "import") {
     input.shift();
     if (input.shift() !== "openai")
@@ -89,7 +127,28 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     else if (argument === "--no-open") options.open = false;
     else if (argument === "--yes") options.yes = true;
     else if (argument === "--apply") options.apply = true;
-    else if (argument === "--remove") options.remove = true;
+    else if (argument === "--days" && options.command === "wrapped") {
+      const value = input[++index];
+      const days = Number(value);
+      if (!value || !/^\d+$/.test(value) || days < 1 || days > 365)
+        throw new CliUsageError("--days must be a whole number from 1 to 365.");
+      options.days = days;
+    } else if (argument === "--anonymize" && options.recap) options.recap.anonymize = true;
+    else if (argument === "--no-brand" && options.recap) options.recap.brand = false;
+    else if (argument === "--force" && options.recap) options.recap.force = true;
+    else if (
+      (argument === "--session" || argument === "--format" || argument === "--out") &&
+      options.recap
+    ) {
+      const value = input[++index];
+      if (!value || value.startsWith("--"))
+        throw new CliUsageError(`${argument} requires a value.`);
+      if (argument === "--session") options.recap.session = value;
+      else if (argument === "--out") options.recap.out = value;
+      else if (value === "md" || value === "svg" || value === "html" || value === "diagram")
+        options.recap.format = value;
+      else throw new CliUsageError("--format must be md, svg, html or diagram.");
+    } else if (argument === "--remove") options.remove = true;
     else if (argument === "--port") options.port = port(input[++index], "--port");
     else if (argument.startsWith("--port="))
       options.port = port(argument.slice("--port=".length), "--port");
@@ -106,6 +165,12 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     return options;
   }
   if (positional.length > 1) throw new CliUsageError("Only one repository path may be provided.");
+  if (
+    options.command === "wrapped" &&
+    options.recap &&
+    !["svg", "md"].includes(options.recap.format)
+  )
+    throw new CliUsageError("wrapped supports --format svg or md.");
   if ((options.apply || options.remove) && options.command !== "setup-claude")
     throw new CliUsageError("--apply and --remove only apply to 'setup claude'.");
   if (options.apply && options.remove)
@@ -119,5 +184,5 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
 }
 
 export function helpText() {
-  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} demo [options]        Open the built-in demo (needs no repository or agent session)\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} setup claude [path] [--apply | --remove]   Show (or, with --apply, add after confirming) the Claude Code hooks\n  ${productIdentity.cliName} setup codex       Codex needs no setup; shows what Avalok can read\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm without asking (data clearing, setup --apply/--remove)\n  --apply             With 'setup claude': write the hooks after showing the change\n  --remove            With 'setup claude': remove Avalok's hooks\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
+  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} demo [options]        Open the built-in demo (needs no repository or agent session)\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} setup claude [path] [--apply | --remove]   Show (or, with --apply, add after confirming) the Claude Code hooks\n  ${productIdentity.cliName} setup codex       Codex needs no setup; shows what Avalok can read\n  ${productIdentity.cliName} wrapped [--days 7] [--format svg|md] [--out file]   A card of your agent week (counts only)\n  ${productIdentity.cliName} recap [path] [--format md|svg|html|diagram] [--out file]   Summarize the newest agent session that ran in this repository\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm without asking (data clearing, setup --apply/--remove)\n  --apply             With 'setup claude': write the hooks after showing the change\n  --remove            With 'setup claude': remove Avalok's hooks\n  --session <id>      With 'recap': a Codex session id (default: the newest one that ran in the repository)\n  --format <kind>     With 'recap': md (default, printed), svg (recap card), html (interactive replay), diagram\n  --out <file>        With 'recap': write to this file (svg/html default to avalok-recap.<ext>)\n  --anonymize         With 'recap': replace names with generic labels\n  --no-brand          With 'recap' or 'wrapped': omit the 'Made with Avalok' footer\n  --days <n>          With 'wrapped': how many days back to include (default 7)\n  --force             With 'recap': overwrite an existing output file\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
 }

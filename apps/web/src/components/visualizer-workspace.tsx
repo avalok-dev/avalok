@@ -12,6 +12,7 @@ import { RunsPanel } from "./runs-panel";
 import { SourcePanel } from "./source-panel";
 import { TopBar } from "./top-bar";
 import { GettingStarted } from "./getting-started";
+import { ExportDialog } from "./export-dialog";
 import { ActivityStatisticsLine } from "./observability-statistics";
 import {
   selectConnectionObservation,
@@ -55,6 +56,7 @@ export function VisualizerWorkspace() {
   const viewEntityEvents = useVisualizationStore((state) => state.viewEntityEvents);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [setupView, setSetupView] = useState<"overview" | "telemetry">("overview");
   const [capabilities, setCapabilities] = useState<CapabilityReport>();
   const [streamTarget, setStreamTarget] = useState<StreamTarget>();
@@ -334,6 +336,7 @@ export function VisualizerWorkspace() {
         sourceLabel={sourceLabel}
         isTailConnected={tailConnected}
         onSourceClick={() => setSourceOpen((open) => !open)}
+        onShareClick={() => setShareOpen(true)}
         onSetupClick={() => {
           setSetupView("overview");
           setSetupOpen(true);
@@ -463,6 +466,20 @@ export function VisualizerWorkspace() {
         onViewEvents={selectedEntity ? () => viewEntityEvents(selectedEntity.id) : undefined}
       />
       <ExecutionDock />
+      {shareOpen ? (
+        <ExportDialog
+          diagramGraph={visibleArchitecture}
+          // Events refer to the unified graph (architecture plus observed activity), even when the
+          // map's execution overlay is switched off.
+          recapGraph={
+            dataset.source === "repository" && dataset.reconciliation
+              ? dataset.reconciliation.graph
+              : dataset.architecture
+          }
+          run={dataset.run}
+          onClose={() => setShareOpen(false)}
+        />
+      ) : null}
       {setupOpen && capabilities ? (
         <GettingStarted
           report={capabilities}

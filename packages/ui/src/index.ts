@@ -6,5 +6,5 @@ export { SignalEdge, type GraphEdgeData, type GraphEdgeModel } from "./graph-edg
 export { PlaybackControls, type PlaybackControlsProps } from "./playback-controls";
 export { Timeline, type TimelineProps } from "./timeline";
 export { RunMetrics } from "./metrics";
-export { Inspector, type InspectorProps } from "./inspector";
+export { Inspector, diagnosticKey, type InspectorProps } from "./inspector";
 export { cn } from "./lib/cn";

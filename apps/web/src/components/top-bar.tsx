@@ -8,6 +8,7 @@ import {
   HelpCircle,
   Radio,
   Rows3,
+  Share2,
 } from "lucide-react";
 import { Badge, cn } from "@visual-system/ui";
 import type { VisualizerMode } from "@/store/visualization-store";
@@ -26,6 +27,7 @@ export function TopBar({
   isTailConnected,
   onSourceClick,
   onSetupClick,
+  onShareClick,
 }: {
   mode: VisualizerMode;
   onModeChange: (mode: VisualizerMode) => void;
@@ -34,6 +36,7 @@ export function TopBar({
   isTailConnected: boolean;
   onSourceClick: () => void;
   onSetupClick: () => void;
+  onShareClick?: () => void;
 }) {
   return (
     <header className="col-span-full flex min-w-0 items-center border-b border-white/[0.065] bg-[#090c11]/95 px-4">
@@ -83,6 +86,17 @@ export function TopBar({
       </nav>
 
       <div className="ml-auto flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-slate-500">
+        {onShareClick ? (
+          <button
+            type="button"
+            onClick={onShareClick}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-500 hover:bg-white/[0.04] hover:text-slate-200"
+            aria-label="Share or export a recap or diagram"
+          >
+            <Share2 className="size-3.5" />
+            <span className="hidden md:inline">Share</span>
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onSetupClick}

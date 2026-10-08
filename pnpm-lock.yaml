@@ -101,6 +101,9 @@ importers:
       "@visual-system/codex-adapter":
         specifier: workspace:*
         version: link:../../packages/codex-adapter
+      "@visual-system/export":
+        specifier: workspace:*
+        version: link:../../packages/export
       "@visual-system/graph":
         specifier: workspace:*
         version: link:../../packages/graph
@@ -268,6 +271,18 @@ importers:
       "@visual-system/collector":
         specifier: workspace:*
         version: link:../../apps/collector
+      "@visual-system/export":
+        specifier: workspace:*
+        version: link:../export
+      "@visual-system/graph":
+        specifier: workspace:*
+        version: link:../graph
+      "@visual-system/reconcile":
+        specifier: workspace:*
+        version: link:../reconcile
+      "@visual-system/schema":
+        specifier: workspace:*
+        version: link:../schema
       "@visual-system/telemetry-adapter":
         specifier: workspace:*
         version: link:../telemetry-adapter
@@ -303,6 +318,22 @@ importers:
       "@types/node":
         specifier: ^22.15.30
         version: 22.20.4
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.4)(jiti@1.21.7)(supports-color@7.2.0)(tsx@4.23.15)(yaml@2.9.1)
+
+  packages/export:
+    dependencies:
+      "@visual-system/graph":
+        specifier: workspace:*
+        version: link:../graph
+      "@visual-system/schema":
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

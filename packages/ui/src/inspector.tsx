@@ -108,6 +108,17 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 const titleCase = (value: string) =>
   value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+/**
+ * React key for a diagnostic row. Unique even when several diagnostics share a code, file and
+ * line (for example the same parser limit reported twice, or two files with a problem on line 3).
+ */
+export function diagnosticKey(
+  diagnostic: { code: string; file?: string; line?: number },
+  index: number,
+) {
+  return `${diagnostic.code}|${diagnostic.file ?? ""}|${diagnostic.line ?? ""}|${index}`;
+}
+
 export function Inspector({
   entity,
   connection,
@@ -608,7 +619,7 @@ export function Inspector({
           <div className="mt-3 grid gap-2">
             {diagnostics.slice(-8).map((diagnostic, index) => (
               <div
-                key={`${diagnostic.code}-${diagnostic.line ?? index}`}
+                key={diagnosticKey(diagnostic, index)}
                 className="rounded-lg border border-amber-300/10 bg-amber-300/[0.035] p-2.5"
               >
                 <div className="flex items-center gap-2 font-mono text-[0.625rem] text-amber-300/70">

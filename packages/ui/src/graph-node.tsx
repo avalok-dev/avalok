@@ -9,6 +9,8 @@ export interface GraphNodeData extends Record<string, unknown> {
   state: "idle" | "active" | "completed";
   dimmed: boolean;
   activity?: { calls: number; failures: number };
+  /** Where time is being spent right now (see `deriveDwellState`); absent when nothing is. */
+  glow?: { intensity: number; role: "dwell" | "caller"; slow: boolean; inFlight: boolean };
 }
 
 export type GraphNodeModel = Node<GraphNodeData, "entity">;
@@ -44,7 +46,7 @@ const kindTone: Record<Entity["kind"], string> = {
 };
 
 export function GraphNode({ data, selected }: NodeProps<GraphNodeModel>) {
-  const { entity, state, dimmed, activity } = data;
+  const { entity, state, dimmed, activity, glow } = data;
   return (
     <div
       className={cn(
@@ -55,7 +57,11 @@ export function GraphNode({ data, selected }: NodeProps<GraphNodeModel>) {
         dimmed && "opacity-35 saturate-50",
         selected && "ring-1 ring-cyan-300/75 ring-offset-2 ring-offset-[#080a0f]",
       )}
-      aria-label={`${entity.name}, ${entity.kind.replaceAll("_", " ")}${activity ? `, ${activity.calls} observed calls, ${activity.failures} failures` : ""}`}
+      data-glow={glow?.role}
+      data-inflight={glow?.inFlight ? "true" : undefined}
+      data-slow={glow?.slow ? "true" : undefined}
+      style={glow ? ({ "--glow": glow.intensity.toFixed(3) } as React.CSSProperties) : undefined}
+      aria-label={`${entity.name}, ${entity.kind.replaceAll("_", " ")}${activity ? `, ${activity.calls} observed calls, ${activity.failures} failures` : ""}${glow?.role === "dwell" && glow.inFlight ? ", work in progress here" : ""}`}
     >
       <Handle
         type="target"

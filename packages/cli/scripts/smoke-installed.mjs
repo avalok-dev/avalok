@@ -377,6 +377,71 @@ try {
   const path = runSync(process.execPath, [bin, "data", "path"], { env: environment });
   check("avalok data path", path.stdout.trim() === dataRoot, path.stdout.trim());
 
+  // Shareable artifacts and agent setup, from the installed package only. An empty Codex home keeps
+  // every command away from real sessions.
+  const emptyCodex = join(scratch, "Empty Codex Home");
+  mkdirSync(emptyCodex, { recursive: true });
+  const sharingEnvironment = { ...environment, CODEX_HOME: emptyCodex };
+  const diagramOut = join(scratch, "installed diagram.svg");
+  const diagramRun = runSync(
+    process.execPath,
+    [
+      bin,
+      "recap",
+      join(repositories, "Infra Platform"),
+      "--format",
+      "diagram",
+      "--out",
+      diagramOut,
+    ],
+    { env: sharingEnvironment },
+  );
+  const diagramSvg = existsSync(diagramOut) ? readFileSync(diagramOut, "utf8") : "";
+  check(
+    "avalok recap --format diagram (bundled layout engine and export code)",
+    diagramRun.status === 0 &&
+      diagramSvg.startsWith("<svg ") &&
+      diagramSvg.includes("Made with Avalok") &&
+      !diagramSvg.includes(repositories) &&
+      !diagramSvg.includes(scratch) &&
+      !/<script|href=/i.test(diagramSvg),
+    `${(diagramSvg.length / 1024).toFixed(0)} KB`,
+  );
+  const noSession = runSync(process.execPath, [bin, "recap", join(repositories, "Simple JS App")], {
+    env: sharingEnvironment,
+  });
+  check(
+    "avalok recap explains when no session ran in the repository",
+    noSession.status === 1 && noSession.stdout.includes("No Codex session with events ran inside"),
+  );
+  const noWeek = runSync(process.execPath, [bin, "wrapped", "--format", "md"], {
+    env: sharingEnvironment,
+  });
+  check(
+    "avalok wrapped explains when there are no sessions",
+    noWeek.status === 1 &&
+      noWeek.stdout.includes("No Codex sessions with events in the last 7 days"),
+  );
+  const claudeSetup = runSync(
+    process.execPath,
+    [bin, "setup", "claude", join(repositories, "Simple JS App")],
+    { env: sharingEnvironment },
+  );
+  check(
+    "avalok setup claude prints the hooks and writes nothing",
+    claudeSetup.status === 0 &&
+      claudeSetup.stdout.includes("Nothing has been written") &&
+      claudeSetup.stdout.includes("/v1/claude/hooks") &&
+      !existsSync(join(repositories, "Simple JS App", ".claude")),
+  );
+  const codexSetup = runSync(process.execPath, [bin, "setup", "codex"], {
+    env: sharingEnvironment,
+  });
+  check(
+    "avalok setup codex reports the (empty) session count",
+    codexSetup.status === 0 && codexSetup.stdout.includes("Found 0 local Codex sessions"),
+  );
+
   const importPage = join(scratch, "saved trace page.json");
   const importRoot = join(scratch, "Import Data");
   writeFileSync(

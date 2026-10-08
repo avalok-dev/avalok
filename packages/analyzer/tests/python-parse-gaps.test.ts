@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { hasPythonParseProblem, normalizeForSyntaxCheck } from "../src/python-parser";
+import {
+  hasPythonParseProblem,
+  normalizeForSyntaxCheck,
+  pythonParseProblemLine,
+} from "../src/python-parser";
 
 // Ground truth for these snippets: each "valid" one was confirmed with Python 3.14's own
 // `ast.parse`. @lezer/python 1.1.19 (the latest release) cannot parse some of them.
@@ -44,5 +48,21 @@ describe("normalizeForSyntaxCheck", () => {
   it("leaves ordinary floats, attributes and prefixed strings alone", () => {
     const source = 'a = 3.14\nb = x.y.z\nc = 1.5e3\nd = rb"raw"\ne = 10\nf = "v1."\n';
     expect(normalizeForSyntaxCheck(source)).toBe(source);
+  });
+});
+
+describe("pythonParseProblemLine", () => {
+  it("points at the line where the parser gave up", () => {
+    expect(pythonParseProblemLine("a = 1\nb = 2\nc = = 3\nd = 4\n")).toBe(3);
+  });
+  it("reports the last real line for an unclosed bracket at the end of the file", () => {
+    expect(pythonParseProblemLine("from x import y\napp = Y(\n")).toBe(2);
+  });
+  it("is undefined for files that parse, including worked-around gaps", () => {
+    expect(pythonParseProblemLine("x = 1\n")).toBeUndefined();
+    expect(pythonParseProblemLine("q = 1. / 3\n@a.b[0](1)\ndef f():\n    pass\n")).toBeUndefined();
+  });
+  it("keeps the line exact when a worked-around gap comes earlier in the file", () => {
+    expect(pythonParseProblemLine("x = 2.\ny = 1.\nz = = 3\n")).toBe(3);
   });
 });

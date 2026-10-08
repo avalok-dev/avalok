@@ -69,6 +69,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   transpilePackages: [
+    "@visual-system/export",
     "@visual-system/local-security",
     "@visual-system/schema",
     "@visual-system/graph",
