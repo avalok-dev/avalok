@@ -10,7 +10,7 @@ The published package contains Avalok's own code (Apache-2.0) plus third-party c
 4. License identifiers come from each package's `package.json`; license texts are the package's own `LICENSE*`, `LICENCE*`, `COPYING*`, and `NOTICE*` files, reproduced verbatim. Nothing is written by hand.
 5. Components with copyleft licenses (EPL, MPL, LGPL, GPL, CDDL, EUPL) get an explicit source-availability statement.
 6. The build **fails** if any bundled package has neither a license identifier nor a license file. Packages that publish an identifier but no license file are listed in the build output and in the notices.
-7. Runtime dependencies that npm installs separately (`next`, `react`, `react-dom`, `typescript`, `@cdktf/hcl2json`) are listed with their licenses; their packages carry their own license files.
+7. Runtime dependencies that npm installs separately (`typescript`, `@cdktf/hcl2json`) are listed with their licenses; their packages carry their own license files. The pruned modules shipped inside `dashboard/node_modules` (`next`, `react`, `react-dom`, and the rest of Next's traced runtime) are listed in the table as `dashboard-runtime`, with their license texts reproduced from the shipped files.
 
 The installed-product smoke test reads `THIRD_PARTY_NOTICES.md` **from the installed tarball** and fails if it is missing or lacks the elkjs entry, its EPL-2.0 text, or its source link.
 

@@ -12,7 +12,7 @@ import {
 } from "@visual-system/capabilities";
 import { resolveDashboardLayout } from "./dashboard.ts";
 import { productIdentity } from "./identity.ts";
-import { nodeSupport, supportedNodeRange } from "./node-support.ts";
+import { nodeSupport, supportedNodeRange, testedNodeLines } from "./node-support.ts";
 import type { CliOptions } from "./options.ts";
 import { isPortAvailable, resolveTarget } from "./system.ts";
 
@@ -100,9 +100,12 @@ export async function runDoctor(
   const support = nodeSupport(process.versions.node);
   if (support === "supported")
     sections.push(line("ok", `Node ${process.versions.node} compatible`));
-  else if (support === "untested-newer")
+  else if (support === "untested")
     sections.push(
-      line("warning", `Node ${process.versions.node} is newer than tested (${supportedNodeRange})`),
+      line(
+        "warning",
+        `Node ${process.versions.node} is outside the tested lines (${testedNodeLines}); it may work`,
+      ),
     );
   else {
     blocking = true;

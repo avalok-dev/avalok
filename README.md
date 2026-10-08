@@ -10,7 +10,7 @@ Avalok is a local-first visual system for understanding how your code, infrastru
 
 ## Quick Start
 
-Requires Node.js **24.19 or newer in the Node 24 line**.
+Requires Node.js **22.12 or newer** (tested on Node 22 LTS and Node 24 LTS). Building from a clone needs Node 24.19 (see [CONTRIBUTING](CONTRIBUTING.md)).
 
 **After publication** (not available yet):
 
@@ -31,9 +31,12 @@ cd /path/to/your/repository
 avalok .
 ```
 
-Avalok analyzes the repository, starts a dashboard at `http://127.0.0.1:4737` and a local OTLP receiver at `http://127.0.0.1:4318`, and opens your browser. Press Ctrl+C to stop.
+Avalok analyzes the repository, starts a dashboard at `http://127.0.0.1:4737` and a local OTLP receiver at `http://127.0.0.1:4318`, and opens your browser. If a local Codex or Claude Code session ran in this repository, the newest one opens straight away over the architecture map; otherwise you see the map and a list of sessions to pick from. Avalok asks for no permission and sends nothing anywhere. Press Ctrl+C to stop.
+
+No repository or agent session handy? `avalok demo` opens the built-in demo.
 
 ```sh
+avalok demo           # open the built-in demo
 avalok doctor         # check the setup without starting anything
 avalok --help
 avalok data path      # where Avalok keeps its own data
@@ -92,18 +95,18 @@ export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
 export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf   # or http/json
 ```
 
-The standard Python exporter (`opentelemetry-exporter-otlp-proto-http`) works as-is; see [`examples/python-otel-direct`](examples/python-otel-direct). The dashboard's **Setup → Connect telemetry → Send Test Trace** sends a clearly labeled synthetic trace to prove the path. Generic HTTP/database spans stay generic; only OpenInference or GenAI semantics are shown as agent activity.
+The standard Python exporter (`opentelemetry-exporter-otlp-proto-http`) works as-is; see [`examples/python-otel-direct`](examples/python-otel-direct). The dashboard's **Setup → OpenTelemetry setup → Send Test Trace** sends a clearly labeled synthetic trace to prove the path. Generic HTTP/database spans stay generic; only OpenInference or GenAI semantics are shown as agent activity.
 
 ## Codex
 
-Avalok discovers Codex session files in `~/.codex/sessions` (or `$CODEX_HOME`), replays them, and tails active sessions live. It shows commands, file changes, MCP calls, model responses, and errors. It never reconstructs hidden reasoning and never writes to Codex's directory.
+Avalok discovers Codex session files in `~/.codex/sessions` (or `$CODEX_HOME`), replays them, and tails active sessions live. It shows commands, file changes, MCP calls, model responses, and errors. It never reconstructs hidden reasoning and never writes to Codex's directory. There is nothing to set up; `avalok setup codex` shows how many sessions Avalok can read.
 
 ## Claude Code
 
 Avalok observes Claude Code through two supported interfaces, both opt-in:
 
 - **Traces:** launch Claude Code with `CLAUDE_CODE_ENABLE_TELEMETRY=1`, `OTEL_TRACES_EXPORTER=otlp`, and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces`.
-- **Hooks:** add `"type": "http"` hooks pointing at `http://127.0.0.1:4318/v1/claude/hooks` to your Claude Code settings.
+- **Hooks:** run `avalok setup claude` in your project to see the exact settings. It writes nothing; `avalok setup claude --apply` adds them to the project's `.claude/settings.local.json` after you confirm (existing files are backed up first, `--remove` undoes it). Or add `"type": "http"` hooks pointing at `http://127.0.0.1:4318/v1/claude/hooks` yourself.
 
 Hooks are observational only; Avalok never blocks or changes Claude Code. Full configuration: [docs/architecture/claude-code.md](docs/architecture/claude-code.md).
 
@@ -124,7 +127,7 @@ Details: [Privacy](docs/privacy.md) · [Security](SECURITY.md) · [Local HTTP se
 - Infrastructure analysis describes repository configuration, not live cloud or cluster state. It does not evaluate Terraform expressions, modules, `count`/`for_each`, or Helm control flow.
 - OTLP/HTTP traces only: no OTLP/gRPC, metrics, or logs.
 - One repository per run; no repository watcher (use Rescan).
-- Requires Node.js 24; the installed size is large (≈350 MB, mostly Next.js).
+- Requires Node.js 22.12 or newer; installed size is about 67 MB (measured on macOS arm64).
 
 ## Development
 

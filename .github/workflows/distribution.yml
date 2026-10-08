@@ -5,6 +5,7 @@ name: Distribution
 # installed-product smoke test against that tarball: --version, --help, doctor, startup,
 # dashboard/OTLP health, local HTTP security checks, OTLP JSON + protobuf, the standard Python
 # exporter, restart persistence, shutdown/port release, orphan cleanup, and safe data clearing.
+# The installed smoke runs again under Node 22 (the build itself uses the repository's Node 24).
 # Nothing is published.
 on:
   push:
@@ -43,6 +44,19 @@ jobs:
       - if: runner.os == 'Windows'
         shell: pwsh
         run: pnpm release:build --python python --root "$env:RUNNER_TEMP"
+      # The product supports Node 22 LTS (>=22.12) and Node 24 LTS. The build above runs on the
+      # repository's Node 24 toolchain; this runs the same installed tarball under Node 22.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22.12"
+      - name: Installed smoke under Node 22 (POSIX)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: node packages/cli/scripts/smoke-installed.mjs --tarball "$(ls artifacts/release/*.tgz | head -1)" --hide-workspace --python python
+      - name: Installed smoke under Node 22 (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: node packages/cli/scripts/smoke-installed.mjs --tarball "$(ls artifacts/release/*.tgz | head -1)" --python python
       - if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:

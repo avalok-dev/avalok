@@ -59,6 +59,7 @@ export function launchDashboard(options: {
   dataRoot: string;
   otlpPort: number;
   version: string;
+  demo?: boolean;
   environment?: NodeJS.ProcessEnv;
 }): DashboardHandle {
   const layout = options.directory
@@ -108,6 +109,7 @@ export function launchDashboard(options: {
       AVALOK_OTLP_PORT: String(options.otlpPort),
       AVALOK_VERSION: options.version,
       AVALOK_PARENT_PID: String(process.pid),
+      ...(options.demo ? { AVALOK_DEMO: "1" } : {}),
       ...(samples ? { AVALOK_SAMPLES_DIR: samples } : {}),
       // The standalone server reads HOSTNAME/PORT. Shells commonly export HOSTNAME as the
       // machine name, so always pin the loopback host explicitly.

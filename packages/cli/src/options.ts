@@ -7,12 +7,24 @@ export const cliDefaults = Object.freeze({
 });
 
 export interface CliOptions {
-  command: "start" | "doctor" | "data-path" | "data-clear" | "import-openai";
+  command:
+    | "start"
+    | "doctor"
+    | "data-path"
+    | "data-clear"
+    | "import-openai"
+    | "setup-claude"
+    | "setup-codex";
   target?: string;
   files?: string[];
   port: number;
   otlpPort: number;
   open: boolean;
+  /** `avalok demo`: open the built-in demo first instead of analyzing a repository view. */
+  demo?: boolean;
+  /** `avalok setup claude --apply` / `--remove` */
+  apply?: boolean;
+  remove?: boolean;
   help: boolean;
   version: boolean;
   yes: boolean;
@@ -35,12 +47,16 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     port: cliDefaults.dashboardPort,
     otlpPort: cliDefaults.otlpPort,
     open: true,
+    demo: false,
     help: false,
     version: false,
     yes: false,
   };
   const input = [...arguments_];
-  if (input[0] === "doctor") {
+  if (input[0] === "demo") {
+    options.demo = true;
+    input.shift();
+  } else if (input[0] === "doctor") {
     options.command = "doctor";
     input.shift();
   } else if (input[0] === "data") {
@@ -49,6 +65,12 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     if (action === "path") options.command = "data-path";
     else if (action === "clear") options.command = "data-clear";
     else throw new CliUsageError("Data requires either 'path' or 'clear'.");
+  } else if (input[0] === "setup") {
+    input.shift();
+    const tool = input.shift();
+    if (tool === "claude") options.command = "setup-claude";
+    else if (tool === "codex") options.command = "setup-codex";
+    else throw new CliUsageError("Setup requires 'claude' or 'codex'.");
   } else if (input[0] === "import") {
     input.shift();
     if (input.shift() !== "openai")
@@ -66,6 +88,8 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     else if (argument === "--version" || argument === "-v") options.version = true;
     else if (argument === "--no-open") options.open = false;
     else if (argument === "--yes") options.yes = true;
+    else if (argument === "--apply") options.apply = true;
+    else if (argument === "--remove") options.remove = true;
     else if (argument === "--port") options.port = port(input[++index], "--port");
     else if (argument.startsWith("--port="))
       options.port = port(argument.slice("--port=".length), "--port");
@@ -82,6 +106,12 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
     return options;
   }
   if (positional.length > 1) throw new CliUsageError("Only one repository path may be provided.");
+  if ((options.apply || options.remove) && options.command !== "setup-claude")
+    throw new CliUsageError("--apply and --remove only apply to 'setup claude'.");
+  if (options.apply && options.remove)
+    throw new CliUsageError("Use either --apply or --remove, not both.");
+  if (positional.length && options.demo)
+    throw new CliUsageError("The demo does not need a repository path.");
   if (positional.length && options.command.startsWith("data-"))
     throw new CliUsageError("Data commands do not accept a repository path.");
   if (positional[0]) options.target = positional[0];
@@ -89,5 +119,5 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
 }
 
 export function helpText() {
-  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm Avalok-owned data clearing\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
+  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} demo [options]        Open the built-in demo (needs no repository or agent session)\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} setup claude [path] [--apply | --remove]   Show (or, with --apply, add after confirming) the Claude Code hooks\n  ${productIdentity.cliName} setup codex       Codex needs no setup; shows what Avalok can read\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm without asking (data clearing, setup --apply/--remove)\n  --apply             With 'setup claude': write the hooks after showing the change\n  --remove            With 'setup claude': remove Avalok's hooks\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
 }

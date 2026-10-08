@@ -1,5 +1,7 @@
 # Avalok product and release plan
 
+> **Active priority (2026-10-06):** the free open-source launch, tracked in [OPENSOURCE_LAUNCH_PLAN.md](OPENSOURCE_LAUNCH_PLAN.md). The paid-cloud sections below are paused until real users and design partners ask for them; `avalok-cloud` is paused at C1.
+
 Updated 2026-10-03. This is the working plan for the Apache-licensed local product and a first paid hosted product. Status is based on the code and release records in this repository, not a claim that an unpublished service exists.
 
 ## From the first idea to now

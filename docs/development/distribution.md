@@ -16,12 +16,12 @@ pnpm dist:smoke   # clean temp install + installed-product smoke test
 ## What `dist:build` does
 
 1. Builds `apps/web` with `AVALOK_DASHBOARD_STANDALONE=1` (Next.js `output: "standalone"`) and `NEXT_TELEMETRY_DISABLED=1`. Contributor builds (`pnpm build`, `pnpm dev`) keep the default output.
-2. Copies the standalone server **without** its traced `node_modules`, plus `.next/static` and `public/`, into `dist/dashboard/`, and adds `avalok-launch.cjs` (orphan watchdog, see platform support).
-3. Bundles `packages/cli/src/bin.ts` — CLI, collector, analyzer, adapters, capabilities, protobuf decoder — with esbuild into `dist/lib/cli.mjs`. `next`, `react`, `react-dom`, `typescript`, and `@cdktf/hcl2json` stay external runtime dependencies.
+2. Copies the standalone server, plus `.next/static` and `public/`, into `dist/dashboard/`, and adds `avalok-launch.cjs` (orphan watchdog, see platform support). Next's traced runtime dependencies are shipped as a **flat, real-file** `dist/dashboard/node_modules` (`shipDashboardModules`): pnpm's symlinked virtual store is flattened because npm drops symlinks from tarballs, two traced versions of one package fail the build, and platform-specific binaries (`sharp`/`@img/*`, `@next/swc-*`) are excluded because Avalok does not use `next/image` and the compiler is build-time only.
+3. Bundles `packages/cli/src/bin.ts` — CLI, collector, analyzer, adapters, capabilities, protobuf decoder — with esbuild into `dist/lib/cli.mjs`. Only `typescript` and `@cdktf/hcl2json` stay external runtime dependencies that npm installs.
 4. Writes `dist/bin/avalok.mjs`: a tiny launcher that checks the Node version before loading anything else.
 5. Copies the six allowlisted sample repositories into `dist/samples/` (excluding `node_modules`, virtualenvs, caches, `.env*`).
 6. Generates `dist/package.json` from `packages/cli/product.json` + `packages/cli/package.json#version` + root `engines`, with exact-pinned runtime dependencies and an explicit `files` allowlist (`bin`, `lib`, `dashboard`, `samples`).
-7. **Verifies independence** and fails the build if the manifest uses `workspace:`, the CLI bundle embeds the checkout path, any shipped file loads from the checkout or an internal `@visual-system/*` package at runtime, a symlink is present, or forbidden content (`.env*`, `node_modules`, `.git`, `.agentmap`, coverage, `.turbo`, virtualenvs, Terraform state/vars) is included.
+7. **Verifies independence** and fails the build if the manifest uses `workspace:`, the CLI bundle embeds the checkout path, any shipped file loads from the checkout or an internal `@visual-system/*` package at runtime, a symlink is present, or forbidden content (`.env*`, any `node_modules` other than the flat `dashboard/node_modules`, a `.pnpm` store, `.git`, `.agentmap`, coverage, `.turbo`, virtualenvs, Terraform state/vars) is included.
 
 ## Package identity and version
 
@@ -47,15 +47,14 @@ pnpm dist:smoke   # clean temp install + installed-product smoke test
 
 The CLI locates `dashboard/` and `samples/` relative to its own module file, never `process.cwd()`. The target repository is the cwd or explicit path. The dashboard child receives the target, data root, OTLP port, samples directory, and version through its environment, and is bound to `127.0.0.1` even if the shell exports `HOSTNAME`.
 
-## Size (0.1.0-alpha.0, macOS arm64)
+## Size (0.1.0-alpha.1, macOS arm64, measured 2026-10-06)
 
-| Measure                     | Size                        |
-| --------------------------- | --------------------------- |
-| Packed tarball              | ≈1.8 MB                     |
-| Unpacked package            | ≈6.8 MB                     |
-| Installed with dependencies | ≈353 MB (M7.4A measurement) |
+| Measure                                  | Size                                                         |
+| ---------------------------------------- | ------------------------------------------------------------ |
+| Packed tarball                           | ≈8 MB (was ≈1.9 MB)                                          |
+| Installed with dependencies, clean `npm` | ≈67 MB: Avalok ≈42 MB, `typescript` ≈23 MB (was ≈344-353 MB) |
 
-Almost all installed size is Next.js's own dependency tree: its optional `@next/swc-<platform>` compiler binary (≈139 MB, unused at runtime), `next` itself (≈150 MB), `typescript` (≈23 MB, required by the analyzer), and sharp/libvips (≈18 MB, optional, unused). Vendoring Next's trace-minimized standalone `node_modules` via `bundleDependencies` could cut this substantially. M7.4A re-measured (1.85 MB packed, 7.4 MB unpacked, 353 MB installed: `next` 153 MB, `@next/swc-*` 124 MB, `typescript` 23 MB, sharp/libvips ≈27 MB) and deliberately did not change packaging: the size is acceptable for a developer preview, and correctness and security came first.
+Before L1 the package installed the whole `next` dependency tree (`next` ≈153 MB, the unused `@next/swc-<platform>` compiler binary ≈125 MB, `typescript` ≈23 MB, sharp/libvips ≈18 MB). The dashboard now ships only Next's traced runtime modules (19 packages, `next` ≈28 MB), without the compiler and without sharp. The largest remaining item is `typescript` (needed by the analyzer); bundling its parser into the CLI is a possible follow-up. Linux and Windows sizes are not measured here and CI does not report them yet.
 
 ## Development-only
 

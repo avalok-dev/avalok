@@ -30,7 +30,17 @@ Claude tracing is a Claude Code beta feature and may change. Avalok treats missi
 
 ## Enable hooks
 
-Add the following pattern to project-local `.claude/settings.local.json`. Repeat the same handler for each listed event:
+The easy way is the setup command, run from your project:
+
+```bash
+avalok setup claude            # prints the hooks block; writes nothing
+avalok setup claude --apply    # shows the change, asks to confirm, backs up an existing file, then writes
+avalok setup claude --remove   # removes only Avalok's hook entries
+```
+
+It targets the project-local `.claude/settings.local.json` and never touches `~/.claude`. Other settings and hooks are kept, running it twice changes nothing, an existing file is backed up first (`settings.local.json.avalok-backup-<timestamp>`), a file that is not valid JSON is never edited, and without an interactive terminal `--apply` needs `--yes`. The receiver port follows `--otlp-port`.
+
+Or add the following pattern by hand to project-local `.claude/settings.local.json`. Repeat the same handler for each listed event:
 
 ```json
 {
@@ -82,7 +92,7 @@ Add the following pattern to project-local `.claude/settings.local.json`. Repeat
 }
 ```
 
-This repository does not install hooks automatically because hook scope and privacy are user choices.
+Avalok never installs hooks on its own because hook scope and privacy are user choices; `avalok setup claude --apply` writes only after you confirm.
 
 ## Observable behavior and limits
 

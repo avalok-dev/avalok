@@ -10,7 +10,7 @@ These are real GitHub-hosted runs of `.github/workflows/distribution.yml`; detai
 
 ## Node
 
-Supported: Node `>=24.19.0 <25` (Node 24 LTS line). The installed launcher refuses older versions with a clear message and exit 1 (verified with Node 20.14.0 and 23.9.0). Newer majors print a one-line "newer than tested" warning and run (Node 26.8.1 ran `doctor` successfully). `doctor` reports the same policy. npm itself only warns on `engines`.
+Supported: Node `>=22.12.0` for the installed product, tested on Node 22 LTS (22.23.3, full installed smoke 66/66, 2026-10-06) and Node 24 LTS. The range lives in `packages/cli/product.json#nodeRange` and is separate from the repository's development toolchain pin (Node 24.19, see `toolchain.md`). Odd-numbered and newer majors (for example 23, 25+) run with a warning as untested. The installed launcher refuses older versions with a clear message and exit 1 (verified with Node 20.14.0 earlier; `nodeSupport` unit-tested). Newer majors print a one-line "newer than tested" warning and run (Node 26.8.1 ran `doctor` successfully). `doctor` reports the same policy. npm itself only warns on `engines`.
 
 ## Platform-specific behavior
 

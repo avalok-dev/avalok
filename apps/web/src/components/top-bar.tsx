@@ -62,7 +62,7 @@ export function TopBar({
       </div>
 
       <nav
-        className="absolute left-1/2 flex -translate-x-1/2 items-center rounded-lg border border-white/[0.07] bg-white/[0.025] p-1"
+        className="ml-4 flex items-center rounded-lg border border-white/[0.07] bg-white/[0.025] p-1 xl:absolute xl:left-1/2 xl:ml-0 xl:-translate-x-1/2"
         aria-label="Visualization mode"
       >
         {modes.map(({ id, label, icon: Icon }) => (
