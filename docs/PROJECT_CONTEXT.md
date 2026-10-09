@@ -24,6 +24,8 @@ Avalok ("See your whole system.", https://avalok.dev) was developed under the wo
 
 - **Priority decision (2026-10-06):** the open-source launch track in [OPENSOURCE_LAUNCH_PLAN.md](OPENSOURCE_LAUNCH_PLAN.md) (easy install without the Node 24 pin, agent setup, shareable recap/HTML replay exports, launch assets) is the active work. `avalok-cloud` is paused at C1. The npm name `avalok` holds a `0.0.1` placeholder; the real package is unpublished.
 
+- **Status 2026-10-08:** launch track L0-L3 is merged to `main` (landing without prompts, Node 22 support, 67 MB install, `avalok demo`, `avalok setup claude|codex`, the glow, the `@visual-system/export` package with recap card/diagram/interactive replay/Markdown, `avalok recap`, `avalok wrapped`). Current state, how to test, known gaps and the next tasks (source-agnostic recap/wrapped, then Kiro and Cursor hook sources) are in [HANDOFF.md](HANDOFF.md).
+
 ## Package map
 
 | Area                                  | Responsibility                                                       |

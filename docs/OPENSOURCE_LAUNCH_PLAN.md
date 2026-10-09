@@ -1,6 +1,6 @@
 # Avalok open-source launch plan (free local edition)
 
-Drafted 2026-10-06. This is the working plan for coding agents. It replaces the paid-cloud track as the active priority. **Avalok Cloud is paused** (see [Paused work](#paused-work)). Goal: a stranger can run one command, see something real in under a minute, produce an artifact worth sharing, and want to tell someone, all locally with no account.
+Drafted 2026-10-06. **Progress 2026-10-08: L0, L1, L2 and L3 are done and merged to `main`; see [HANDOFF.md](HANDOFF.md) for the current state, next tasks and how to test.** This is the working plan for coding agents. It replaces the paid-cloud track as the active priority. **Avalok Cloud is paused** (see [Paused work](#paused-work)). Goal: a stranger can run one command, see something real in under a minute, produce an artifact worth sharing, and want to tell someone, all locally with no account.
 
 Read `AGENTS.md` and `docs/PROJECT_CONTEXT.md` first. Every invariant there still applies. This plan adds work; it does not relax any rule.
 
@@ -201,6 +201,14 @@ Success bar for the first month (guides, not guarantees): several hundred GitHub
 Free forever (local, one person, one machine): the map, replay, findings, all exports in L3, the setup helpers, unlimited local runs, all adapters.
 
 Later and paid (only after users ask and a buyer is validated; none of it is part of this track): hosted history across machines, private share links with access control, team dashboards, persistent alerts, the PR bot with organization policy, SSO/RBAC/audit/retention controls, cross-team cost analytics, live cloud or cluster connections. See `docs/PRODUCT_PLAN.md` and the paused cloud plan.
+
+## Backlog added 2026-10-08
+
+Details, ordering and research sources are in [HANDOFF.md](HANDOFF.md) (next tasks 1 and 3).
+
+- **Before launch (recommended):** make `recap`, `wrapped` and the landing read every stored source (Claude Code hooks, OTLP), not only Codex files.
+- **After launch:** a shared, non-blocking `avalok hook` forwarder, then **Kiro** (CLI first) and **Cursor** (IDE first) as hook-based sources with `avalok setup kiro` / `avalok setup cursor`; capture real hook payloads from the maintainer's machine before writing normalizers. Then optionally `avalok run -- <command>` to point an app's OpenTelemetry at the local collector.
+- **Decision:** the live, local view tied to the repository's architecture is the wedge; do not try to become Langfuse. A hosted or team tier stays the paid product.
 
 ## Paused work
 
