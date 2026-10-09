@@ -3,7 +3,7 @@
 ## Start here
 
 - Avalok (formerly the working name AgentMap, then briefly Sarvadrik) is a pnpm/Turborepo monorepo. Milestones 1-6 and M7.1–M7.4C are complete; extend the existing system rather than rebuilding it.
-- The active work plan is `docs/OPENSOURCE_LAUNCH_PLAN.md` (free local edition launch track L0-L6). Avalok Cloud is paused; do not extend it.
+- Start with `docs/HANDOFF.md` (current state, how to test, next tasks). The active work plan is `docs/OPENSOURCE_LAUNCH_PLAN.md` (free local edition launch track L0-L6). Avalok Cloud is paused; do not extend it.
 - Read `docs/PROJECT_CONTEXT.md` before architecture, milestone, or cross-package work. Read only the narrower architecture document needed for the task.
 - Respect more-specific `AGENTS.md` files under `apps/web`, `packages/analyzer`, and `packages/reconcile`.
 - Preserve the established UI and all Demo and local Codex-session behavior unless the user explicitly requests a redesign or breaking change.
