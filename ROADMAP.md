@@ -10,7 +10,7 @@ Avalok is a developer preview. This page says what is planned, what is being con
 
 ## Next (if people use it)
 
-- More agent sources through hooks: **Kiro** (CLI first) and **Cursor** (IDE first). These need real hook payloads captured from real installs before any code is written.
+- More agent sources through hooks: **Kiro** (CLI first) and **Cursor** (IDE first). A local forwarder and a capture guide exist; normalizers wait for real hook payloads captured from real installs.
 - Insights on a session: what depends on the parts that changed, touched-but-not-tested files, and flags for sensitive areas (auth, payments, infrastructure, config). Each will cite its evidence.
 - `avalok run -- <command>`: start an app with OpenTelemetry pointed at Avalok. Only useful for apps that already have OpenTelemetry instrumentation.
 - A GitHub Action that posts the Markdown recap on a pull request.

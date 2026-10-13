@@ -803,6 +803,27 @@ try {
       { "Content-Type": "application/json" },
     ],
     [
+      "agent hook route rejects text/plain",
+      `${otlp}/v1/hooks/cursor`,
+      { method: "POST", body: "{}" },
+      415,
+      { "Content-Type": "text/plain" },
+    ],
+    [
+      "agent hook route rejects a foreign Origin",
+      `${otlp}/v1/hooks/kiro`,
+      { method: "POST", body: "{}" },
+      403,
+      { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    ],
+    [
+      "agent hook route does not know other tools",
+      `${otlp}/v1/hooks/claude`,
+      { method: "POST", body: "{}" },
+      404,
+      { "Content-Type": "application/json" },
+    ],
+    [
       "test trace rejects a bodiless simple POST",
       `${otlp}/v1/avalok/test-trace`,
       { method: "POST" },
@@ -821,6 +842,45 @@ try {
     const status = await raw(url, { ...init, headers });
     check(`security: ${name}`, status === expected, `HTTP ${status}`);
   }
+
+  // The forwarder an agent's hook runs: silent, exit 0, and the running collector receives it.
+  const hookEvent = JSON.stringify({ hook_event_name: "postToolUse", tool_name: "shell" });
+  const hookStarted = Date.now();
+  const forwarded = runSync(
+    process.execPath,
+    [bin, "hook", "cursor", "--otlp-port", String(ports.otlp)],
+    { input: hookEvent, env: environment },
+  );
+  const hookMs = Date.now() - hookStarted;
+  const hookHealth = await json(`${otlp}/health`);
+  check(
+    "avalok hook delivers to the collector, silently, with exit 0",
+    forwarded.status === 0 &&
+      forwarded.stdout === "" &&
+      forwarded.stderr === "" &&
+      hookHealth.body.hooks?.cursor?.received === 1,
+    `${hookMs} ms`,
+  );
+  const hookNoCollector = runSync(process.execPath, [bin, "hook", "kiro", "--otlp-port", "1"], {
+    input: hookEvent,
+    env: environment,
+  });
+  check(
+    "avalok hook exits 0 and prints nothing when Avalok is not running",
+    hookNoCollector.status === 0 && hookNoCollector.stdout === "" && hookNoCollector.stderr === "",
+  );
+  const launcherText = readFileSync(bin, "utf8");
+  check(
+    "the launcher runs hooks before the Node version check, so they cannot fail",
+    launcherText.indexOf('process.argv[2] === "hook"') !== -1 &&
+      launcherText.indexOf('process.argv[2] === "hook"') < launcherText.indexOf("nodeSupport("),
+  );
+  check(
+    "avalok runs stay unaffected by hook events (nothing stored)",
+    (await json(`${dashboard}/api/runtime/runs`)).body.runs.every(
+      (run) => run.source !== "kiro" && run.source !== "cursor",
+    ),
+  );
 
   const unsupported = await fetch(`${otlp}/v1/traces`, {
     method: "POST",

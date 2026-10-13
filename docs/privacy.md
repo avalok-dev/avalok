@@ -25,6 +25,7 @@ Only its own data, in your platform's user-data directory:
 | Windows  | `%LOCALAPPDATA%\Avalok`                            |
 
 - `runtime/`: normalized runs from received OpenTelemetry traces and Claude Code hooks. Before anything is stored, secret-named fields (authorization, cookies, API keys, tokens, passwords, private keys, credentials, connection strings) are replaced with `[REDACTED]`, and long values are truncated.
+- `captures/` (only if you opt in): events saved by `avalok hook <tool> --capture` so the format of an agent's hook events can be studied. The default keeps field names and value types, not content; `--capture-raw` keeps events as received, which can include prompts, commands, file contents and paths. Never created unless you pass the flag; removed by `avalok data clear`. See [hook capture](development/hook-capture.md).
 - `settings.json`: UI preferences (for example, whether Getting Started was dismissed).
 - `migration.json`: a record of the one-time copy of data from the product's former AgentMap development locations ([details](development/data-migration.md)).
 
@@ -37,7 +38,7 @@ avalok data path          # show the directory
 avalok data clear         # delete Avalok's runs and settings (asks first)
 ```
 
-`data clear` deletes only Avalok's `runtime/` and `settings.json`. Uninstalling the package does not remove this directory; clear it first if you want it gone.
+`data clear` deletes only Avalok's `runtime/`, `captures/` and `settings.json`. Uninstalling the package does not remove this directory; clear it first if you want it gone.
 
 ## Network
 

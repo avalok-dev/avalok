@@ -221,6 +221,80 @@ describe("Claude hook browser protection", () => {
   });
 });
 
+describe("agent hook forwarder route (Kiro, Cursor)", () => {
+  const event = JSON.stringify({ hook_event_name: "postToolUse", tool_name: "shell" });
+  const post = (port: number, path: string, extra: Parameters<typeof send>[2] = {}) =>
+    send(port, path, { method: "POST", headers: json, body: event, ...extra });
+  const health = async (port: number) =>
+    JSON.parse((await send(port, "/health")).body) as {
+      hooks: Record<string, { received: number; errors: number }>;
+    };
+
+  it.each(["kiro", "cursor"])(
+    "acknowledges a %s event with an empty answer and stores nothing",
+    async (tool) => {
+      const { port, store } = await collector();
+      const response = await post(port, `/v1/hooks/${tool}`);
+      expect(response.status).toBe(200);
+      // Nothing a hook runner could read as allow, deny, ask or extra context.
+      expect(JSON.parse(response.body)).toEqual({});
+      expect(await store.list()).toHaveLength(0);
+      expect((await health(port)).hooks[tool]).toMatchObject({ received: 1, errors: 0 });
+    },
+  );
+
+  it.each(["claude", "codex", "KIRO", "../cursor", ""])(
+    "does not know the tool %j",
+    async (tool) => {
+      const { port } = await collector();
+      expect((await post(port, `/v1/hooks/${tool}`)).status).toBe(404);
+    },
+  );
+
+  it("answers only POST", async () => {
+    const { port } = await collector();
+    expect((await send(port, "/v1/hooks/cursor")).status).toBe(404);
+  });
+
+  it.each(["text/plain", "application/x-www-form-urlencoded", "multipart/form-data; boundary=x"])(
+    "rejects the CORS-simple content type %s",
+    async (type) => {
+      const { port } = await collector();
+      const response = await post(port, "/v1/hooks/cursor", { headers: { "Content-Type": type } });
+      expect(response.status).toBe(415);
+      expect((await health(port)).hooks.cursor).toMatchObject({ received: 0, errors: 1 });
+    },
+  );
+
+  it.each(["https://attacker.example", "null", "http://localhost:5173"])(
+    "rejects a browser Origin %s even with JSON",
+    async (origin) => {
+      const { port } = await collector();
+      const response = await post(port, "/v1/hooks/kiro", {
+        headers: { ...json, Origin: origin },
+      });
+      expect(response.status).toBe(403);
+      expect((await health(port)).hooks.kiro!.received).toBe(0);
+    },
+  );
+
+  it("rejects a rebound Host", async () => {
+    const { port } = await collector();
+    const response = await post(port, "/v1/hooks/cursor", { host: `attacker.example:${port}` });
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects malformed JSON and oversized bodies", async () => {
+    const { port } = await collector({ maxHookBodyBytes: 256 });
+    expect((await post(port, "/v1/hooks/cursor", { body: "{not json" })).status).toBe(400);
+    expect(
+      (await post(port, "/v1/hooks/cursor", { body: JSON.stringify({ pad: "x".repeat(1_000) }) }))
+        .status,
+    ).toBe(413);
+    expect((await health(port)).hooks.cursor).toMatchObject({ received: 0, errors: 2 });
+  });
+});
+
 describe("synthetic test-trace protection", () => {
   it("accepts the dashboard's server-side request (JSON, no Origin)", async () => {
     const { port, store } = await collector();

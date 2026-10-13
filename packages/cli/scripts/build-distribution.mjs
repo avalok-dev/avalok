@@ -236,6 +236,12 @@ async function bundleCli() {
     },
   });
   cliInputs = Object.keys(cli.metafile.inputs).map((input) => resolve(process.cwd(), input));
+  // `avalok hook ...` runs on every agent event, so it gets its own tiny bundle (Node built-ins only).
+  await esbuild.build({
+    ...common,
+    entryPoints: [join(cliRoot, "src", "hook-entry.ts")],
+    outfile: join(output, "lib", "hook.mjs"),
+  });
   // The launcher loads this before anything else, so keep it tiny and syntax-conservative.
   await esbuild.build({
     ...common,
@@ -253,6 +259,18 @@ function writeLauncher() {
     launcher,
     `#!/usr/bin/env node
 import { nodeSupport, supportedNodeRange, testedNodeLines } from "../lib/node-support.mjs";
+
+// Agent hooks: run first and never fail. Whatever happens (an unsupported Node, a missing file),
+// exit 0 and print nothing, so Avalok cannot disturb the agent that started it.
+if (process.argv[2] === "hook") {
+  try {
+    const { main } = await import("../lib/hook.mjs");
+    await main(process.argv.slice(3));
+  } catch {
+    // Nothing to report: hooks are silent by design.
+  }
+  process.exit(0);
+}
 
 const support = nodeSupport(process.versions.node);
 if (support === "unsupported") {

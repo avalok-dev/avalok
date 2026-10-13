@@ -7,6 +7,7 @@ import { maybeOpenBrowser, startAvalok, startupSummary } from "./orchestrator.ts
 import { StartupError, resolveTarget } from "./system.ts";
 import { runSetupClaude } from "./setup-claude.ts";
 import { runFeedback } from "./feedback.ts";
+import { hookMain } from "./hook.ts";
 import { runRecap } from "./recap.ts";
 import { runWrapped } from "./wrapped.ts";
 import { createInterface } from "node:readline/promises";
@@ -20,6 +21,8 @@ export async function runCli(
   output: Pick<NodeJS.WriteStream, "write"> = process.stdout,
   errorOutput: Pick<NodeJS.WriteStream, "write"> = process.stderr,
 ) {
+  // The agent hook forwarder: before option parsing, silent, and always 0 (see hook.ts).
+  if (arguments_[0] === "hook") return hookMain(arguments_.slice(1));
   const options = parseCliOptions(arguments_);
   if (options.help) {
     output.write(helpText());

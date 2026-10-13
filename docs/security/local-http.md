@@ -2,11 +2,11 @@
 
 Avalok runs two HTTP servers on the user's machine:
 
-| Server    | Default                | Serves                                                                         |
-| --------- | ---------------------- | ------------------------------------------------------------------------------ |
-| Dashboard | `127.0.0.1:4737` (CLI) | UI, `/api/*` (repository analysis, Codex sessions, runtime runs, settings)     |
-|           | `127.0.0.1:3000` (dev) |                                                                                |
-| Collector | `127.0.0.1:4318`       | OTLP/HTTP `/v1/traces`, Claude hooks `/v1/claude/hooks`, test trace, `/health` |
+| Server    | Default                | Serves                                                                                                         |
+| --------- | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Dashboard | `127.0.0.1:4737` (CLI) | UI, `/api/*` (repository analysis, Codex sessions, runtime runs, settings)                                     |
+|           | `127.0.0.1:3000` (dev) |                                                                                                                |
+| Collector | `127.0.0.1:4318`       | OTLP/HTTP `/v1/traces`, Claude hooks `/v1/claude/hooks`, agent hooks `/v1/hooks/<tool>`, test trace, `/health` |
 
 Both bind to loopback only. **That is not enough on its own.** Any web page open in the user's browser can send requests to `127.0.0.1`, and DNS rebinding can make a foreign hostname resolve to `127.0.0.1` so a page can _read_ responses. Avalok therefore treats every browser-controlled input as untrusted: `Host`, `Origin`, `Content-Type`, path, query, headers, and bodies.
 
@@ -25,11 +25,11 @@ This check is what stops DNS rebinding. A rebound page sends `Host: attacker.exa
 
 ### Origin
 
-| Where                                                 | Missing Origin | Same loopback server | Other loopback port | Foreign / `null` |
-| ----------------------------------------------------- | -------------- | -------------------- | ------------------- | ---------------- |
-| Dashboard, every path and method                      | allowed        | allowed              | 403                 | 403              |
-| Collector `/v1/claude/hooks`, `/v1/avalok/test-trace` | allowed        | 403                  | 403                 | 403              |
-| Collector `/v1/traces`, `/health`                     | allowed        | allowed              | allowed             | 403              |
+| Where                                                                     | Missing Origin | Same loopback server | Other loopback port | Foreign / `null` |
+| ------------------------------------------------------------------------- | -------------- | -------------------- | ------------------- | ---------------- |
+| Dashboard, every path and method                                          | allowed        | allowed              | 403                 | 403              |
+| Collector `/v1/claude/hooks`, `/v1/hooks/<tool>`, `/v1/avalok/test-trace` | allowed        | 403                  | 403                 | 403              |
+| Collector `/v1/traces`, `/health`                                         | allowed        | allowed              | allowed             | 403              |
 
 - "Same loopback server" means `http://` plus an allowed loopback hostname plus the dashboard's own port. `http://localhost:4737` and `http://127.0.0.1:4737` are both the same Avalok dashboard; `https://127.0.0.1:4737` is not.
 - **Missing Origin is allowed.** Browsers send `Origin` on every `POST` (and on cross-origin `fetch`), so the browser threat always carries one. Clients that omit it are the CLI, curl, OTLP exporters, and Claude Code. Those are local programs, which this layer does not try to stop (see the [threat model](threat-model.md)). Requiring Origin would break OTLP exporters and Claude Code without adding protection.
@@ -42,7 +42,7 @@ This check is what stops DNS rebinding. A rebound page sends `Host: attacker.exa
 | Route                                               | Accepted                                                             | Otherwise |
 | --------------------------------------------------- | -------------------------------------------------------------------- | --------- |
 | Dashboard `/api/*` mutations (non-GET/HEAD/OPTIONS) | `application/json` (parameters allowed)                              | 415       |
-| Collector `/v1/claude/hooks`                        | `application/json`                                                   | 415       |
+| Collector `/v1/claude/hooks`, `/v1/hooks/<tool>`    | `application/json`                                                   | 415       |
 | Collector `/v1/avalok/test-trace`                   | `application/json` (body ignored, ≤ 16 KiB)                          | 415       |
 | Collector `/v1/traces`                              | `application/json`, `application/x-protobuf`, `application/protobuf` | 415       |
 
@@ -87,3 +87,9 @@ Other dashboard routes are GET-only and read no body. The 5 MiB limit matches co
 - Unit/integration: `packages/local-security/tests`, `apps/collector/tests/security.test.ts`, `apps/web/tests/request-guard.test.ts`.
 - Packaged product: `pnpm dist:smoke` (and `pnpm release:build`) run 17 `security:` checks against the installed production servers.
 - Manual commands: [`docs/architecture/milestone-7-4a.md`](../architecture/milestone-7-4a.md#manual-verification).
+
+## Agent hook forwarder (`/v1/hooks/<tool>`)
+
+`avalok hook <tool>` is the command that Kiro or Cursor runs for an event. It posts the event as JSON to `http://127.0.0.1:<port>/v1/hooks/<tool>`, where `<tool>` is `kiro` or `cursor` (any other name is `404`). The route follows the Claude hook rules above: Host must be loopback, any `Origin` is rejected, only `application/json` is accepted, and the body is bounded. It answers `{}`: never an allow, deny or ask decision and no text an agent could add to its context. Today the collector only counts these events (see `hooks` in `/health`) and **stores nothing**, because the event formats have not been captured yet.
+
+The forwarder itself always exits 0 and prints nothing to stdout or stderr, gives up after short deadlines, and contacts only `127.0.0.1`. See [hook capture](../development/hook-capture.md).

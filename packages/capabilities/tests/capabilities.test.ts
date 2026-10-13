@@ -240,6 +240,18 @@ describe("Avalok-owned data", () => {
     expect(await readFile(join(external, "codex-session.jsonl"), "utf8")).toBe("keep\n");
   });
 
+  it("also clears hook captures, and only inside the data root", async () => {
+    const root = await mkdtemp(join(tmpdir(), "avalok-clear-captures-"));
+    const external = await mkdtemp(join(tmpdir(), "avalok-external-"));
+    const paths = pathsFor(root);
+    await mkdir(join(root, "captures"), { recursive: true });
+    await writeFile(join(root, "captures", "cursor.jsonl"), "{}\n");
+    await writeFile(join(external, "captures"), "keep\n");
+    await clearAvalokData(paths);
+    await expect(readFile(join(root, "captures", "cursor.jsonl"), "utf8")).rejects.toThrow();
+    expect(await readFile(join(external, "captures"), "utf8")).toBe("keep\n");
+  });
+
   it("reports an invalid data root as unwritable", async () => {
     const root = await mkdtemp(join(tmpdir(), "avalok-unwritable-"));
     const file = join(root, "file");

@@ -80,6 +80,16 @@ export function otlpEncoding(contentType: string | undefined) {
 const programmaticRoutes = new Set(["/v1/claude/hooks", "/v1/avalok/test-trace"]);
 
 /**
+ * Agent hook forwarders (`avalok hook <tool>`) post here. Programmatic like the Claude route:
+ * non-browser clients only. The tools are listed here, not taken from the URL.
+ */
+const hookToolNames = ["kiro", "cursor"] as const;
+type HookToolName = (typeof hookToolNames)[number];
+const hookRoutePrefix = "/v1/hooks/";
+const isProgrammaticRoute = (pathname: string) =>
+  programmaticRoutes.has(pathname) || pathname.startsWith(hookRoutePrefix);
+
+/**
  * Browser-abuse checks that run before any route. See docs/security/local-http.md.
  *
  * - Host must name this loopback server on the port the connection actually arrived on, which
@@ -99,7 +109,7 @@ export function guardCollectorRequest(
   )
     return forbiddenHost;
   if (request.origin !== undefined) {
-    if (programmaticRoutes.has(pathname)) return forbiddenOrigin;
+    if (isProgrammaticRoute(pathname)) return forbiddenOrigin;
     if (!isAllowedLoopbackOrigin(request.origin, { port: "any" })) return forbiddenOrigin;
   }
   return allowed;
@@ -174,6 +184,14 @@ export function createCollectorServer(options: CollectorOptions = {}) {
     liveStatus: "listening" as const,
     lastReceivedAt: undefined as string | undefined,
   };
+  // Kiro and Cursor events are acknowledged and counted but not stored: their event formats are
+  // not captured yet, and nothing is persisted from a format that has not been verified.
+  const hookDiagnostics = Object.fromEntries(
+    hookToolNames.map((tool) => [
+      tool,
+      { received: 0, errors: 0, lastReceivedAt: undefined as string | undefined },
+    ]),
+  ) as Record<HookToolName, { received: number; errors: number; lastReceivedAt?: string }>;
   const ingest = async (payload: unknown) => {
     const parsed = parseOtlpJson(payload);
     diagnostics.spansReceived += parsed.spans.length + parsed.malformed;
@@ -216,7 +234,12 @@ export function createCollectorServer(options: CollectorOptions = {}) {
         return;
       }
       if (request.method === "GET" && url.pathname === "/health") {
-        json(response, 200, { status: "ok", diagnostics, claude: claudeDiagnostics });
+        json(response, 200, {
+          status: "ok",
+          diagnostics,
+          claude: claudeDiagnostics,
+          hooks: hookDiagnostics,
+        });
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/traces") {
@@ -338,6 +361,36 @@ export function createCollectorServer(options: CollectorOptions = {}) {
           });
           return;
         }
+      }
+      if (url.pathname.startsWith(hookRoutePrefix)) {
+        const tool = hookToolNames.find((name) => `${hookRoutePrefix}${name}` === url.pathname);
+        if (request.method !== "POST" || !tool) {
+          json(response, 404, { error: "Not found." });
+          return;
+        }
+        const counters = hookDiagnostics[tool];
+        // Same rule as the Claude route: JSON only, so a web page cannot forge an event with a
+        // CORS-simple request.
+        if (!isJsonMediaType(request.headers["content-type"])) {
+          counters.errors += 1;
+          const rejected = unsupportedMediaType("application/json");
+          json(response, rejected.status, { error: rejected.error });
+          return;
+        }
+        try {
+          const body = await readBody(request, hookMaximum);
+          JSON.parse(body.toString("utf8"));
+          counters.received += 1;
+          counters.lastReceivedAt = new Date().toISOString();
+          // No decision, no content: an empty object, so nothing here can be read as allow or deny.
+          json(response, 200, {});
+        } catch (error) {
+          counters.errors += 1;
+          json(response, error instanceof RangeError ? 413 : 400, {
+            error: error instanceof RangeError ? error.message : "Malformed hook JSON payload.",
+          });
+        }
+        return;
       }
       json(response, 404, { error: "Not found." });
     } catch (error) {

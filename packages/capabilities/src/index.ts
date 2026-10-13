@@ -129,9 +129,12 @@ export async function clearAvalokData(paths = avalokDataPaths(), home = homedir(
     !safeOwnedPath(paths.settings, paths)
   )
     throw new Error("Refusing to clear data outside the Avalok data directory.");
+  // Hook captures (`avalok hook <tool> --capture`) hold real agent events; they go too.
+  const captures = resolve(root, "captures");
   await Promise.all([
     rm(paths.runtime, { recursive: true, force: true }),
     rm(paths.settings, { force: true }),
+    safeOwnedPath(captures, paths) ? rm(captures, { recursive: true, force: true }) : undefined,
   ]);
 }
 
