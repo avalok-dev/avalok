@@ -1,50 +1,75 @@
 # Avalok
 
-**See your whole system.**
+**Watch what your coding agent just did to your architecture, then share the recap.**
 
-Avalok is a local-first visual system for understanding how your code, infrastructure, agents, and runtime connect and execute. It maps your repository's architecture statically, then overlays what actually ran: coding-agent sessions, OpenTelemetry traces, and agent tool calls, all on one canvas on your machine.
+Avalok is a local-first dashboard. It maps your repository's architecture (services, datastores, infrastructure), then overlays what your coding agent actually did: which parts it touched, what it ran, where it spent time and what failed. One command, no account, nothing leaves your machine.
+
+<!-- Demo GIF goes here: docs/assets/avalok-demo.gif. The maintainer records it; the script is docs/launch/demo-recording.md. -->
 
 ![Avalok showing the architecture of a sample platform: services, datastores, and AWS/Kubernetes deployment configuration on one canvas](docs/assets/avalok-overview.png)
 
-> **Developer preview (`0.1.0-alpha.1`).** Avalok is not published to npm yet. The Quick Start shows the command that will work after publication and how to try the release candidate today.
+> **Developer preview (`0.1.0-alpha.1`).** Avalok is not published to npm yet, so `npx avalok` does not work today. [Try the release candidate](#try-it-today) from a clone.
 
-## Quick Start
+## The loop
 
-Requires Node.js **22.12 or newer** (tested on Node 22 LTS and Node 24 LTS). Building from a clone needs Node 24.19 (see [CONTRIBUTING](CONTRIBUTING.md)).
+1. **Run Avalok in a repository** while Claude Code or Codex works (or after it finishes): `npx avalok`.
+2. **See where the agent went.** The map shows which services, files and infrastructure it touched, and the session opens straight away if one ran in this repository.
+3. **Share the recap.** One click (or `avalok recap`) produces a card, an interactive replay, a diagram or a Markdown block for your pull request. You review it first; nothing is uploaded.
 
-**After publication** (not available yet):
+## Quick start
+
+Requires Node.js **22.12 or newer** (tested on Node 22 LTS and Node 24 LTS).
 
 ```sh
-npx avalok            # analyze the current directory and open the dashboard
-# or
-npm install -g avalok
-avalok .
+npx avalok          # in your repository: map it and open the dashboard
 ```
 
-**Today: build and try the release candidate** from a clone of this repository (needs pnpm 11.19):
+That is all for Codex: Avalok reads its session files read-only. For Claude Code, run `avalok setup claude` once (it prints the settings and writes nothing; `--apply` adds them after you confirm). No agent handy? `avalok demo` opens a built-in demo.
+
+```sh
+avalok recap        # Markdown summary of the newest agent session in this repo (paste into a PR)
+avalok wrapped      # your agent week as a card (counts only)
+avalok doctor       # check the setup without starting anything
+avalok feedback     # print a prefilled GitHub issue link (nothing is sent)
+```
+
+Avalok starts a dashboard at `http://127.0.0.1:4737` and a local receiver at `http://127.0.0.1:4318`, and opens your browser. Press Ctrl+C to stop.
+
+### Try it today
+
+Avalok is not on npm yet. Build the release candidate from a clone (needs Node 24.19 and pnpm 11.19, see [CONTRIBUTING](CONTRIBUTING.md)):
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm release:build --skip-smoke          # → artifacts/release/avalok-0.1.0-alpha.1.tgz
+pnpm release:build --skip-smoke          # -> artifacts/release/avalok-0.1.0-alpha.1.tgz
 npm install -g ./artifacts/release/avalok-0.1.0-alpha.1.tgz
 cd /path/to/your/repository
-avalok .
+avalok
 ```
 
-Avalok analyzes the repository, starts a dashboard at `http://127.0.0.1:4737` and a local OTLP receiver at `http://127.0.0.1:4318`, and opens your browser. If a local Codex or Claude Code session ran in this repository, the newest one opens straight away over the architecture map; otherwise you see the map and a list of sessions to pick from. Avalok asks for no permission and sends nothing anywhere. Press Ctrl+C to stop.
+## What it is, and what it is not
 
-No repository or agent session handy? `avalok demo` opens the built-in demo.
+**It is** a local view of your repository's detected architecture with your agent's observed activity on top, and a way to turn a session into something you can share. Every element carries evidence and a confidence level; Avalok says "detected", "observed" and "inferred", and does not claim to understand your whole system.
+
+**It is not** a hosted observability platform. There are no accounts, teams, stored history across machines, prompt management or evals, and no cloud or cluster connection. It does not run, build or install anything from your repository, does not call an LLM, and does not block or change what your agent does. It reads what already exists on your machine.
+
+## Privacy, and how to check it
+
+- Everything runs on your machine. The dashboard and receiver bind to `127.0.0.1` only.
+- No Avalok cloud service, account, analytics, crash reporting or update check.
+- Repository analysis never executes your code, never uploads source, never calls an LLM.
+- Exports never include prompts, run titles, commands, file paths or secret-looking values, and you see a preview before anything is saved.
+
+Check it yourself rather than taking our word:
 
 ```sh
-avalok demo           # open the built-in demo
-avalok doctor         # check the setup without starting anything
-avalok --help
-avalok data path      # where Avalok keeps its own data
-avalok data clear     # delete Avalok's runs and settings
-avalok recap          # summarize the newest agent session in this repository
+avalok demo --no-open &          # then, on macOS or Linux:
+lsof -nP -iTCP -sTCP:LISTEN | grep -E ":(4737|4318)"     # both show 127.0.0.1, not * or 0.0.0.0
 ```
 
-## What Avalok sees
+Outbound connections were also measured before release and none to a non-loopback host were attempted ([how](docs/privacy.md)). The code is open (Apache-2.0). Details: [Privacy](docs/privacy.md) · [Security](SECURITY.md) · [Local HTTP security](docs/security/local-http.md) · [Threat model](docs/security/threat-model.md).
+
+## How it works in depth
 
 | Layer              | How                                                                                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
@@ -111,7 +136,7 @@ Avalok observes Claude Code through two supported interfaces, both opt-in:
 
 Hooks are observational only; Avalok never blocks or changes Claude Code. Full configuration: [docs/architecture/claude-code.md](docs/architecture/claude-code.md).
 
-## Share what your agent did
+## Share what your agent did (details)
 
 Everything below is generated on your machine from local data: Codex session files and the Claude Code and OpenTelemetry runs Avalok stored. You review it before sharing; nothing is uploaded.
 
@@ -130,14 +155,9 @@ avalok wrapped                                # your agent week as a card -> ava
 
 Add `--anonymize` to replace names with generic labels, `--no-brand` to drop the "Made with Avalok" footer, and `--force` to overwrite an existing file. Prompts, run titles, commands and file paths are never included, and secret-looking values are hidden. Names of system parts are included by default, so read the preview. Counts only cover steps Avalok actually observed; anything it could not observe (such as cost) is listed as not observed rather than estimated.
 
-## Privacy and local-first
+## Where Avalok keeps its data
 
-- Everything runs on your machine. The dashboard and receiver bind to `127.0.0.1` only.
-- There is no Avalok cloud service, account, analytics, crash reporting, or update check.
-- Repository analysis never executes your code, never uploads source, and never calls an LLM.
-- Avalok keeps only its own observed runs and UI settings, in your platform's user-data directory; `avalok data clear` removes them.
-
-Details: [Privacy](docs/privacy.md) · [Security](SECURITY.md) · [Local HTTP security](docs/security/local-http.md) · [Threat model](docs/security/threat-model.md)
+Only its own observed runs and UI settings, in your platform's user-data directory (`avalok data path` shows it). `avalok data clear` removes them. Avalok never writes to your repository or to Codex's or Claude Code's directories.
 
 ## Current limitations
 
@@ -163,11 +183,15 @@ The codebase is a pnpm/Turborepo monorepo. See [CONTRIBUTING.md](CONTRIBUTING.md
 
 ## Contributing
 
-Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, and report security issues as described in [SECURITY.md](SECURITY.md) rather than in public issues.
+Issues and pull requests are welcome; see the [roadmap](ROADMAP.md) for what is planned and what is not. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, and report security issues as described in [SECURITY.md](SECURITY.md) rather than in public issues.
 
 ## Why "Avalok"?
 
 Avalok (AH-va-lok) comes from the Sanskrit _avaloka_, "looking upon" or "observing": a fitting name for a tool that lets you look at your code, infrastructure, agents, and runtime in one view.
+
+## Trademark
+
+The Avalok name and logo are not licensed under Apache-2.0. You may use the code freely under the license; please do not use the name or logo in a way that suggests your fork or product is the official Avalok.
 
 ## License
 

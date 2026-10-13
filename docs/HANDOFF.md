@@ -41,6 +41,7 @@ Manual checks worth repeating before launch: open the dashboard in a repository 
 
 ## Known gaps (not done or not verified)
 
+- L5 agent-doable items are done on branch `l5-launch-assets` (README rewrite, `docs/launch/`, ROADMAP, labels list, `avalok feedback`, demo and user-test scripts); the maintainer-only items below remain. Found while preparing the demo, not fixed: (1) Claude Code sessions never count test runs (only the Codex adapter classifies test commands), so recaps show 0; (2) a session that fails a step and then recovers is headlined "ended with an error"; (3) the dashboard flashes the built-in demo before landing on the newest session.
 - Task 1 (source-agnostic recap, wrapped and landing) is implemented on branch `source-agnostic-recap` (PR pending). Not verified on a full real Claude Code session: the maintainer's store holds only single-event Claude runs. Kiro and Cursor will arrive as new `SessionSource` entries (`packages/cli/src/session-source.ts`).
 - "System parts touched" in the recap is covered by an integration test through the real reconciliation, but has **not** been seen on a real session that edited service code (none of the sessions scanned edited recognized services). Worth one real check.
 - PNG export is browser-only by design (no Node rasterizer). The Share preview is small for very large repositories. The GitHub Action PR bot and hosted links are post-launch or paid.
@@ -57,7 +58,7 @@ Goal: any source Avalok has stored (Claude Code hooks, OTLP, future Kiro/Cursor)
 - Repository matching for stored runs: Claude hook runs carry `cwd`; OTLP runs may not, so they are only chosen by explicit `--session <id>`.
 - Acceptance: tests with injected sources (a Claude-style stored run is recapped and appears in `wrapped`); the CLI and dashboard agree on which session is "latest"; no behavior change for Codex; leak tests still pass for the new source.
 
-### 2. Launch assets and testing (L5, L6 in the plan)
+### 2. Launch assets and testing (L5 drafted, L6 next)
 
 README rewrite around the one loop; launch drafts (Show HN, X, Reddit); demo GIF (maintainer records it; the replay page is the best asset); a user-test script and 10 real users. Detail in [OPENSOURCE_LAUNCH_PLAN.md](OPENSOURCE_LAUNCH_PLAN.md).
 

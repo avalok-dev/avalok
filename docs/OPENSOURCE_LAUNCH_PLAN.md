@@ -160,12 +160,12 @@ Goal: turn the one-time wow into a habit. Still local, still evidence-based, sti
 
 Agent-doable:
 
-- [ ] Rewrite the root README around the one loop. Lead with the demo GIF placeholder, a 3-line quick start, a short "what it is / what it is not", the privacy promise (with how to verify it), and the supported-sources table lower down.
-- [ ] `docs/launch/` drafts: Show HN post, X thread, Reddit posts (r/ClaudeAI, r/ChatGPTCoding), a short blog post ("What 100 agent sessions did to my codebase" outline), newsletter pitch, FAQ ("Why local?", "How is this different from Langfuse/Phoenix/diagram tools?", "Does it send my code anywhere?"). Honest comparisons only; no unverifiable claims.
-- [ ] Issue templates and labels (`good first issue`, `adapter`, `analyzer`, `docs`), a `ROADMAP.md` that names what is planned and what is not, a short `CODE_OF_CONDUCT` only if the maintainer provides a contact.
-- [ ] Trademark note in the README (Avalok name and logo are not licensed by Apache-2.0) and a lightweight contribution sign-off policy (DCO) in `CONTRIBUTING.md`, pending maintainer choice.
-- [ ] A scripted demo recording plan (exact commands, a fixture repo, a scripted session) so the GIF is reproducible.
-- [ ] A user-test script (below) and a feedback path that needs no telemetry: `avalok feedback` prints or opens a prefilled GitHub issue link; nothing is sent by the tool.
+- [x] (drafted 2026-10-12, maintainer review pending) Rewrite the root README around the one loop. Lead with the demo GIF placeholder, a 3-line quick start, a short "what it is / what it is not", the privacy promise (with how to verify it), and the supported-sources table lower down.
+- [x] (drafted 2026-10-12, maintainer review pending) `docs/launch/` drafts: Show HN post, X thread, Reddit posts (r/ClaudeAI, r/ChatGPTCoding), a short blog post ("What 100 agent sessions did to my codebase" outline), newsletter pitch, FAQ ("Why local?", "How is this different from Langfuse/Phoenix/diagram tools?", "Does it send my code anywhere?"). Honest comparisons only; no unverifiable claims.
+- [x] (drafted 2026-10-12, maintainer review pending) Issue templates and labels (`good first issue`, `adapter`, `analyzer`, `docs`), a `ROADMAP.md` that names what is planned and what is not, a short `CODE_OF_CONDUCT` only if the maintainer provides a contact.
+- [x] (drafted 2026-10-12, maintainer review pending) Trademark note in the README (Avalok name and logo are not licensed by Apache-2.0) and a lightweight contribution sign-off policy (DCO) in `CONTRIBUTING.md`, pending maintainer choice.
+- [x] (drafted 2026-10-12, maintainer review pending) A scripted demo recording plan (exact commands, a fixture repo, a scripted session) so the GIF is reproducible.
+- [x] (drafted 2026-10-12, maintainer review pending) A user-test script (below) and a feedback path that needs no telemetry: `avalok feedback` prints or opens a prefilled GitHub issue link; nothing is sent by the tool.
 
 Maintainer-only (the agent prepares, the maintainer does):
 

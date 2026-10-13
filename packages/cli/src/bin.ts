@@ -6,6 +6,7 @@ import { helpText, parseCliOptions } from "./options.ts";
 import { maybeOpenBrowser, startAvalok, startupSummary } from "./orchestrator.ts";
 import { StartupError, resolveTarget } from "./system.ts";
 import { runSetupClaude } from "./setup-claude.ts";
+import { runFeedback } from "./feedback.ts";
 import { runRecap } from "./recap.ts";
 import { runWrapped } from "./wrapped.ts";
 import { createInterface } from "node:readline/promises";
@@ -47,6 +48,7 @@ export async function runCli(
     );
     return result.malformed ? 1 : 0;
   }
+  if (options.command === "feedback") return runFeedback({ output });
   if (options.command === "wrapped" && options.recap) {
     return runWrapped({
       days: options.days ?? 7,

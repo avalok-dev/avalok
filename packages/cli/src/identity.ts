@@ -11,6 +11,7 @@ export const productIdentity = Object.freeze({
   description: product.description,
   homepage: product.homepage,
   repository: product.repository as string | null,
+  issuesUrl: product.issuesUrl,
   legacyDataDirectoryName: product.legacyDataDirectoryName,
   version: manifest.version,
 });

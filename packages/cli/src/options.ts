@@ -16,7 +16,8 @@ export interface CliOptions {
     | "setup-claude"
     | "setup-codex"
     | "recap"
-    | "wrapped";
+    | "wrapped"
+    | "feedback";
   target?: string;
   files?: string[];
   port: number;
@@ -109,6 +110,9 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
       force: false,
     };
     input.shift();
+  } else if (input[0] === "feedback") {
+    options.command = "feedback";
+    input.shift();
   } else if (input[0] === "import") {
     input.shift();
     if (input.shift() !== "openai")
@@ -184,5 +188,5 @@ export function parseCliOptions(arguments_: string[]): CliOptions {
 }
 
 export function helpText() {
-  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} demo [options]        Open the built-in demo (needs no repository or agent session)\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} setup claude [path] [--apply | --remove]   Show (or, with --apply, add after confirming) the Claude Code hooks\n  ${productIdentity.cliName} setup codex       Codex needs no setup; shows what Avalok can read\n  ${productIdentity.cliName} wrapped [--days 7] [--format svg|md] [--out file]   A card of your agent week (counts only)\n  ${productIdentity.cliName} recap [path] [--format md|svg|html|diagram] [--out file]   Summarize the newest agent session that ran in this repository\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm without asking (data clearing, setup --apply/--remove)\n  --apply             With 'setup claude': write the hooks after showing the change\n  --remove            With 'setup claude': remove Avalok's hooks\n  --session <id>      With 'recap': a session id from Codex, Claude Code or OpenTelemetry (default: the newest one that ran in the repository)\n  --format <kind>     With 'recap': md (default, printed), svg (recap card), html (interactive replay), diagram\n  --out <file>        With 'recap': write to this file (svg/html default to avalok-recap.<ext>)\n  --anonymize         With 'recap': replace names with generic labels\n  --no-brand          With 'recap' or 'wrapped': omit the 'Made with Avalok' footer\n  --days <n>          With 'wrapped': how many days back to include (default 7)\n  --force             With 'recap': overwrite an existing output file\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
+  return `${productIdentity.displayName} ${productIdentity.version} — ${productIdentity.tagline}\n\nUsage:\n  ${productIdentity.cliName} [path] [options]\n  ${productIdentity.cliName} demo [options]        Open the built-in demo (needs no repository or agent session)\n  ${productIdentity.cliName} doctor [path] [options]\n  ${productIdentity.cliName} setup claude [path] [--apply | --remove]   Show (or, with --apply, add after confirming) the Claude Code hooks\n  ${productIdentity.cliName} setup codex       Codex needs no setup; shows what Avalok can read\n  ${productIdentity.cliName} wrapped [--days 7] [--format svg|md] [--out file]   A card of your agent week (counts only)\n  ${productIdentity.cliName} recap [path] [--format md|svg|html|diagram] [--out file]   Summarize the newest agent session that ran in this repository\n  ${productIdentity.cliName} feedback          Print a prefilled GitHub issue link (nothing is sent by Avalok)\n  ${productIdentity.cliName} data path\n  ${productIdentity.cliName} data clear [--yes]\n  ${productIdentity.cliName} import openai <page.json> [more-pages.json ...]\n\nOptions:\n  --port <port>       Dashboard port (default: ${cliDefaults.dashboardPort})\n  --otlp-port <port>  OTLP/HTTP port (default: ${cliDefaults.otlpPort})\n  --no-open           Do not open the dashboard in a browser\n  --yes               Confirm without asking (data clearing, setup --apply/--remove)\n  --apply             With 'setup claude': write the hooks after showing the change\n  --remove            With 'setup claude': remove Avalok's hooks\n  --session <id>      With 'recap': a session id from Codex, Claude Code or OpenTelemetry (default: the newest one that ran in the repository)\n  --format <kind>     With 'recap': md (default, printed), svg (recap card), html (interactive replay), diagram\n  --out <file>        With 'recap': write to this file (svg/html default to avalok-recap.<ext>)\n  --anonymize         With 'recap': replace names with generic labels\n  --no-brand          With 'recap' or 'wrapped': omit the 'Made with Avalok' footer\n  --days <n>          With 'wrapped': how many days back to include (default 7)\n  --force             With 'recap': overwrite an existing output file\n  --version           Print the CLI version\n  --help              Show this help\n\n${productIdentity.homepage}\n`;
 }
