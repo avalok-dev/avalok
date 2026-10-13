@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RepositoryAnalysis } from "@visual-system/analyzer";
-import type { CodexSessionData, CodexSessionSummary } from "@visual-system/codex-adapter";
+import type { AgentSession, LoadedSession } from "../src/session-source";
 import type { PositionedGraph } from "@visual-system/graph";
 import type { ArchitectureGraph, Run, RuntimeEvent } from "@visual-system/schema";
 import { CliUsageError, parseCliOptions, type RecapOptions } from "../src/options";
@@ -100,20 +100,13 @@ const run: Run = {
   ],
 };
 
-function summary(id: string, overrides: Partial<CodexSessionSummary> = {}): CodexSessionSummary {
+function summary(id: string, overrides: Partial<AgentSession> = {}): AgentSession {
   return {
+    source: "codex",
     id,
-    fileName: `${id}.jsonl`,
-    filePath: `/secret/home/${id}.jsonl`,
-    startedAt: null,
     modifiedAt: "2026-10-07T10:30:00.000Z",
-    bytes: 1,
-    lineCount: 3,
     eventCount: 3,
     cwd: ROOT,
-    originator: null,
-    cliVersion: null,
-    status: "completed",
     ...overrides,
   };
 }
@@ -140,14 +133,7 @@ function dependencies(overrides: Partial<RecapDependencies> = {}): Partial<Recap
       }) as unknown as RepositoryAnalysis,
     discoverSessions: async () => [summary("new"), summary("elsewhere", { cwd: "/other" })],
     findSession: async (id) => (id === "new" ? summary("new") : undefined),
-    loadSession: async (session): Promise<CodexSessionData> => ({
-      session,
-      architecture: execution,
-      run,
-      rawEvents: {},
-      diagnostics: [],
-      cursor: 0,
-    }),
+    loadSession: async (): Promise<LoadedSession> => ({ architecture: execution, run }),
     layout: grid,
     ...overrides,
   };
@@ -237,15 +223,15 @@ describe("avalok recap", () => {
       dependencies({ discoverSessions: async () => [summary("x", { cwd: "/other" })] }),
     );
     expect(result.code).toBe(1);
-    expect(result.text).toContain("No Codex session with events ran inside this repository");
-    expect(result.text).toContain("1 Codex session found on this machine, none from here");
+    expect(result.text).toContain("No agent session with events ran inside this repository");
+    expect(result.text).toContain("1 session found on this machine, none from here");
     expect(result.text).toContain("--session <id>");
   });
 
   it("reports an unknown session id", async () => {
     const result = await recap({ session: "nope" });
     expect(result.code).toBe(1);
-    expect(result.text).toContain('No Codex session was found with the id "nope"');
+    expect(result.text).toContain('No session was found with the id "nope"');
   });
 
   it("uses an explicit session id even from another folder", async () => {

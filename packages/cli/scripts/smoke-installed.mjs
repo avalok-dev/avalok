@@ -24,6 +24,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import { request as httpRequest } from "node:http";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -412,7 +413,7 @@ try {
   });
   check(
     "avalok recap explains when no session ran in the repository",
-    noSession.status === 1 && noSession.stdout.includes("No Codex session with events ran inside"),
+    noSession.status === 1 && noSession.stdout.includes("No agent session with events ran inside"),
   );
   const noWeek = runSync(process.execPath, [bin, "wrapped", "--format", "md"], {
     env: sharingEnvironment,
@@ -420,7 +421,91 @@ try {
   check(
     "avalok wrapped explains when there are no sessions",
     noWeek.status === 1 &&
-      noWeek.stdout.includes("No Codex sessions with events in the last 7 days"),
+      noWeek.stdout.includes("No agent sessions with events in the last 7 days"),
+  );
+  // A run Avalok stored from Claude Code hooks (not a Codex file) is recapped by the installed
+  // package. Seeded in its own data root, named by id so the check does not depend on how each
+  // operating system spells the repository path. The title and prompt are secrets that must not leak.
+  const seededRoot = join(scratch, "Seeded Data");
+  mkdirSync(join(seededRoot, "runtime"), { recursive: true });
+  const seededStart = new Date(Date.now() - 3_600_000).toISOString();
+  const seededEvent = (id, timestamp, durationMs) => ({
+    id,
+    traceId: "t",
+    timestamp,
+    category: "tool",
+    action: "tool.call",
+    sourceEntityId: "claude",
+    targetEntityId: "terminal",
+    durationMs,
+  });
+  const seededEvents = [seededEvent("a", 0, 20_000), seededEvent("b", 60_000, 5_000)];
+  const seededSnapshot = {
+    source: { id: "claude", name: "Claude Code", description: "", capabilities: {} },
+    session: {
+      id: "smoke-claude-session",
+      source: "claude",
+      title: "SMOKE-SECRET-TITLE",
+      startedAt: seededStart,
+      modifiedAt: new Date().toISOString(),
+      status: "completed",
+      eventCount: 2,
+      cwd: join(repositories, "Simple JS App"),
+    },
+    architecture: {
+      id: "exec",
+      title: "Claude Code",
+      entities: [
+        { id: "claude", kind: "agent", name: "Claude Code" },
+        { id: "terminal", kind: "tool", name: "Terminal" },
+      ],
+      edges: [{ id: "e", source: "claude", target: "terminal" }],
+    },
+    run: {
+      id: "smoke-claude-session",
+      title: "SMOKE-SECRET-TITLE",
+      prompt: "SMOKE-SECRET-PROMPT",
+      startedAt: seededStart,
+      totalDurationMs: 65_000,
+      inputTokens: null,
+      outputTokens: null,
+      estimatedCostUsd: null,
+      toolCallCount: 2,
+      modelCallCount: 0,
+      status: "completed",
+      events: seededEvents,
+    },
+    rawEvents: {},
+    diagnostics: [],
+  };
+  writeFileSync(
+    join(
+      seededRoot,
+      "runtime",
+      `claude-${createHash("sha256").update("claude\0smoke-claude-session").digest("hex")}.json`,
+    ),
+    JSON.stringify(seededSnapshot),
+  );
+  const seededEnvironment = { ...sharingEnvironment, AVALOK_DATA_DIR: seededRoot };
+  const storedRecap = runSync(
+    process.execPath,
+    [bin, "recap", join(repositories, "Simple JS App"), "--session", "claude:smoke-claude-session"],
+    { env: seededEnvironment },
+  );
+  check(
+    "avalok recap reads a stored Claude Code run, without its title or prompt",
+    storedRecap.status === 0 &&
+      storedRecap.stdout.includes("2 steps observed") &&
+      !storedRecap.stdout.includes("SMOKE-SECRET"),
+  );
+  const storedWeek = runSync(process.execPath, [bin, "wrapped", "--format", "md"], {
+    env: seededEnvironment,
+  });
+  check(
+    "avalok wrapped counts a stored Claude Code run",
+    storedWeek.status === 0 &&
+      storedWeek.stdout.includes("1 session on 1 day") &&
+      !storedWeek.stdout.includes("SMOKE-SECRET"),
   );
   const claudeSetup = runSync(
     process.execPath,

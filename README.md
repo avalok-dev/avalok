@@ -113,7 +113,7 @@ Hooks are observational only; Avalok never blocks or changes Claude Code. Full c
 
 ## Share what your agent did
 
-Everything below is generated on your machine from local session files. You review it before sharing; nothing is uploaded.
+Everything below is generated on your machine from local data: Codex session files and the Claude Code and OpenTelemetry runs Avalok stored. You review it before sharing; nothing is uploaded.
 
 - **In the dashboard:** the **Share** button opens a preview with a recap card (SVG or PNG), an **interactive replay** (one HTML file anyone can open in a browser), the architecture diagram, and a Markdown summary for pull requests.
 - **From the terminal:**
@@ -125,6 +125,8 @@ avalok recap --format html                    # interactive replay -> avalok-rep
 avalok recap --format diagram --out docs/architecture.svg   # architecture diagram for your README
 avalok wrapped                                # your agent week as a card -> avalok-wrapped.svg (counts only)
 ```
+
+`recap` picks the newest session that ran in this repository, whichever agent it came from. OpenTelemetry traces usually record no folder, so name one with `--session <id>` (or `--session claude:<id>` when two sources share an id).
 
 Add `--anonymize` to replace names with generic labels, `--no-brand` to drop the "Made with Avalok" footer, and `--force` to overwrite an existing file. Prompts, run titles, commands and file paths are never included, and secret-looking values are hidden. Names of system parts are included by default, so read the preview. Counts only cover steps Avalok actually observed; anything it could not observe (such as cost) is listed as not observed rather than estimated.
 

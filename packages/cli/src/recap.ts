@@ -2,13 +2,6 @@ import * as nodePath from "node:path";
 import { basename, resolve } from "node:path";
 import { analyzeRepository, type RepositoryAnalysis } from "@visual-system/analyzer";
 import {
-  discoverCodexSessions,
-  loadCodexSession,
-  resolveSessionById,
-  type CodexSessionData,
-  type CodexSessionSummary,
-} from "@visual-system/codex-adapter";
-import {
   pickSessionForRepository,
   renderDiagramSvg,
   renderRecapMarkdown,
@@ -21,25 +14,36 @@ import { reconcileArchitectureExecution } from "@visual-system/reconcile";
 import type { ArchitectureGraph } from "@visual-system/schema";
 import type { RecapOptions } from "./options.ts";
 import { writeShareable } from "./output-file.ts";
+import {
+  defaultSessionSources,
+  findSessionById,
+  listAllSessions,
+  loadAnySession,
+  sourceLabel,
+  type AgentSession,
+  type LoadedSession,
+} from "./session-source.ts";
 
 // `avalok recap`: a summary of the newest agent session that ran in this repository, from local
-// files only. The default output is Markdown on stdout (paste it into a pull request). svg, html and
+// data only (Codex session files and the runs Avalok stored from Claude Code hooks and
+// OpenTelemetry). The default output is Markdown on stdout (paste it into a pull request). svg, html and
 // diagram are written to a file the user names (or avalok-recap.<ext> in the current directory) and
 // never overwrite an existing file without --force. Nothing is uploaded.
 
 export interface RecapDependencies {
   analyze: (target: string) => Promise<RepositoryAnalysis>;
-  discoverSessions: () => Promise<CodexSessionSummary[]>;
-  findSession: (id: string) => Promise<CodexSessionSummary | undefined>;
-  loadSession: (session: CodexSessionSummary) => Promise<CodexSessionData>;
+  discoverSessions: () => Promise<AgentSession[]>;
+  findSession: (id: string) => Promise<AgentSession | undefined>;
+  loadSession: (session: AgentSession) => Promise<LoadedSession>;
   layout: (graph: ArchitectureGraph) => ReturnType<ElkLayoutEngine["layout"]>;
 }
 
+const sources = defaultSessionSources();
 const defaultDependencies: RecapDependencies = {
   analyze: (target) => analyzeRepository(target),
-  discoverSessions: () => discoverCodexSessions(),
-  findSession: (id) => resolveSessionById(id),
-  loadSession: loadCodexSession,
+  discoverSessions: () => listAllSessions(sources),
+  findSession: (id) => findSessionById(sources, id),
+  loadSession: (session) => loadAnySession(sources, session),
   layout: (graph) => new ElkLayoutEngine().layout(graph),
 };
 
@@ -103,15 +107,21 @@ export async function runRecap(options: {
     return code;
   }
 
-  let session: CodexSessionSummary | undefined;
+  let session: AgentSession | undefined;
   if (recap.session === "latest") {
     const sessions = await dependencies.discoverSessions().catch(() => []);
     session = pickSessionForRepository(analysis.repository.rootPath, sessions);
     if (!session) {
+      const unplaced = sessions.filter((candidate) => !candidate.cwd).length;
       output.write(
         [
-          "No Codex session with events ran inside this repository.",
-          `Repository: ${basename(analysis.repository.rootPath)} (${sessions.length} Codex session${sessions.length === 1 ? "" : "s"} found on this machine, none from here).`,
+          "No agent session with events ran inside this repository.",
+          `Repository: ${basename(analysis.repository.rootPath)} (${sessions.length} session${sessions.length === 1 ? "" : "s"} found on this machine, none from here).`,
+          ...(unplaced > 0
+            ? [
+                `${unplaced} of them did not record a folder (usually OpenTelemetry traces), so they are only used when you name one with --session <id>.`,
+              ]
+            : []),
           "Run an agent here first, or pass a session id with --session <id>.",
           "",
         ].join("\n"),
@@ -121,12 +131,20 @@ export async function runRecap(options: {
   } else {
     session = await dependencies.findSession(recap.session).catch(() => undefined);
     if (!session) {
-      output.write(`No Codex session was found with the id "${recap.session}".\n`);
+      output.write(`No session was found with the id "${recap.session}".\n`);
       return 1;
     }
   }
 
-  const data = await dependencies.loadSession(session);
+  let data: LoadedSession;
+  try {
+    data = await dependencies.loadSession(session);
+  } catch (error) {
+    output.write(
+      `The ${sourceLabel(session.source)} session could not be read. ${error instanceof Error ? error.message : ""}\n`,
+    );
+    return 1;
+  }
   // The same reconciliation the dashboard uses, so "system parts touched" matches what it shows.
   const reconciled = reconcileArchitectureExecution(
     analysis.graph,

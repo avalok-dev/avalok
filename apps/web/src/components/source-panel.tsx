@@ -20,6 +20,7 @@ import type { CapabilityReport } from "@visual-system/capabilities";
 import { Badge, Button, cn } from "@visual-system/ui";
 import type { DataSource, PublicSessionSummary } from "@/store/visualization-store";
 import { relativeTime, sessionBelongsToRepository, sortSessionsNewestFirst } from "@/lib/landing";
+import { discoverLocalSessions } from "@/lib/sessions-client";
 
 function sessionLabel(session: PublicSessionSummary) {
   const directory = session.cwd?.split("/").filter(Boolean).at(-1);
@@ -72,38 +73,16 @@ export function SourcePanel({
     if (!background) setDiscovering(true);
     setDiscoveryError(undefined);
     try {
-      const [codexResponse, runtimeResponse] = await Promise.all([
-        fetch("/api/codex/sessions", { cache: "no-store" }),
-        fetch("/api/runtime/runs", { cache: "no-store" }),
-      ]);
-      const payload = (await codexResponse.json()) as {
-        sessions?: PublicSessionSummary[];
-        error?: string;
-      };
-      const runtimePayload = (await runtimeResponse.json()) as {
-        runs?: PublicSessionSummary[];
-        error?: string;
-      };
-      if (!codexResponse.ok || !payload.sessions)
-        throw new Error(payload.error ?? "Codex discovery failed.");
-      if (!runtimeResponse.ok || !runtimePayload.runs)
-        throw new Error(runtimePayload.error ?? "Runtime discovery failed.");
-      const discovered = [
-        ...runtimePayload.runs,
-        ...payload.sessions.map((session) => ({ ...session, source: "codex" as const })),
-      ];
-      setSessions(
-        sortSessionsNewestFirst(
-          discovered.filter(
-            (session, index) =>
-              discovered.findIndex(
-                (candidate) =>
-                  (candidate.source ?? "codex") === (session.source ?? "codex") &&
-                  candidate.id === session.id,
-              ) === index,
-          ),
-        ),
-      );
+      const { sessions: discovered, failed } = await discoverLocalSessions();
+      if (failed.length === 2)
+        throw new Error("Avalok's local server did not answer. Is `avalok` still running?");
+      setSessions(sortSessionsNewestFirst(discovered));
+      if (failed.length === 1)
+        setDiscoveryError(
+          failed[0] === "codex"
+            ? "Codex sessions could not be listed. Other sessions are shown."
+            : "Claude Code and OpenTelemetry runs could not be listed. Codex sessions are shown.",
+        );
     } catch (caught) {
       setDiscoveryError(caught instanceof Error ? caught.message : "Discovery failed.");
     } finally {
