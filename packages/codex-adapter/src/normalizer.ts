@@ -1,3 +1,4 @@
+import { looksLikeTestCommand } from "@visual-system/runtime-adapter";
 import {
   ArchitectureGraphSchema,
   RunSchema,
@@ -70,10 +71,7 @@ function commandText(value: unknown) {
     : parts.join(" ");
 }
 
-const looksLikeTest = (command: string) =>
-  /(?:^|[;&|]\s*)(?:pnpm|npm|yarn|bun)(?:\s+run)?\s+test\b|\b(?:vitest|jest|pytest|cargo\s+test|go\s+test)\b/i.test(
-    command,
-  );
+const looksLikeTest = looksLikeTestCommand;
 
 interface NormalizedOutput {
   events: RuntimeEvent[];

@@ -4,8 +4,6 @@
 
 Avalok is a local-first dashboard. It maps your repository's architecture (services, datastores, infrastructure), then overlays what your coding agent actually did: which parts it touched, what it ran, where it spent time and what failed. One command, no account, nothing leaves your machine.
 
-<!-- Demo GIF goes here: docs/assets/avalok-demo.gif. The maintainer records it; the script is docs/launch/demo-recording.md. -->
-
 ![Avalok showing the architecture of a sample platform: services, datastores, and AWS/Kubernetes deployment configuration on one canvas](docs/assets/avalok-overview.png)
 
 > **Developer preview (`0.1.0-alpha.1`).** Avalok is not published to npm yet, so `npx avalok` does not work today. [Try the release candidate](#try-it-today) from a clone.

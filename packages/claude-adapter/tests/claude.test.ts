@@ -40,3 +40,34 @@ describe("Claude Code hook adapter", () => {
     expect(snapshot.run.events).toHaveLength(1);
   });
 });
+
+describe("Claude Code test commands", () => {
+  const bash = (command: string) =>
+    normalizeClaudeHook({
+      session_id: "s",
+      hook_event_name: "PostToolUse",
+      tool_name: "Bash",
+      tool_use_id: "t",
+      tool_input: { command },
+    }).run.events[0];
+
+  it("routes test commands to the Tests entity", () => {
+    for (const command of [
+      "pnpm test",
+      "npm run test -- --watch",
+      "cd app && pytest -q",
+      "go test ./...",
+    ]) {
+      expect(bash(command)).toMatchObject({ targetEntityId: "tests", action: "terminal.test" });
+    }
+  });
+
+  it("leaves ordinary commands on the Terminal entity", () => {
+    for (const command of ["pwd", "pnpm build", "git status"]) {
+      expect(bash(command)).toMatchObject({
+        targetEntityId: "terminal",
+        action: "terminal.command",
+      });
+    }
+  });
+});

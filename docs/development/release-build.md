@@ -29,7 +29,7 @@ Options: `--publishable` (omit `private: true`; used only by the release workflo
 
 - Everyday builds (`pnpm dist:build`, `pnpm release:build`) produce a `private: true` manifest, so `npm publish` refuses them.
 - `.github/workflows/release.yml` (manual `workflow_dispatch` only) runs the full checks and `pnpm release:build --publishable --python python` on Ubuntu, and requires a clean tree and passing smoke/leak results in `release-provenance.json`. It uploads the tarball, checksum, and provenance as the `avalok-release` artifact.
-- Its `publish` job runs only when the `publish` input is true, waits for approval of the protected `npm-publish` environment, downloads that artifact, verifies the SHA-256, and runs `npm publish <tarball> --provenance`. It never rebuilds. It has **not** been run; configuring the environment, reviewers, and npm credentials is part of the [release checklist](../releases/developer-preview.md).
+- Its `publish` job runs only when the `publish` input is true, waits for approval of the protected `npm-publish` environment, downloads that artifact, verifies the SHA-256, and runs `npm publish <tarball> --provenance`. It never rebuilds. It has **not** been run; configuring the environment, reviewers, and npm credentials is part of the [releasing guide](releasing.md).
 
 ## Findings
 

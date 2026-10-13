@@ -279,3 +279,10 @@ export function deltaBetween(previous: RuntimeSnapshot, current: RuntimeSnapshot
     diagnostics: current.diagnostics.slice(previous.diagnostics.length),
   };
 }
+
+/** True when a shell command looks like a test run (pnpm/npm/yarn/bun test, vitest, jest, pytest, cargo test, go test). */
+export function looksLikeTestCommand(command: string) {
+  return /(?:^|[;&|]\s*)(?:pnpm|npm|yarn|bun)(?:\s+run)?\s+test\b|\b(?:vitest|jest|pytest|cargo\s+test|go\s+test)\b/i.test(
+    command,
+  );
+}

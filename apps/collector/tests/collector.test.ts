@@ -268,6 +268,51 @@ describe("local collector", () => {
     });
   });
 
+  it("headlines a Claude session by how it ended and counts its test runs", async () => {
+    const { store, url } = await collector();
+    const post = async (body: Record<string, unknown>) =>
+      fetch(`${url}/v1/claude/hooks`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session_id: "claude-recovers", ...body }),
+      });
+    const at = (receivedAt: number) => new Date(receivedAt).toISOString();
+    await post({ hook_event_name: "UserPromptSubmit", prompt: "fix it", receivedAt: at(1_000) });
+    await post({
+      hook_event_name: "PostToolUseFailure",
+      tool_name: "Bash",
+      tool_use_id: "t1",
+      tool_input: { command: "pnpm test" },
+      error: "exit 1",
+      receivedAt: at(2_000),
+    });
+    expect((await store.load("claude", "claude-recovers"))?.run.status).toBe("running");
+    await post({
+      hook_event_name: "PostToolUse",
+      tool_name: "Bash",
+      tool_use_id: "t2",
+      tool_input: { command: "pnpm test" },
+      receivedAt: at(3_000),
+    });
+    await post({ hook_event_name: "Stop", receivedAt: at(4_000) });
+    const recovered = (await store.load("claude", "claude-recovers"))!;
+    expect(recovered.run.status).toBe("completed");
+    expect(recovered.run.events.filter((event) => event.targetEntityId === "tests")).toHaveLength(
+      2,
+    );
+
+    await fetch(`${url}/v1/claude/hooks`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "claude-fails",
+        hook_event_name: "StopFailure",
+        receivedAt: at(1_000),
+      }),
+    });
+    expect((await store.load("claude", "claude-fails"))?.run.status).toBe("error");
+  });
+
   it("refuses accidental public binding", () => {
     expect(() => collectorConfiguration({ AVALOK_OTLP_HOST: "0.0.0.0" })).toThrow("Refusing");
   });
