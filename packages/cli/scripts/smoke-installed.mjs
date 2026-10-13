@@ -507,6 +507,14 @@ try {
       storedWeek.stdout.includes("1 session on 1 day") &&
       !storedWeek.stdout.includes("SMOKE-SECRET"),
   );
+  const feedback = runSync(process.execPath, [bin, "feedback"], { env: sharingEnvironment });
+  check(
+    "avalok feedback prints a prefilled issue link and nothing private",
+    feedback.status === 0 &&
+      feedback.stdout.includes("template=feedback.yml") &&
+      !feedback.stdout.includes(scratch) &&
+      !feedback.stdout.includes(repositories),
+  );
   const claudeSetup = runSync(
     process.execPath,
     [bin, "setup", "claude", join(repositories, "Simple JS App")],

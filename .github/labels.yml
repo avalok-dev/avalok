@@ -1,0 +1,32 @@
+# The label set this repository uses. Documentation only: GitHub does not read this file. A maintainer
+# creates them once (for example `gh label create <name> --color <color> --description "<text>"`).
+- name: bug
+  color: d73a4a
+  description: Something does not work as documented
+- name: feedback
+  color: 0e8a16
+  description: A report from someone trying Avalok
+- name: enhancement
+  color: a2eeef
+  description: A new feature or improvement
+- name: good first issue
+  color: 7057ff
+  description: Small, well-scoped, a good way to start contributing
+- name: help wanted
+  color: 008672
+  description: A maintainer would welcome a contribution
+- name: adapter
+  color: 1d76db
+  description: A new or changed agent or telemetry source (Codex, Claude Code, Kiro, Cursor, OTLP)
+- name: analyzer
+  color: 5319e7
+  description: Static analysis of a language or infrastructure format
+- name: export
+  color: fbca04
+  description: Recap card, replay, diagram or Markdown output
+- name: docs
+  color: 0075ca
+  description: Documentation only
+- name: privacy
+  color: b60205
+  description: Touches what is read, stored or shown; needs a leak test

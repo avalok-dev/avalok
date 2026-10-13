@@ -71,9 +71,19 @@ Architecture documents live in [`docs/architecture`](docs/architecture) (start w
 - **Keep React out of data packages.** `schema`, `graph`, `replay`, `analyzer`, `reconcile`, and adapters must not depend on React.
 - Add or update focused tests for behavior changes.
 
+## Finding something to work on
+
+Look for the `good first issue` and `help wanted` labels. The label set is listed in [`.github/labels.yml`](.github/labels.yml): `adapter` (a new agent or telemetry source), `analyzer` (a language or infrastructure format), `export` (recap card, replay, diagram, Markdown), `docs`, and `privacy` (anything that changes what is read, stored or shown; it needs a leak test). The [roadmap](ROADMAP.md) lists what is planned and what is not.
+
+New agent sources (Kiro, Cursor, others) are added in two places: a normalizer under `packages/*-adapter` and a `SessionSource` in `packages/cli/src/session-source.ts`. Capture real payloads before writing a normalizer; do not guess formats.
+
 ## Pull requests
 
 Describe what changed and why, how you tested it, and any user-visible effect. Keep unrelated refactors out of the same pull request.
+
+## Sign-off
+
+Please sign off your commits (`git commit -s`), which adds a `Signed-off-by:` line certifying the [Developer Certificate of Origin](https://developercertificate.org/): you wrote the change or have the right to submit it under this project's Apache-2.0 license. This is requested, not yet enforced by CI. _Maintainer: confirm or remove this policy before the repository goes public._
 
 ## Security
 
