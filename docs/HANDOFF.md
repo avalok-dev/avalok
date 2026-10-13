@@ -4,7 +4,7 @@ Read this first in a new session. It says where the open-source launch track sta
 
 ## State
 
-- `main` is the tested code. CI (`verify`: lint, typecheck, test, build; plus the packed-install smoke on ubuntu, macOS and Windows, including Node 22) is green on `main`. Last full local gate: **432 unit tests**, `release:build` installed smoke **71/71 on Node 24 and on Node 22**.
+- `main` is the tested code. CI (`verify`: lint, typecheck, test, build; plus the packed-install smoke on ubuntu, macOS and Windows, including Node 22) is green on `main`. Last full local gate: **432 unit tests** (before task 1), `release:build` installed smoke **71/71 on Node 24 and on Node 22**. Task 1 adds 18 tests (12 CLI, 6 dashboard) and 2 smoke checks; on its branch the installed smoke is **73/73 on Node 24** (Node 22 and Windows/Linux are left to CI).
 - The product is Avalok (`avalok`): a local-first dashboard that maps a repository's architecture and overlays what coding agents and OpenTelemetry traces actually did. Open source (Apache-2.0), repo `avalok-dev/avalok`. **Nothing is published to npm** (the name holds a `0.0.1` placeholder, so `npx avalok` does not work yet) and no tags or releases exist.
 - Avalok Cloud (`../avalok-cloud`, private) is **paused** at milestone C1. See its `docs/PAUSED.md`.
 
@@ -41,7 +41,7 @@ Manual checks worth repeating before launch: open the dashboard in a repository 
 
 ## Known gaps (not done or not verified)
 
-- `recap`, `wrapped` and the dashboard landing read **Codex session files only**. Claude Code, OTLP and (future) Kiro/Cursor sessions are stored in Avalok's own run store (`telemetry-adapter`, user-data `runtime/`) and these commands do not read it yet. This is the first thing to fix (below).
+- Task 1 (source-agnostic recap, wrapped and landing) is implemented on branch `source-agnostic-recap` (PR pending). Not verified on a full real Claude Code session: the maintainer's store holds only single-event Claude runs. Kiro and Cursor will arrive as new `SessionSource` entries (`packages/cli/src/session-source.ts`).
 - "System parts touched" in the recap is covered by an integration test through the real reconciliation, but has **not** been seen on a real session that edited service code (none of the sessions scanned edited recognized services). Worth one real check.
 - PNG export is browser-only by design (no Node rasterizer). The Share preview is small for very large repositories. The GitHub Action PR bot and hosted links are post-launch or paid.
 - Open question to the maintainer: what exactly looked like an "allow access" prompt on first launch? If it was an operating-system pop-up (not the old Getting Started dialog), it needs a README note.
@@ -49,7 +49,7 @@ Manual checks worth repeating before launch: open the dashboard in a repository 
 
 ## Next tasks, in order
 
-### 1. Make `recap`, `wrapped` and the landing source-agnostic (recommended before launch)
+### 1. Make `recap`, `wrapped` and the landing source-agnostic (done on branch `source-agnostic-recap`, pending merge)
 
 Goal: any source Avalok has stored (Claude Code hooks, OTLP, future Kiro/Cursor) works with `avalok recap`, `avalok wrapped` and the "open the newest session from this repository" landing, not just Codex files.
 

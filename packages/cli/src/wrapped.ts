@@ -1,10 +1,4 @@
 import {
-  discoverCodexSessions,
-  loadCodexSession,
-  type CodexSessionData,
-  type CodexSessionSummary,
-} from "@visual-system/codex-adapter";
-import {
   renderWrappedMarkdown,
   renderWrappedSvg,
   summarizeSession,
@@ -13,8 +7,16 @@ import {
 } from "@visual-system/export";
 import type { RecapOptions } from "./options.ts";
 import { writeShareable } from "./output-file.ts";
+import {
+  defaultSessionSources,
+  listAllSessions,
+  loadAnySession,
+  type AgentSession,
+  type LoadedSession,
+} from "./session-source.ts";
 
-// `avalok wrapped`: counts and timings from the agent sessions on this machine over the last few
+// `avalok wrapped`: counts and timings from the agent sessions on this machine (Codex files and the
+// runs Avalok stored from Claude Code and OpenTelemetry) over the last few
 // days, as a card people want to share. Local files only; no repository, folder, prompt, title or
 // path ever appears in the output. Nothing is uploaded.
 //
@@ -23,16 +25,17 @@ import { writeShareable } from "./output-file.ts";
 // week's steps, and a session that merely had its file touched contributes nothing.
 
 export interface WrappedDependencies {
-  discoverSessions: () => Promise<CodexSessionSummary[]>;
-  loadSession: (session: CodexSessionSummary) => Promise<CodexSessionData>;
+  discoverSessions: () => Promise<AgentSession[]>;
+  loadSession: (session: AgentSession) => Promise<LoadedSession>;
   now: () => number;
   /** Local calendar day (`YYYY-MM-DD`) of an ISO timestamp. */
   dayOf: (iso: string) => string;
 }
 
+const sources = defaultSessionSources();
 const defaultDependencies: WrappedDependencies = {
-  discoverSessions: () => discoverCodexSessions(),
-  loadSession: loadCodexSession,
+  discoverSessions: () => listAllSessions(sources),
+  loadSession: (session) => loadAnySession(sources, session),
   now: () => Date.now(),
   dayOf: (iso) => new Date(iso).toLocaleDateString("en-CA"),
 };
@@ -57,7 +60,7 @@ export async function runWrapped(options: {
     .sort((a, b) => Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt));
   if (recent.length === 0) {
     output.write(
-      `No Codex sessions with events in the last ${options.days} day${options.days === 1 ? "" : "s"} (${all.length} found on this machine). Try --days 30.\n`,
+      `No agent sessions with events in the last ${options.days} day${options.days === 1 ? "" : "s"} (${all.length} found on this machine). Try --days 30.\n`,
     );
     return 1;
   }
@@ -84,7 +87,7 @@ export async function runWrapped(options: {
           totalDurationMs: last.timestamp + (last.durationMs ?? 0) - first.timestamp,
         };
         inputs.push({
-          sessionId: session.id,
+          sessionId: `${session.source}:${session.id}`,
           day,
           recap: summarizeSession(slice, data.architecture, { anonymize: recap.anonymize }),
         });

@@ -2,7 +2,7 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CodexSessionData, CodexSessionSummary } from "@visual-system/codex-adapter";
+import type { AgentSession, LoadedSession } from "../src/session-source";
 import type { ArchitectureGraph, Run, RuntimeEvent } from "@visual-system/schema";
 import { CliUsageError, parseCliOptions, type RecapOptions } from "../src/options";
 import { runWrapped, type WrappedDependencies } from "../src/wrapped";
@@ -57,40 +57,25 @@ const run: Run = {
 function session(
   id: string,
   hoursAgo: number,
-  overrides: Partial<CodexSessionSummary> = {},
-): CodexSessionSummary {
-  const modified = new Date(NOW - hoursAgo * 3_600_000).toISOString();
+  overrides: Partial<AgentSession> = {},
+): AgentSession {
   return {
+    source: "codex",
     id,
-    fileName: `${id}.jsonl`,
-    filePath: `/secret/home/${id}.jsonl`,
-    startedAt: modified,
-    modifiedAt: modified,
-    bytes: 1,
-    lineCount: 2,
+    modifiedAt: new Date(NOW - hoursAgo * 3_600_000).toISOString(),
     eventCount: 2,
     cwd: "/Users/jaishnav/secret-repo",
-    originator: null,
-    cliVersion: null,
-    status: "completed",
     ...overrides,
   };
 }
 
 function dependencies(
-  sessions: CodexSessionSummary[],
+  sessions: AgentSession[],
   overrides: Partial<WrappedDependencies> = {},
 ): Partial<WrappedDependencies> {
   return {
     discoverSessions: async () => sessions,
-    loadSession: async (summary): Promise<CodexSessionData> => ({
-      session: summary,
-      architecture,
-      run,
-      rawEvents: {},
-      diagnostics: [],
-      cursor: 0,
-    }),
+    loadSession: async (): Promise<LoadedSession> => ({ architecture, run }),
     now: () => NOW,
     dayOf: (iso) => iso.slice(0, 10),
     ...overrides,
@@ -109,7 +94,7 @@ function recapOptions(overrides: Partial<RecapOptions> = {}): RecapOptions {
 }
 
 async function wrapped(
-  sessions: CodexSessionSummary[],
+  sessions: AgentSession[],
   overrides: Partial<RecapOptions> = {},
   days = 7,
   extra: Partial<WrappedDependencies> = {},
@@ -154,7 +139,7 @@ describe("avalok wrapped", () => {
     const result = await wrapped([session("old", 24 * 40)], {}, 7);
     expect(result.code).toBe(1);
     expect(result.text).toContain(
-      "No Codex sessions with events in the last 7 days (1 found on this machine)",
+      "No agent sessions with events in the last 7 days (1 found on this machine)",
     );
     expect(await readdir(cwd)).toEqual([]);
   });
@@ -239,14 +224,7 @@ describe("wrapped counts only steps that happened inside the window", () => {
 
   function withRun(chosen: Run) {
     return {
-      loadSession: async (summary: CodexSessionSummary): Promise<CodexSessionData> => ({
-        session: summary,
-        architecture,
-        run: chosen,
-        rawEvents: {},
-        diagnostics: [],
-        cursor: 0,
-      }),
+      loadSession: async (): Promise<LoadedSession> => ({ architecture, run: chosen }),
     };
   }
 
