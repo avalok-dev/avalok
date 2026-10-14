@@ -5,7 +5,7 @@
   "tagline": "See your whole system.",
   "description": "A local-first visual system for understanding how your code, infrastructure, agents, and runtime connect and execute.",
   "homepage": "https://avalok.dev",
-  "repository": null,
+  "repository": "https://github.com/avalok-dev/avalok",
   "issuesUrl": "https://github.com/avalok-dev/avalok/issues/new",
   "keywords": [
     "architecture",
