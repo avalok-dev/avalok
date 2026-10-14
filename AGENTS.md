@@ -2,21 +2,14 @@
 
 ## Start here
 
-- Avalok (formerly the working name AgentMap, then briefly Sarvadrik) is a pnpm/Turborepo monorepo. Milestones 1-6 and M7.1–M7.4C are complete; extend the existing system rather than rebuilding it.
-- Start with `docs/HANDOFF.md` (current state, how to test, next tasks). The active work plan is `docs/OPENSOURCE_LAUNCH_PLAN.md` (free local edition launch track L0-L6). Avalok Cloud is paused; do not extend it.
-- Read `docs/PROJECT_CONTEXT.md` before architecture, milestone, or cross-package work. Read only the narrower architecture document needed for the task.
+- Avalok is a pnpm/Turborepo monorepo; extend the existing system rather than rebuilding it. Plans are in `ROADMAP.md`.
+- Read `docs/architecture/overview.md` before architecture or cross-package work, then only the narrower architecture document the task needs.
 - Respect more-specific `AGENTS.md` files under `apps/web`, `packages/analyzer`, and `packages/reconcile`.
 - Preserve the established UI and all Demo and local Codex-session behavior unless the user explicitly requests a redesign or breaking change.
 
 ## Runtime and commands
 
 - Required: Node.js `>=24.19.0 <25`; pinned package manager: pnpm `11.19.0`.
-- On Jaishnav's machine, prefer the known Node 24 Codex runtime:
-
-  ```bash
-  export PATH="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback:$PATH"
-  ```
-
 - Install: `pnpm install --frozen-lockfile`
 - Develop: `pnpm dev` (web app at `http://localhost:3000`, local collector at `http://127.0.0.1:4318`)
 - Verify: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
@@ -25,7 +18,7 @@
 - Packages bundled into the dashboard must not call `path` functions through a conditional function value (e.g. `(a ? win32.join : posix.join)(…)`); Next's build-time file tracer crashes on it. Use explicit branches.
 - In dashboard-bundled code, take `homedir()` as a parameter default (`home = homedir()`), never inline inside a path expression, and do not build arrays of joined paths: Next's tracer evaluates them and, on Windows across drives, globs the home directory (`packages/cli/tests/build-tracing.test.ts` guards this).
 - Release artifacts come from `pnpm release:build` (neutral temp path, path-leak scan, packaged smoke, SHA-256 + provenance), never an in-place `dist:build`. Never run `npm publish` or create releases; publication goes through `.github/workflows/release.yml` only with explicit maintainer approval.
-- Product identity (name, CLI, package, homepage) lives only in `packages/cli/product.json`; the version only in `packages/cli/package.json`. Legacy AgentMap names appear only in the data migration and legacy fixtures (see `docs/architecture/milestone-7-4b.md`); the Sarvadrik name appears only in historical records and legacy build exclusions (see `docs/architecture/milestone-7-4c.md`).
+- Product identity (name, CLI, package, homepage) lives only in `packages/cli/product.json`; the version only in `packages/cli/package.json`. Legacy working names appear only in the data migration (`docs/development/data-migration.md`) and legacy build exclusions.
 - Third-party notices are generated during `dist:build`; a new bundled dependency must have license metadata or the build fails.
 - Local HTTP (M7.4A): every dashboard request passes `apps/web/src/middleware.ts`; collector routes pass `guardCollectorRequest`. New mutation routes must accept JSON only; never add `Access-Control-*` headers. See `docs/security/local-http.md`.
 
@@ -44,4 +37,3 @@
 - Add or update focused tests for behavior changes. Analyzer work must cover the current repository plus reusable fixtures; reconciliation work must cover matched and unmatched activity.
 - Run the smallest relevant checks during development and the full four-command verification before a milestone or release handoff.
 - Do not add live cloud/cluster access, authentication, billing, hosted telemetry, or new runtime adapters unless explicitly requested. Infrastructure analysis remains static and non-executing.
-- Update `docs/PROJECT_CONTEXT.md` only when durable status, commands, decisions, or limitations change; do not turn it into a session transcript.

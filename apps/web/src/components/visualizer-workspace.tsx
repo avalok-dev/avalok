@@ -61,6 +61,9 @@ export function VisualizerWorkspace() {
   const [capabilities, setCapabilities] = useState<CapabilityReport>();
   const [streamTarget, setStreamTarget] = useState<StreamTarget>();
   const initialRepositoryRequested = useRef(false);
+  // The store starts on the built-in demo. Cover it until the first real view is ready, so a
+  // launch from the CLI never flashes the demo before landing on the user's repository.
+  const [starting, setStarting] = useState(true);
 
   const refreshCapabilities = useCallback(async () => {
     const response = await fetch("/api/capabilities", { cache: "no-store" });
@@ -206,18 +209,21 @@ export function VisualizerWorkspace() {
     void fetch("/api/health", { cache: "no-store" })
       .then((response) => response.json() as Promise<{ cli?: boolean; demo?: boolean }>)
       .then((health) => {
+        if (active && !health.cli) setStarting(false);
         if (active && health.cli && !initialRepositoryRequested.current) {
           initialRepositoryRequested.current = true;
           void refreshCapabilities();
           if (health.demo) {
             // `avalok demo`: straight into the built-in demo; other sources stay in the picker.
             selectDemo();
+            setStarting(false);
             return;
           }
           // Landing rule: open the newest local session from this repository if there is one;
           // otherwise show the repository map with the source picker. Never a blocking dialog.
           void selectRepository().then(async (rootPath) => {
             if (!active) return;
+            setStarting(false);
             const sessions = await fetchLocalSessions().catch(() => []);
             if (!active) return;
             const landing = pickLandingSession(rootPath, sessions);
@@ -228,6 +234,7 @@ export function VisualizerWorkspace() {
       })
       .catch(() => {
         // Readiness was already established by the CLI; keep Demo usable if this request fails.
+        setStarting(false);
       });
     return () => {
       active = false;
@@ -324,7 +331,18 @@ export function VisualizerWorkspace() {
     : undefined;
 
   return (
-    <main className="visualizer-shell grid h-dvh min-h-[700px] grid-cols-[minmax(0,1fr)_320px] grid-rows-[56px_minmax(0,1fr)_176px] overflow-hidden bg-[#080a0f] text-slate-200">
+    <main
+      aria-busy={starting}
+      className="visualizer-shell relative grid h-dvh min-h-[700px] grid-cols-[minmax(0,1fr)_320px] grid-rows-[56px_minmax(0,1fr)_176px] overflow-hidden bg-[#080a0f] text-slate-200"
+    >
+      {starting ? (
+        <div
+          role="status"
+          className="absolute inset-0 z-50 flex items-center justify-center bg-[#080a0f] text-sm text-slate-400"
+        >
+          Opening your repository…
+        </div>
+      ) : null}
       <TopBar
         mode={mode}
         onModeChange={(nextMode) => {

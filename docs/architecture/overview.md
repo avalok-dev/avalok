@@ -24,7 +24,7 @@ schema <- reconcile
 
 The repository analyzer performs local static JS/TS analysis and produces evidence/confidence metadata. The reconciliation package deterministically associates runtime file paths with exact source locations and workspace ownership, producing a derived unified graph. Neither layer depends on React, and reconciliation remains outside UI components.
 
-See [repository-analyzer.md](./repository-analyzer.md), [reconciliation.md](./reconciliation.md), and [milestone-3.md](./milestone-3.md).
+See [repository-analyzer.md](./repository-analyzer.md) and [reconciliation.md](./reconciliation.md).
 
 Milestone 4 adds vendor-neutral local runtime ingestion while preserving those boundaries:
 
@@ -37,8 +37,8 @@ schema + analyzer + runtime events <- reconcile <- web
 
 The local collector receives OTLP/HTTP JSON and Claude lifecycle hooks. The telemetry and Claude adapters normalize and persist vendor-neutral snapshots; the web application reuses the existing SSE, replay, graph, inspector, and reconciliation paths. OpenTelemetry-specific behavior does not enter graph, replay, or presentation packages.
 
-See [runtime-adapters.md](./runtime-adapters.md), [opentelemetry.md](./opentelemetry.md), [claude-code.md](./claude-code.md), and [milestone-4.md](./milestone-4.md).
+See [runtime-adapters.md](./runtime-adapters.md), [opentelemetry.md](./opentelemetry.md) and [claude-code.md](./claude-code.md).
 
 Milestone 5 generalizes repository analysis around stable service ownership. JS/TS and Python source adapters plus Dockerfile/Compose configuration adapters feed the same evidence, confidence, and `ArchitectureGraph` model. Runtime reconciliation stays language-neutral through source paths, service identity, routes, and integration metadata.
 
-See [milestone-5.md](./milestone-5.md), [python-analysis.md](./python-analysis.md), [docker-analysis.md](./docker-analysis.md), and [service-inference.md](./service-inference.md).
+See [python-analysis.md](./python-analysis.md), [docker-analysis.md](./docker-analysis.md), and [service-inference.md](./service-inference.md).

@@ -86,7 +86,6 @@ Other dashboard routes are GET-only and read no body. The 5 MiB limit matches co
 
 - Unit/integration: `packages/local-security/tests`, `apps/collector/tests/security.test.ts`, `apps/web/tests/request-guard.test.ts`.
 - Packaged product: `pnpm dist:smoke` (and `pnpm release:build`) run 17 `security:` checks against the installed production servers.
-- Manual commands: [`docs/architecture/milestone-7-4a.md`](../architecture/milestone-7-4a.md#manual-verification).
 
 ## Agent hook forwarder (`/v1/hooks/<tool>`)
 
