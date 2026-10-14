@@ -52,4 +52,4 @@ Development workflows disable Next.js telemetry too (`apps/web/next.config.ts`).
 
 ## Verification
 
-Before release, outbound connections were measured by hooking Node's network APIs in every Avalok process (including child processes) while running the packaged product, sending traces, and using the dashboard: no connection to any non-loopback host was attempted. The same method showed that contributor `next build` previously posted to `telemetry.nextjs.org`; it no longer does. See the [developer-preview release record](releases/developer-preview.md).
+Before release, outbound connections were measured by hooking Node's network APIs in every Avalok process (including child processes) while running the packaged product, sending traces, and using the dashboard: no connection to any non-loopback host was attempted. The same method showed that contributor `next build` previously posted to `telemetry.nextjs.org`; it no longer does.

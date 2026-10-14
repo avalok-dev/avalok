@@ -19,4 +19,4 @@
 - Enterprise controls and governance
 - Advanced optimization and AI-assisted analysis
 
-Milestone 1 contains only the open-source visual foundation and local simulated fixtures. The UI has no dependency on accounts, plans, organizations, hosted storage, or other commercial concepts.
+This repository contains only the open-source local edition. The UI and CLI have no dependency on accounts, plans, organizations, hosted storage, or other commercial concepts. See [ROADMAP.md](../../ROADMAP.md).

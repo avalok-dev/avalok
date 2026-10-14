@@ -95,6 +95,21 @@ function mergeGraphs(previous: ArchitectureGraph, current: ArchitectureGraph): A
   };
 }
 
+/**
+ * Claude Code hook runs end with an explicit lifecycle event, so a failed step that the agent
+ * recovered from must not mark the whole session as failed. Only a failed stop does. Every other
+ * source keeps the rule that any error event makes the run an error.
+ */
+function mergedStatus(events: RuntimeEvent[], currentStatus: Run["status"]): Run["status"] {
+  const isHook = events.some((event) => typeof event.metadata?.hookEvent === "string");
+  if (!isHook) return events.some((event) => event.category === "error") ? "error" : currentStatus;
+  // SessionEnd arrives after Stop or StopFailure, so look at the last event that is not one.
+  const latest = [...events].reverse().find((event) => event.action !== "session.ended");
+  if (latest?.action === "agent.failed") return "error";
+  if (latest?.action === "response.completed") return "completed";
+  return events.some((event) => event.action === "session.ended") ? "completed" : "running";
+}
+
 export function mergeRuntimeSnapshots(
   previous: RuntimeSnapshot,
   current: RuntimeSnapshot,
@@ -206,7 +221,7 @@ export function mergeRuntimeSnapshots(
       ["tool", "mcp", "retrieval", "database", "web", "file"].includes(event.category),
     ).length,
     modelCallCount: events.filter((event) => event.category === "model").length,
-    status: events.some((event) => event.category === "error") ? "error" : current.run.status,
+    status: mergedStatus(events, current.run.status),
     events,
   };
   const architecture = mergeGraphs(previous.architecture, current.architecture);

@@ -31,6 +31,14 @@ describe("first-run experience", () => {
     expect(workspace).not.toContain('fetch("/api/settings", { cache: "no-store" })');
   });
 
+  it("covers the built-in demo until the first real view is ready", () => {
+    const workspace = readFileSync(join(components, "visualizer-workspace.tsx"), "utf8");
+    expect(workspace).toContain("const [starting, setStarting] = useState(true)");
+    expect(workspace).toContain("{starting ? (");
+    // Every way out of the first load must clear it, or the dashboard stays covered.
+    expect(workspace.match(/setStarting\(false\)/g)?.length).toBeGreaterThanOrEqual(4);
+  });
+
   it("offers direct actions instead of telemetry setup in the empty Runs state", () => {
     const markup = renderToStaticMarkup(
       createElement(EmptyRunsState, { onChooseSource: () => {}, onDemo: () => {} }),

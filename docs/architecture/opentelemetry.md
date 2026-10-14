@@ -69,5 +69,3 @@ Exporters deliver completed spans, so the trace appears immediately after the ex
 - malformed spans are rejected or reported as partial success without terminating the collector.
 
 The collector health endpoint is `GET http://127.0.0.1:4318/health`. It reports received/normalized counts, malformed payloads, redaction/truncation counts, active services, and the last receive time.
-
-For the complete redaction, malformed-input, load, live behavior, and visual inspection procedure, use the [Milestone 4 acceptance guide](../development/milestone-4-acceptance.md).

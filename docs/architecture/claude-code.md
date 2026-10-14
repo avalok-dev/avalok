@@ -100,4 +100,4 @@ Supported hook observations include user prompts, successful and failed tools, R
 
 Hook events do not provide token usage. Tokens and model/API hierarchy appear only when Claude's OpenTelemetry trace export provides them. Historical runs are the observations Avalok has already persisted; Avalok does not ingest private historical transcript contents by default.
 
-The collector health response includes a `claude` section with hook, normalization, unsupported-event, error, live-status, and last-received counters. See the [Milestone 4 acceptance guide](../development/milestone-4-acceptance.md) for a harmless prompt and expected nodes.
+The collector health response includes a `claude` section with hook, normalization, unsupported-event, error, live-status, and last-received counters.

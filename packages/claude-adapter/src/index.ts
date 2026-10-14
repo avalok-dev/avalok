@@ -1,5 +1,6 @@
 import {
   boundedText,
+  looksLikeTestCommand,
   runtimeSources,
   sanitizeValue,
   type RuntimeDiagnostic,
@@ -70,6 +71,13 @@ function toolTarget(toolName: string, input: Record<string, unknown> | undefined
     };
   }
   if (["bash", "powershell"].includes(lower)) {
+    const command = stringValue(input?.command);
+    if (command && looksLikeTestCommand(command))
+      return {
+        category: "tool" as EventCategory,
+        action: "terminal.test",
+        entity: { id: "tests", kind: "tool" as const, name: "Tests", provider: "Local" },
+      };
     return {
       category: "tool" as EventCategory,
       action: "terminal.command",

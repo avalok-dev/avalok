@@ -5,7 +5,7 @@ name: Release
 # provenance record) and uploads it. Publishing is a separate job that runs only when the
 # `publish` input is true, requires approval of the protected `npm-publish` environment, and
 # uploads exactly the tarball built and tested here after verifying its checksum.
-# See docs/releases/developer-preview.md before running it.
+# See docs/development/releasing.md before running it.
 on:
   workflow_dispatch:
     inputs:
