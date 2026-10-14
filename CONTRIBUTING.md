@@ -60,7 +60,7 @@ Pass `--python /path/to/python` to include the standard OpenTelemetry Python exp
 
 Internal workspace packages use the `@visual-system/*` scope; they are bundled into the single published `avalok` package and are never published individually.
 
-Architecture documents live in [`docs/architecture`](docs/architecture) (start with [`overview.md`](docs/architecture/overview.md)); development guides in [`docs/development`](docs/development); security in [`docs/security`](docs/security). Documents named `milestone-*` are historical records.
+Architecture documents live in [`docs/architecture`](docs/architecture) (start with [`overview.md`](docs/architecture/overview.md)); development guides in [`docs/development`](docs/development); security in [`docs/security`](docs/security).
 
 ## Ground rules
 
