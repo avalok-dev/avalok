@@ -1,0 +1,103 @@
+# Claude Code runtime adapter
+
+## Integration method
+
+Claude Code is integrated through current supported interfaces rather than depending on its version-sensitive transcript schema:
+
+1. Claude Code OpenTelemetry traces provide prompt-to-API/tool span hierarchy.
+2. HTTP lifecycle hooks provide immediate prompt, file, command, MCP, web, response, and error observations with the documented hook fields.
+
+The receiver accepts hook requests only as Claude Code sends them: `POST` with `Content-Type: application/json`, no browser `Origin`, and a loopback `Host`. `text/plain`, form, and multipart bodies return `415`, and any `Origin` returns `403`, so a web page cannot forge Claude observations (see [local HTTP security](../security/local-http.md)).
+
+Hook requests are observational. Avalok responds successfully and never returns a permission decision, changes tool input/output, or blocks Claude Code.
+
+## Enable traces
+
+Start Avalok first with `pnpm dev`, then launch Claude Code from a shell with:
+
+```bash
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1
+export OTEL_TRACES_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/json
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
+claude
+```
+
+`http/protobuf` also works since M7.3; either OTLP/HTTP encoding reaches the same pipeline.
+
+Claude tracing is a Claude Code beta feature and may change. Avalok treats missing attributes defensively.
+
+## Enable hooks
+
+The easy way is the setup command, run from your project:
+
+```bash
+avalok setup claude            # prints the hooks block; writes nothing
+avalok setup claude --apply    # shows the change, asks to confirm, backs up an existing file, then writes
+avalok setup claude --remove   # removes only Avalok's hook entries
+```
+
+It targets the project-local `.claude/settings.local.json` and never touches `~/.claude`. Other settings and hooks are kept, running it twice changes nothing, an existing file is backed up first (`settings.local.json.avalok-backup-<timestamp>`), a file that is not valid JSON is never edited, and without an interactive terminal `--apply` needs `--yes`. The receiver port follows `--otlp-port`.
+
+Or add the following pattern by hand to project-local `.claude/settings.local.json`. Repeat the same handler for each listed event:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [{ "type": "http", "url": "http://127.0.0.1:4318/v1/claude/hooks", "timeout": 5 }]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "http", "url": "http://127.0.0.1:4318/v1/claude/hooks", "timeout": 5 }]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [{ "type": "http", "url": "http://127.0.0.1:4318/v1/claude/hooks", "timeout": 5 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [{ "type": "http", "url": "http://127.0.0.1:4318/v1/claude/hooks", "timeout": 5 }]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [{ "type": "http", "url": "http://127.0.0.1:4318/v1/claude/hooks", "timeout": 5 }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "http", "url": "http://127.0.0.1:4318/v1/claude/hooks", "timeout": 5 }]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [{ "type": "http", "url": "http://127.0.0.1:4318/v1/claude/hooks", "timeout": 5 }]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [{ "type": "http", "url": "http://127.0.0.1:4318/v1/claude/hooks", "timeout": 5 }]
+      }
+    ]
+  }
+}
+```
+
+Avalok never installs hooks on its own because hook scope and privacy are user choices; `avalok setup claude --apply` writes only after you confirm.
+
+## Observable behavior and limits
+
+Supported hook observations include user prompts, successful and failed tools, Read/Edit/Write file paths, Bash/PowerShell commands, MCP tool identity, web activity, stop/response, and session boundaries. Prompt/response content is bounded and raw data is sanitized before persistence. Thinking/reasoning content is never reconstructed or displayed.
+
+Hook events do not provide token usage. Tokens and model/API hierarchy appear only when Claude's OpenTelemetry trace export provides them. Historical runs are the observations Avalok has already persisted; Avalok does not ingest private historical transcript contents by default.
+
+The collector health response includes a `claude` section with hook, normalization, unsupported-event, error, live-status, and last-received counters.

@@ -1,0 +1,11 @@
+# Normalize text to LF on every platform. Windows checkouts otherwise convert to CRLF, which
+# breaks shebang scripts under Vite and changes shipped sample/dashboard bytes per OS.
+* text=auto eol=lf
+
+*.pb binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.wasm binary
+*.tgz binary

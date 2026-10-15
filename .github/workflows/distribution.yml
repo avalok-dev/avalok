@@ -1,0 +1,68 @@
+name: Distribution
+
+# Per OS: unit tests, then a neutral-path release build (source copied to a temporary path with
+# spaces, frozen install, dist:build, dist:pack, build-machine path-leak scan) and the
+# installed-product smoke test against that tarball: --version, --help, doctor, startup,
+# dashboard/OTLP health, local HTTP security checks, OTLP JSON + protobuf, the standard Python
+# exporter, restart persistence, shutdown/port release, orphan cleanup, and safe data clearing.
+# The installed smoke runs again under Node 22 (the build itself uses the repository's Node 24).
+# Nothing is published.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  packed-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install the standard OpenTelemetry Python exporter
+        run: python -m pip install -r examples/python-otel-direct/requirements.txt
+      - run: pnpm install --frozen-lockfile
+      # --continue: report every failing package on this OS, not just the first.
+      - run: pnpm test --continue
+      # The release script hides its neutral checkout during the smoke on POSIX. Windows keeps
+      # files open, so it skips hiding; RUNNER_TEMP there is on D:, a different drive from the
+      # user profile, which also exercises the cross-drive build-tracing case.
+      - if: runner.os != 'Windows'
+        run: pnpm release:build --python python
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: pnpm release:build --python python --root "$env:RUNNER_TEMP"
+      # The product supports Node 22 LTS (>=22.12) and Node 24 LTS. The build above runs on the
+      # repository's Node 24 toolchain; this runs the same installed tarball under Node 22.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22.12"
+      - name: Installed smoke under Node 22 (POSIX)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: node packages/cli/scripts/smoke-installed.mjs --tarball "$(ls artifacts/release/*.tgz | head -1)" --hide-workspace --python python
+      - name: Installed smoke under Node 22 (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: node packages/cli/scripts/smoke-installed.mjs --tarball "$(ls artifacts/release/*.tgz | head -1)" --python python
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: avalok-packed-tarball
+          path: |
+            artifacts/release/*.tgz
+            artifacts/release/*.sha256
+            artifacts/release/release-provenance.json
+          retention-days: 7

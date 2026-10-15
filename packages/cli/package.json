@@ -1,0 +1,38 @@
+{
+  "name": "@visual-system/cli",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "avalok": "./avalok.mjs"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "avalok": "node avalok.mjs",
+    "build": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@visual-system/analyzer": "workspace:*",
+    "@visual-system/capabilities": "workspace:*",
+    "@visual-system/codex-adapter": "workspace:*",
+    "@visual-system/collector": "workspace:*",
+    "@visual-system/export": "workspace:*",
+    "@visual-system/graph": "workspace:*",
+    "@visual-system/reconcile": "workspace:*",
+    "@visual-system/schema": "workspace:*",
+    "@visual-system/telemetry-adapter": "workspace:*",
+    "next": "^15.3.3",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "esbuild": "0.28.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

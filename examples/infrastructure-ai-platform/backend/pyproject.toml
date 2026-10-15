@@ -1,0 +1,4 @@
+[project]
+name = "research-api"
+version = "1.0.0"
+dependencies = ["fastapi>=0.115", "openai>=1.50", "psycopg[binary]>=3.2", "boto3>=1.35"]

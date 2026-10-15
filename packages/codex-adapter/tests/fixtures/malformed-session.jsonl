@@ -1,0 +1,6 @@
+{"type":"session_meta","timestamp":"2026-01-01T00:00:00.000Z","payload":{"id":"malformed-browser-fixture","timestamp":"2026-01-01T00:00:00.000Z","cwd":"/tmp/malformed-project","originator":"adapter-test","cli_version":"test"}}
+{this is deliberately malformed JSONL}
+{"type":"event_msg","timestamp":"2026-01-01T00:00:00.100Z","payload":{"type":"task_started","turn_id":"turn-1"}}
+{"type":"event_msg","timestamp":"2026-01-01T00:00:00.500Z","payload":{"type":"item_completed","item":{"type":"CommandExecution","id":"command-1","command":["zsh","-lc","pnpm test"],"status":"failed","exit_code":1,"duration":{"secs":0,"nanos":300000000}}}}
+{"type":"future_record","timestamp":"2026-01-01T00:00:00.600Z","payload":{}}
+{"type":"event_msg","timestamp":"2026-01-01T00:00:01.000Z","payload":{"type":"task_complete","turn_id":"turn-1","duration_ms":900}}

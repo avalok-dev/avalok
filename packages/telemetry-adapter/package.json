@@ -1,0 +1,33 @@
+{
+  "name": "@visual-system/telemetry-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./observability": "./src/observability.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "generate:otlp": "node scripts/generate-otlp-descriptor.mjs && prettier --write src/otlp-proto-descriptor.ts"
+  },
+  "dependencies": {
+    "@visual-system/runtime-adapter": "workspace:*",
+    "@visual-system/schema": "workspace:*",
+    "long": "5.3.2",
+    "protobufjs": "8.8.0"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "1.9.0",
+    "@opentelemetry/core": "2.11.0",
+    "@opentelemetry/otlp-transformer": "0.222.0",
+    "@opentelemetry/resources": "2.11.0",
+    "@opentelemetry/sdk-trace-base": "2.11.0",
+    "@types/node": "^22.15.30",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

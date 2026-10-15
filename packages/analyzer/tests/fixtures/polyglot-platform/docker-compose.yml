@@ -1,0 +1,29 @@
+services:
+  web:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql://fixture:never-display@postgres/research
+      OPENAI_API_KEY: fixture-secret-never-display
+  worker:
+    build: ./worker
+    depends_on:
+      - redis
+  postgres:
+    image: postgres:17
+  redis:
+    image: redis:7

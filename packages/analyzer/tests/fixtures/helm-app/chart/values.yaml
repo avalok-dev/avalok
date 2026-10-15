@@ -1,0 +1,16 @@
+namespace: research
+replicaCount: 2
+image:
+  repository: ghcr.io/avalok/backend
+  tag: 1.2.3
+service:
+  port: 8000
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+ingress:
+  host: research.example.test

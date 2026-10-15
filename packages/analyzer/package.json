@@ -1,0 +1,27 @@
+{
+  "name": "@visual-system/analyzer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cdktf/hcl2json": "0.21.0",
+    "@lezer/python": "^1.1.19",
+    "@visual-system/schema": "workspace:*",
+    "smol-toml": "^1.9.0",
+    "typescript": "^5.8.3",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "vitest": "^3.2.4"
+  }
+}

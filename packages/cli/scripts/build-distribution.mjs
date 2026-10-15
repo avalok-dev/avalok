@@ -1,0 +1,457 @@
+#!/usr/bin/env node
+// Builds the installable Avalok package into `packages/cli/dist/`.
+//
+// The result is a self-contained npm package directory: a bundled CLI (`lib/`), a Next.js
+// standalone dashboard (`dashboard/`), allowlisted sample repositories (`samples/`), a small
+// launcher (`bin/`), and a generated manifest that lists only real runtime dependencies.
+// Nothing here publishes anything; `pack-distribution.mjs` turns the directory into a tarball.
+import { spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  cpSync,
+  mkdtempSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  collectPackages,
+  mergePackages,
+  readModuleManifests,
+  renderNotices,
+} from "./third-party-notices.mjs";
+
+const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = resolve(cliRoot, "../..");
+const webRoot = join(repositoryRoot, "apps", "web");
+const output = join(cliRoot, "dist");
+const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
+// `--publishable` (release workflow only) omits `private: true` so the exact artifact that was
+// built and smoke-tested is the one a later, explicitly approved `npm publish` would upload.
+const publishable = process.argv.includes("--publishable");
+const moduleManifests = mkdtempSync(join(tmpdir(), "avalok-modules-"));
+let cliInputs = [];
+
+const cliManifest = readJson(join(cliRoot, "package.json"));
+const rootManifest = readJson(join(repositoryRoot, "package.json"));
+const product = readJson(join(cliRoot, "product.json"));
+
+// Runtime packages installed by npm alongside Avalok: the analyzer uses the TypeScript compiler
+// API, and the HCL parser loads an adjacent WebAssembly file. Versions are pinned to exactly what
+// the dashboard was built with. Next, React, and Next's other runtime dependencies are not
+// installed this way; the dashboard ships its own pruned copy (see shipDashboardModules).
+const externalRuntime = ["typescript", "@cdktf/hcl2json"];
+
+// Packages from Next's traced standalone output that must not ship: sharp's native binaries are
+// platform-specific and Avalok never uses next/image; the compiler binary is build-time only;
+// the two externals above are resolved from the package's own dependencies.
+const excludedDashboardModules = [
+  /^@img\//,
+  /^sharp$/,
+  /^@next\/swc-/,
+  /^typescript$/,
+  /^@cdktf\/hcl2json$/,
+];
+// package.json files of every module shipped in dashboard/node_modules (for the notices).
+let dashboardModuleManifests = [];
+
+// Allowlisted analysis samples offered by the dashboard source selector.
+const samples = {
+  fastapi: "packages/analyzer/tests/fixtures/python-fastapi",
+  polyglot: "examples/polyglot-ai-platform",
+  terraform: "packages/analyzer/tests/fixtures/terraform-aws",
+  kubernetes: "packages/analyzer/tests/fixtures/kubernetes-app",
+  helm: "packages/analyzer/tests/fixtures/helm-app",
+  infrastructure: "examples/infrastructure-ai-platform",
+};
+const excludedSampleEntries = new Set([
+  "node_modules",
+  ".venv",
+  "venv",
+  "__pycache__",
+  ".pytest_cache",
+  ".DS_Store",
+  ".agentmap",
+  ".sarvadrik",
+  ".avalok",
+  ".terraform",
+]);
+
+function step(message) {
+  process.stdout.write(`• ${message}\n`);
+}
+
+function run(command, arguments_, options) {
+  const result = spawnSync(command, arguments_, { stdio: "inherit", ...options });
+  if (result.status !== 0)
+    throw new Error(`${basename(command)} ${arguments_.join(" ")} failed (${result.status}).`);
+}
+
+function installedManifest(name) {
+  const require = createRequire(join(webRoot, "package.json"));
+  let directory = dirname(require.resolve(name));
+  while (
+    !existsSync(join(directory, "package.json")) ||
+    readJson(join(directory, "package.json")).name !== name
+  )
+    directory = dirname(directory);
+  return readJson(join(directory, "package.json"));
+}
+
+function installedVersion(name) {
+  return installedManifest(name).version;
+}
+
+// Workspace packages that export compiled `dist/` files must be built before Next resolves them.
+function buildCompiledPackages() {
+  step("Building compiled workspace packages");
+  const schemaRoot = join(repositoryRoot, "packages", "schema");
+  const tsc = createRequire(join(schemaRoot, "package.json")).resolve("typescript/bin/tsc");
+  run(process.execPath, [tsc, "-p", "tsconfig.build.json"], { cwd: schemaRoot });
+}
+
+function buildDashboard() {
+  step("Building the standalone dashboard");
+  const next = createRequire(join(webRoot, "package.json")).resolve("next/dist/bin/next");
+  run(process.execPath, [next, "build"], {
+    cwd: webRoot,
+    env: {
+      ...process.env,
+      AVALOK_DASHBOARD_STANDALONE: "1",
+      AVALOK_MODULE_MANIFEST: moduleManifests,
+      NEXT_TELEMETRY_DISABLED: "1",
+      NODE_ENV: "production",
+    },
+  });
+  const standalone = join(webRoot, ".next", "standalone", relative(repositoryRoot, webRoot));
+  if (!existsSync(join(standalone, "server.js")))
+    throw new Error("Next.js did not produce a standalone server.");
+  const destination = join(output, "dashboard");
+  cpSync(standalone, destination, {
+    recursive: true,
+    // Dependencies come from the installed package's node_modules, never the workspace.
+    filter: (source) => basename(source) !== "node_modules",
+  });
+  shipDashboardModules(join(webRoot, ".next", "standalone"), destination);
+  // Build traces and the workspace manifest are build-time metadata, not runtime inputs.
+  rmSync(join(destination, "package.json"), { force: true });
+  rmSync(join(destination, ".next", "cache"), { recursive: true, force: true });
+  cpSync(join(webRoot, ".next", "static"), join(destination, ".next", "static"), {
+    recursive: true,
+  });
+  if (existsSync(join(webRoot, "public")))
+    cpSync(join(webRoot, "public"), join(destination, "public"), { recursive: true });
+  cpSync(join(cliRoot, "src", "dashboard-launcher.cjs"), join(destination, "avalok-launch.cjs"));
+  // The package root is ESM; the standalone server is CommonJS.
+  writeFileSync(
+    join(destination, "package.json"),
+    `${JSON.stringify({ type: "commonjs" }, null, 2)}\n`,
+  );
+}
+
+// Ships the pruned runtime dependencies Next traced into its standalone output as real files in
+// dashboard/node_modules. Installing the whole `next` package instead costs about 150 MB plus a
+// platform compiler binary of about 125 MB. npm drops symlinks from tarballs, so pnpm's symlinked
+// virtual store is flattened: every package is copied by value into one flat node_modules. Two
+// different versions of one package cannot be flattened, so that fails the build loudly.
+function shipDashboardModules(standaloneRoot, destination) {
+  step("Shipping the dashboard's pruned runtime modules");
+  const store = join(standaloneRoot, "node_modules", ".pnpm");
+  if (!existsSync(store)) throw new Error("Next.js standalone output has no traced node_modules.");
+  const target = join(destination, "node_modules");
+  const shipped = new Map();
+  dashboardModuleManifests = [];
+  const candidates = [];
+  for (const virtual of readdirSync(store, { withFileTypes: true })) {
+    const modules = join(store, virtual.name, "node_modules");
+    if (!virtual.isDirectory() || !existsSync(modules)) continue;
+    // A package's own directory is a real directory; its dependencies are symlinks, which
+    // Dirent reports as non-directories, so only real packages are collected here.
+    for (const entry of readdirSync(modules, { withFileTypes: true })) {
+      if (entry.name.startsWith("@") && entry.isDirectory()) {
+        for (const scoped of readdirSync(join(modules, entry.name), { withFileTypes: true }))
+          if (scoped.isDirectory()) candidates.push(join(modules, entry.name, scoped.name));
+      } else if (entry.isDirectory()) candidates.push(join(modules, entry.name));
+    }
+  }
+  for (const directory of candidates.sort()) {
+    const manifest = readJson(join(directory, "package.json"));
+    if (
+      typeof manifest.name !== "string" ||
+      excludedDashboardModules.some((p) => p.test(manifest.name))
+    )
+      continue;
+    const earlier = shipped.get(manifest.name);
+    if (earlier) {
+      if (earlier !== manifest.version)
+        throw new Error(
+          `Cannot flatten ${manifest.name}: versions ${earlier} and ${manifest.version} are both traced.`,
+        );
+      continue;
+    }
+    shipped.set(manifest.name, manifest.version);
+    const destinationDirectory = join(target, ...manifest.name.split("/"));
+    cpSync(directory, destinationDirectory, {
+      recursive: true,
+      dereference: true,
+      filter: (source) => basename(source) !== "node_modules",
+    });
+    dashboardModuleManifests.push(join(destinationDirectory, "package.json"));
+  }
+  if (!shipped.has("next") || !shipped.has("react") || !shipped.has("react-dom"))
+    throw new Error("The traced dashboard modules are missing next, react, or react-dom.");
+  step(`${shipped.size} dashboard runtime packages shipped`);
+}
+
+async function bundleCli() {
+  step("Bundling the CLI, collector, analyzer, and adapters");
+  // import() needs a file URL: a bare `D:\…` path is rejected by the ESM loader on Windows.
+  const esbuild = await import(
+    pathToFileURL(createRequire(join(cliRoot, "package.json")).resolve("esbuild")).href
+  );
+  const common = {
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node24",
+    legalComments: "linked",
+    logLevel: "warning",
+  };
+  const cli = await esbuild.build({
+    ...common,
+    metafile: true,
+    entryPoints: [join(cliRoot, "src", "bin.ts")],
+    outfile: join(output, "lib", "cli.mjs"),
+    external: externalRuntime,
+    // Some bundled CommonJS dependencies call require() for Node built-ins.
+    banner: {
+      js: 'import { createRequire as __avalokCreateRequire } from "node:module";\nconst require = __avalokCreateRequire(import.meta.url);',
+    },
+  });
+  cliInputs = Object.keys(cli.metafile.inputs).map((input) => resolve(process.cwd(), input));
+  // `avalok hook ...` runs on every agent event, so it gets its own tiny bundle (Node built-ins only).
+  await esbuild.build({
+    ...common,
+    entryPoints: [join(cliRoot, "src", "hook-entry.ts")],
+    outfile: join(output, "lib", "hook.mjs"),
+  });
+  // The launcher loads this before anything else, so keep it tiny and syntax-conservative.
+  await esbuild.build({
+    ...common,
+    entryPoints: [join(cliRoot, "src", "node-support.ts")],
+    outfile: join(output, "lib", "node-support.mjs"),
+    target: "es2017",
+  });
+}
+
+function writeLauncher() {
+  step("Writing the launcher");
+  const launcher = join(output, "bin", `${product.cliName}.mjs`);
+  mkdirSync(dirname(launcher), { recursive: true });
+  writeFileSync(
+    launcher,
+    `#!/usr/bin/env node
+import { nodeSupport, supportedNodeRange, testedNodeLines } from "../lib/node-support.mjs";
+
+// Agent hooks: run first and never fail. Whatever happens (an unsupported Node, a missing file),
+// exit 0 and print nothing, so Avalok cannot disturb the agent that started it.
+if (process.argv[2] === "hook") {
+  try {
+    const { main } = await import("../lib/hook.mjs");
+    await main(process.argv.slice(3));
+  } catch {
+    // Nothing to report: hooks are silent by design.
+  }
+  process.exit(0);
+}
+
+const support = nodeSupport(process.versions.node);
+if (support === "unsupported") {
+  process.stderr.write(
+    "${product.displayName} requires Node.js " + supportedNodeRange + " (found " + process.versions.node + ").\\n" +
+      "Install " + testedNodeLines + " (nodejs.org) and try again.\\n",
+  );
+  process.exit(1);
+}
+if (support === "untested" && process.env.AVALOK_QUIET_NODE_WARNING !== "1")
+  process.stderr.write(
+    "Warning: Node.js " + process.versions.node + " is outside the tested lines (" + testedNodeLines + "); it may work.\\n",
+  );
+
+const { formatCliError, runCli } = await import("../lib/cli.mjs");
+try {
+  process.exitCode = await runCli();
+} catch (error) {
+  process.stderr.write(formatCliError(error));
+  process.exitCode = 1;
+}
+`,
+  );
+  chmodSync(launcher, 0o755);
+}
+
+function copySamples() {
+  step("Copying allowlisted sample repositories");
+  // Samples keep their source directory names so analysis shows the same repository names.
+  for (const source of Object.values(samples))
+    cpSync(join(repositoryRoot, source), join(output, "samples", basename(source)), {
+      recursive: true,
+      filter: (path) =>
+        !excludedSampleEntries.has(basename(path)) && !/^\.env(\.|$)/.test(basename(path)),
+    });
+}
+
+function writeNotices() {
+  step("Generating third-party notices from bundled packages");
+  const manifests = readModuleManifests(moduleManifests);
+  const dashboardFiles = [...manifests.values()].flat();
+  if (cliInputs.length === 0 || dashboardFiles.length === 0)
+    throw new Error("Bundled module lists are missing; cannot generate third-party notices.");
+  const packages = new Map();
+  mergePackages(packages, collectPackages(cliInputs), "cli");
+  mergePackages(packages, collectPackages(dashboardFiles), "dashboard");
+  mergePackages(packages, collectPackages(dashboardModuleManifests), "dashboard-runtime");
+  const runtimeDependencies = externalRuntime.map((name) => {
+    const manifest = installedManifest(name);
+    return { name, version: manifest.version, license: manifest.license ?? "UNKNOWN" };
+  });
+  const { text, missingText, count } = renderNotices(packages, { product, runtimeDependencies });
+  const unknown = [...packages.values()].filter((entry) => entry.license === "UNKNOWN");
+  if (unknown.length)
+    throw new Error(
+      `Packages without license metadata: ${unknown.map((entry) => entry.name).join(", ")}`,
+    );
+  writeFileSync(join(output, "THIRD_PARTY_NOTICES.md"), text);
+  rmSync(moduleManifests, { recursive: true, force: true });
+  step(
+    `THIRD_PARTY_NOTICES.md: ${count} packages` +
+      (missingText.length
+        ? `; ${missingText.length} publish no license file (identifier recorded): ${missingText.map((entry) => entry.name).join(", ")}`
+        : ""),
+  );
+}
+
+function writeManifest() {
+  step(`Writing the package manifest${publishable ? " (publishable)" : " (private)"}`);
+  const manifest = {
+    name: product.packageName,
+    version: cliManifest.version,
+    description: product.description,
+    // Everyday builds are private so `npm publish` refuses them; only the release workflow's
+    // `--publishable` build (smoke-tested as-is) can be published, after explicit approval.
+    ...(publishable ? {} : { private: true }),
+    license: rootManifest.license,
+    homepage: product.homepage,
+    ...(product.repository
+      ? {
+          repository: { type: "git", url: `git+${product.repository}.git` },
+          bugs: { url: `${product.repository}/issues` },
+        }
+      : {}),
+    keywords: product.keywords,
+    type: "module",
+    bin: { [product.cliName]: `bin/${product.cliName}.mjs` },
+    engines: { node: product.nodeRange },
+    files: ["bin", "lib", "dashboard", "samples", "THIRD_PARTY_NOTICES.md"],
+    dependencies: Object.fromEntries(externalRuntime.map((name) => [name, installedVersion(name)])),
+  };
+  writeFileSync(join(output, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  cpSync(join(repositoryRoot, "LICENSE"), join(output, "LICENSE"));
+  writeFileSync(
+    join(output, "README.md"),
+    `# ${product.displayName}
+
+**${product.tagline}**
+
+${product.description}
+
+Developer preview. Website: ${product.homepage}
+
+\`\`\`sh
+${product.cliName} [path]            # analyze a repository and open the local dashboard
+${product.cliName} doctor [path]     # diagnose the local setup without starting services
+${product.cliName} data path         # show Avalok-owned local data
+${product.cliName} data clear        # clear Avalok-owned local data
+\`\`\`
+
+Requires Node.js ${product.nodeRange} (tested on Node 22 LTS and Node 24 LTS). Everything runs locally; both servers bind to 127.0.0.1.
+OTLP/HTTP traces (protobuf or JSON) are accepted at http://127.0.0.1:4318/v1/traces.
+
+Terraform, Kubernetes, Helm, and AWS support analyzes configuration files in your repository;
+${product.displayName} does not connect to cloud or cluster APIs.
+
+Uninstalling the package does not delete Avalok's local data; run \`${product.cliName} data path\`
+to find it and \`${product.cliName} data clear\` before uninstalling if you want it removed.
+
+Licensed under Apache-2.0. Bundled third-party components and their licenses are listed in
+THIRD_PARTY_NOTICES.md.
+`,
+  );
+}
+
+function files(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isSymbolicLink()) throw new Error(`Refusing to ship a symlink: ${path}`);
+    return entry.isDirectory() ? files(path) : [path];
+  });
+}
+
+// Fails the build if the artifact could resolve anything from this workspace at runtime.
+function verifyIndependence() {
+  step("Verifying the artifact is independent of the workspace");
+  const problems = [];
+  const manifest = readFileSync(join(output, "package.json"), "utf8");
+  if (manifest.includes("workspace:")) problems.push("package.json uses the workspace: protocol");
+  for (const file of files(output)) {
+    if (!/\.(m?js|cjs|json)$/.test(file)) continue;
+    const text = readFileSync(file, "utf8");
+    const relativeFile = relative(output, file);
+    // The CLI bundle and launcher must not embed the build machine's checkout path at all.
+    if (/^(lib|bin)\b/.test(relativeFile) && text.includes(repositoryRoot))
+      problems.push(`${relativeFile} embeds the workspace path`);
+    // Next.js server output keeps build-time source paths as module labels (metadata only);
+    // it must never *load* anything from them.
+    for (const pattern of [
+      `require("${repositoryRoot}`,
+      `from "${repositoryRoot}`,
+      `import("${repositoryRoot}`,
+    ])
+      if (text.includes(pattern)) problems.push(`${relativeFile} loads from the workspace`);
+    if (/(?:require\(|import\(|from\s*)"@visual-system\//.test(text))
+      problems.push(`${relativeFile} loads an internal workspace package at runtime`);
+  }
+  const forbidden =
+    /^(\.env(\..*)?|node_modules|\.git|\.agentmap|\.sarvadrik|\.avalok|coverage|\.turbo|\.venv|__pycache__|.*\.tfstate|.*\.tfvars)$/;
+  // dashboard/node_modules is the one allowed node_modules: flat, real files only (files() rejects
+  // symlinks). It must not contain a pnpm store or secret-like files.
+  const dashboardModules = join(output, "dashboard", "node_modules") + sep;
+  const forbiddenInModules = /^(\.pnpm|\.env(\..*)?|\.git|.*\.tfstate|.*\.tfvars)$/;
+  for (const file of files(output)) {
+    const inModules = file.startsWith(dashboardModules);
+    for (const part of relative(output, file).split(sep))
+      if ((inModules ? forbiddenInModules : forbidden).test(part))
+        problems.push(`artifact contains ${relative(output, file)}`);
+  }
+  if (problems.length)
+    throw new Error(`Distribution is not self-contained:\n- ${problems.join("\n- ")}`);
+}
+
+rmSync(output, { recursive: true, force: true });
+mkdirSync(output, { recursive: true });
+buildCompiledPackages();
+buildDashboard();
+await bundleCli();
+writeLauncher();
+copySamples();
+writeNotices();
+writeManifest();
+verifyIndependence();
+step(`Distribution ready: ${relative(repositoryRoot, output)}`);

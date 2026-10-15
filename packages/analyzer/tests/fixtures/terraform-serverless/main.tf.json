@@ -1,0 +1,25 @@
+{
+  "resource": {
+    "aws_lambda_function": {
+      "indexer": {
+        "function_name": "document-indexer",
+        "runtime": "nodejs22.x",
+        "handler": "index.handler",
+        "memory_size": 512,
+        "role": "${aws_iam_role.lambda.arn}"
+      }
+    },
+    "aws_iam_role": {
+      "lambda": {
+        "name": "document-indexer-role",
+        "assume_role_policy": "{}"
+      }
+    },
+    "aws_sqs_queue": {
+      "jobs": { "name": "document-jobs" }
+    },
+    "aws_dynamodb_table": {
+      "documents": { "name": "documents" }
+    }
+  }
+}

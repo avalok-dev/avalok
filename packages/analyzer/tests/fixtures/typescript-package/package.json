@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/core",
+  "private": true,
+  "scripts": {
+    "dangerous": "touch SHOULD_NOT_EXIST"
+  }
+}

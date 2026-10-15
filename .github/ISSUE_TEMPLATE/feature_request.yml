@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest an improvement or a new source Avalok should understand
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to see or understand about your system?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What would help? For new languages, frameworks, or infrastructure formats, include a small example.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
