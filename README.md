@@ -73,7 +73,7 @@ Outbound connections were also measured before release and none to a non-loopbac
 | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | **Architecture**   | Static analysis of source and configuration files: services, routes, model/tool/datastore integrations, dependencies |
 | **Infrastructure** | Terraform, Kubernetes, Helm, Docker, and Compose files, parsed as data, including inferred AWS relationships         |
-| **Agents**         | Local Codex sessions; Claude Code through its OpenTelemetry traces and opt-in lifecycle hooks                        |
+| **Agents**         | Local Codex and Claude Code sessions, read from their own session files with no setup; OpenTelemetry traces optional |
 | **Runtime**        | OpenTelemetry traces (OTLP/HTTP protobuf or JSON), with OpenInference semantics for LLM, tool, and retrieval spans   |
 
 Every detected element carries **evidence** (the file and reason it was detected) and a **confidence** level. Avalok reports what it detected and observed; it does not claim complete understanding of your system.
@@ -105,7 +105,7 @@ Terraform (HCL and JSON), Kubernetes manifests, Helm charts (bounded static valu
 | Helm                                                 |          ✓          |          —          |            ✓            | Direct `.Values` substitution only; no `helm template`           |
 | AWS                                                  |          —          |          —          | ✓ (from configuration)  | Inferred from Terraform/Kubernetes; no AWS API access            |
 | Codex                                                |          —          |          ✓          |            —            | Local session files: history and live tailing, read-only         |
-| Claude Code                                          |          —          |          ✓          |            —            | Its OpenTelemetry traces and opt-in HTTP hooks                   |
+| Claude Code                                          |          —          |          ✓          |            —            | Its local session files (no setup); optional hooks and traces    |
 | OpenTelemetry                                        |          —          |          ✓          |            —            | OTLP/HTTP traces, protobuf or JSON (no gRPC, metrics, or logs)   |
 | OpenInference                                        |          —          |          ✓          |            —            | Agent, chain, LLM, tool, retriever, embedding, and related spans |
 | Go, Java, Kotlin, Rust, Ruby, PHP, C#, Swift, C, C++ |   inventory only    |  via OpenTelemetry  |            —            | Files are counted and grouped, not parsed                        |
@@ -127,10 +127,10 @@ Avalok discovers Codex session files in `~/.codex/sessions` (or `$CODEX_HOME`), 
 
 ## Claude Code
 
-Avalok observes Claude Code through two supported interfaces, both opt-in:
+There is nothing to set up. Avalok discovers the session files Claude Code already writes to `~/.claude/projects` (or `$CLAUDE_CONFIG_DIR`), replays them, and follows running sessions live. Access is read-only, and sessions started in a parent folder of your repository are listed too. Two optional extras push events as they happen:
 
 - **Traces:** launch Claude Code with `CLAUDE_CODE_ENABLE_TELEMETRY=1`, `OTEL_TRACES_EXPORTER=otlp`, and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces`.
-- **Hooks:** run `avalok setup claude` in your project to see the exact settings. It writes nothing; `avalok setup claude --apply` adds them to the project's `.claude/settings.local.json` after you confirm (existing files are backed up first, `--remove` undoes it). Or add `"type": "http"` hooks pointing at `http://127.0.0.1:4318/v1/claude/hooks` yourself.
+- **Hooks (optional):** run `avalok setup claude` in your project to see the exact settings. It writes nothing; `avalok setup claude --apply` adds them to the project's `.claude/settings.local.json` after you confirm (existing files are backed up first, `--remove` undoes it). Or add `"type": "http"` hooks pointing at `http://127.0.0.1:4318/v1/claude/hooks` yourself.
 
 Hooks are observational only; Avalok never blocks or changes Claude Code. Full configuration: [docs/architecture/claude-code.md](docs/architecture/claude-code.md).
 

@@ -6,6 +6,10 @@ import {
   migrateLegacyData,
   type MigrationResult,
 } from "@visual-system/capabilities";
+import {
+  defaultClaudeProjectsDirectory,
+  discoverClaudeTranscripts,
+} from "@visual-system/claude-adapter/transcript";
 import { discoverCodexSessions } from "@visual-system/codex-adapter";
 import { createCollectorServer } from "@visual-system/collector";
 import { LocalRuntimeStore } from "@visual-system/telemetry-adapter";
@@ -35,6 +39,7 @@ export interface RunningAvalok {
 export interface StartDependencies {
   analyze: typeof analyzeRepository;
   discoverCodex: typeof discoverCodexSessions;
+  discoverClaude: () => Promise<{ id: string }[]>;
   createCollector: typeof createCollectorServer;
   createStore: (directory: string) => LocalRuntimeStore;
   findDashboardPort: typeof availableDashboardPort;
@@ -46,6 +51,7 @@ export interface StartDependencies {
 const defaultDependencies: StartDependencies = {
   analyze: analyzeRepository,
   discoverCodex: discoverCodexSessions,
+  discoverClaude: () => discoverClaudeTranscripts(defaultClaudeProjectsDirectory()),
   createCollector: createCollectorServer,
   createStore: (directory) => new LocalRuntimeStore(directory),
   findDashboardPort: availableDashboardPort,
@@ -91,7 +97,10 @@ async function discoverSources(
 ): Promise<SourceStatus> {
   const [codex, claude] = await Promise.allSettled([
     dependencies.discoverCodex(),
-    store.list("claude"),
+    // Claude Code's own session files plus hook-observed runs, counted once per session.
+    Promise.all([dependencies.discoverClaude(), store.list("claude")]).then(
+      ([transcripts, hooked]) => [...new Set([...transcripts, ...hooked].map((run) => run.id))],
+    ),
   ]);
   return {
     codex:

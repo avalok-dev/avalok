@@ -23,6 +23,23 @@ export function sessionBelongsToRepository(
   return cwd === root || cwd.startsWith(`${root}/`);
 }
 
+/**
+ * How a session's folder relates to the repository: `inside` (same folder or a subfolder),
+ * `parent` (the agent was started in a folder that contains the repository, which is common when
+ * a repository sits in a workspace folder), or `other`.
+ */
+export function sessionRelationToRepository(
+  session: Pick<SessionLike, "cwd">,
+  repositoryRoot: string | undefined,
+): "inside" | "parent" | "other" {
+  if (!session.cwd || !repositoryRoot) return "other";
+  if (sessionBelongsToRepository(session, repositoryRoot)) return "inside";
+  const cwd = normalizePath(session.cwd);
+  const root = normalizePath(repositoryRoot);
+  // A bare "/" normalizes to "", which would match everything.
+  return cwd !== "" && root.startsWith(`${cwd}/`) ? "parent" : "other";
+}
+
 function modifiedTime(session: SessionLike) {
   const time = Date.parse(session.modifiedAt);
   return Number.isNaN(time) ? 0 : time;

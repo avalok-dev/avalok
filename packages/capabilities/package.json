@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@visual-system/analyzer": "workspace:*",
+    "@visual-system/claude-adapter": "workspace:*",
     "@visual-system/codex-adapter": "workspace:*",
     "@visual-system/telemetry-adapter": "workspace:*"
   },

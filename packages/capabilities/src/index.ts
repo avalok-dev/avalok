@@ -3,6 +3,10 @@ import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promise
 import { homedir } from "node:os";
 import { join, parse, posix, resolve, sep, win32 } from "node:path";
 import type { RepositoryAnalysis } from "@visual-system/analyzer";
+import {
+  defaultClaudeProjectsDirectory,
+  discoverClaudeTranscripts,
+} from "@visual-system/claude-adapter/transcript";
 import { discoverCodexSessions } from "@visual-system/codex-adapter";
 import { defaultAvalokDataRoot, LocalRuntimeStore } from "@visual-system/telemetry-adapter";
 
@@ -355,12 +359,23 @@ export async function buildCapabilityReport(options: {
     codexAvailability = "error";
     codexError = "Codex sessions could not be read.";
   }
-  const [claude, runtimeRuns] = await Promise.all([
+  const claudeHome = environment.HOME ?? homedir();
+  const [claude, runtimeRuns, claudeTranscripts] = await Promise.all([
     claudeState(options.target, environment),
     store.list(),
+    discoverClaudeTranscripts(defaultClaudeProjectsDirectory(environment, claudeHome)).catch(
+      () => [],
+    ),
   ]);
   const telemetryRuns = runtimeRuns.filter((run) => run.source === "telemetry");
-  const claudeRuns = runtimeRuns.filter((run) => run.source === "claude");
+  // Claude Code's own session files need no setup; hook-observed runs are the same sessions when
+  // the ids match, so the count is by unique session.
+  const claudeRuns = [
+    ...runtimeRuns.filter((run) => run.source === "claude"),
+    ...claudeTranscripts,
+  ]
+    .filter((run, index, all) => all.findIndex((other) => other.id === run.id) === index)
+    .sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt));
   let health: CollectorHealth | undefined;
   let telemetryError: string | undefined;
   try {
@@ -400,27 +415,29 @@ export async function buildCapabilityReport(options: {
       support: "supported",
       availability: claude.configurationError
         ? "error"
-        : claude.available
+        : claude.available || claudeRuns.length > 0
           ? "available"
           : "not-detected",
       connection:
         claude.configured && health?.status === "ok"
           ? "listening"
-          : claude.available && !claude.configured
-            ? "not-configured"
-            : "unavailable",
+          : claudeRuns.length > 0
+            ? "ready"
+            : claude.available && !claude.configured
+              ? "not-configured"
+              : "unavailable",
       observation: claudeRuns.length > 0 ? "observed" : "waiting",
       count: claudeRuns.length,
       detail:
         claude.configurationError ??
         (claudeRuns.length > 0
-          ? `${claudeRuns.length} observed local run${claudeRuns.length === 1 ? "" : "s"}`
+          ? `${claudeRuns.length} local session${claudeRuns.length === 1 ? "" : "s"} found automatically`
           : claude.configured && health?.status === "ok"
             ? "Local observation hook configured; waiting for activity"
             : claude.configured
               ? "Observation hook configured, but the local listener is unavailable"
               : claude.available
-                ? "Available. Run `avalok setup claude` in your project to see the hook settings (nothing is changed unless you add --apply)."
+                ? "Installed; no sessions yet. Start `claude` and it appears here on its own, with no setup."
                 : "Not detected; no configuration was changed"),
       ...(latest(claudeRuns) ? { latestActivity: latest(claudeRuns)! } : {}),
       ...(claude.configurationError ? { error: claude.configurationError } : {}),

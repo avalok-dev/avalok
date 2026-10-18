@@ -1,4 +1,8 @@
 import {
+  ClaudeTranscriptTail,
+  resolveClaudeTranscript,
+} from "@visual-system/claude-adapter/transcript";
+import {
   deltaBetween,
   type RuntimeSnapshot,
   type RuntimeSourceKind,
@@ -21,7 +25,10 @@ export async function GET(
   const { source, id } = await context.params;
   if (!validSource(source)) return Response.json({ error: "Unsupported source." }, { status: 404 });
   const store = new LocalRuntimeStore();
-  const initial = await store.load(source, id);
+  const transcript = source === "claude" ? await resolveClaudeTranscript(id) : undefined;
+  const tail = transcript ? new ClaudeTranscriptTail(transcript) : undefined;
+  const load = async () => (tail ? tail.poll() : store.load(source, id));
+  const initial = await load();
   if (!initial) return Response.json({ error: "Runtime run not found." }, { status: 404 });
 
   const stream = new ReadableStream<Uint8Array>({
@@ -32,8 +39,13 @@ export async function GET(
       const interval = setInterval(async () => {
         if (closed) return;
         try {
-          const current = await store.load(source, id);
-          if (!current || current.session.modifiedAt === previous.session.modifiedAt) return;
+          const current = await load();
+          if (!current) return;
+          // The tail returns the same object until the transcript grows.
+          if (
+            tail ? current === previous : current.session.modifiedAt === previous.session.modifiedAt
+          )
+            return;
           const delta = deltaBetween(previous, current);
           previous = current;
           controller.enqueue(message("delta", delta));

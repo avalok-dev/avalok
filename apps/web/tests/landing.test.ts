@@ -80,3 +80,46 @@ describe("landing session selection", () => {
     expect(relativeTime("not a date", now)).toBe("unknown time");
   });
 });
+
+describe("live and related sessions", () => {
+  it("treats a session changed in the last two minutes as running", async () => {
+    const { isLiveSession, sessionRelationToRepository } = await import("../src/lib/landing");
+    const now = Date.parse("2026-10-18T05:00:00.000Z");
+    expect(isLiveSession({ modifiedAt: "2026-10-18T04:59:00.000Z" }, now)).toBe(true);
+    expect(isLiveSession({ modifiedAt: "2026-10-18T04:50:00.000Z" }, now)).toBe(false);
+    expect(isLiveSession({ modifiedAt: "garbage" }, now)).toBe(false);
+    expect(sessionRelationToRepository({ cwd: "/Users/dev" }, "/Users/dev/shop")).toBe("parent");
+  });
+});
+
+describe("landing with a session started in a parent folder", () => {
+  const root = "/Users/dev/workspace/shop";
+  const now = Date.parse("2026-10-18T05:00:00.000Z");
+  it("opens a running parent-folder session, but not an old one", () => {
+    const running = session({
+      id: "run",
+      cwd: "/Users/dev/workspace",
+      modifiedAt: "2026-10-18T04:59:30.000Z",
+    });
+    const old = session({
+      id: "old",
+      cwd: "/Users/dev/workspace",
+      modifiedAt: "2026-10-17T04:59:30.000Z",
+    });
+    expect(pickLandingSession(root, [running], now)?.id).toBe("run");
+    expect(pickLandingSession(root, [old], now)).toBeUndefined();
+  });
+  it("still prefers a session inside the repository", () => {
+    const inside = session({
+      id: "in",
+      cwd: `${root}/api`,
+      modifiedAt: "2026-10-10T00:00:00.000Z",
+    });
+    const running = session({
+      id: "run",
+      cwd: "/Users/dev/workspace",
+      modifiedAt: "2026-10-18T04:59:30.000Z",
+    });
+    expect(pickLandingSession(root, [running, inside], now)?.id).toBe("in");
+  });
+});
