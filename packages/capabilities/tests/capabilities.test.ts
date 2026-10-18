@@ -191,6 +191,29 @@ describe("capability semantics", () => {
       connection: "not-configured",
     });
   });
+
+  it("finds Claude Code sessions on its own, with no hooks configured", async () => {
+    const root = await mkdtemp(join(tmpdir(), "avalok-claude-auto-"));
+    await mkdir(join(root, ".claude", "projects", "-work-app"), { recursive: true });
+    await writeFile(
+      join(root, ".claude", "projects", "-work-app", "sess-1.jsonl"),
+      `${JSON.stringify({ type: "user", sessionId: "sess-1", cwd: "/work/app", timestamp: "2026-10-18T04:00:00.000Z", message: { role: "user", content: "hi" } })}\n`,
+    );
+    const report = await buildCapabilityReport({
+      analysis: analysis(),
+      target: root,
+      endpoint: "http://127.0.0.1:4318",
+      dataPaths: pathsFor(root),
+      environment: { HOME: root, PATH: "" },
+      fetchHealth: async () => ({ status: "ok", diagnostics: { spansReceived: 0 } }),
+    });
+    expect(report.sources.find((source) => source.id === "claude")).toMatchObject({
+      availability: "available",
+      connection: "ready",
+      observation: "observed",
+      count: 1,
+    });
+  });
 });
 
 describe("Avalok-owned data", () => {

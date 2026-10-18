@@ -382,7 +382,12 @@ try {
   // every command away from real sessions.
   const emptyCodex = join(scratch, "Empty Codex Home");
   mkdirSync(emptyCodex, { recursive: true });
-  const sharingEnvironment = { ...environment, CODEX_HOME: emptyCodex };
+  const sharingEnvironment = {
+    ...environment,
+    CODEX_HOME: emptyCodex,
+    // Claude Code sessions are discovered from its own files too; point at an empty folder.
+    CLAUDE_CONFIG_DIR: emptyCodex,
+  };
   const diagramOut = join(scratch, "installed diagram.svg");
   const diagramRun = runSync(
     process.execPath,

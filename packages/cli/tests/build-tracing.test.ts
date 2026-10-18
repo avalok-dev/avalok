@@ -31,6 +31,7 @@ const dashboardSources = [
   ...[
     "analyzer",
     "capabilities",
+    "claude-adapter",
     "codex-adapter",
     "graph",
     "local-security",

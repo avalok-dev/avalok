@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RuntimeSnapshot } from "@visual-system/runtime-adapter";
 import type { CapabilityReport } from "@visual-system/capabilities";
-import { RadioTower } from "lucide-react";
 import { Button } from "@visual-system/ui";
 import { Inspector } from "@visual-system/ui";
 import { ArchitectureCanvas } from "./architecture-canvas";
 import { ExecutionDock } from "./execution-dock";
 import { RunsPanel } from "./runs-panel";
-import { SourcePanel } from "./source-panel";
+import { SourcePanel, sessionLabel } from "./source-panel";
 import { TopBar } from "./top-bar";
 import { GettingStarted } from "./getting-started";
 import { ExportDialog } from "./export-dialog";
@@ -19,7 +18,13 @@ import {
   selectTelemetryObservability,
 } from "@/lib/observability-view";
 import { demoArchitecture, demoRun } from "@/lib/fixtures";
-import { pickLandingSession } from "@/lib/landing";
+import {
+  isLiveSession,
+  pickLandingSession,
+  relativeTime,
+  sessionRelationToRepository,
+  sortSessionsNewestFirst,
+} from "@/lib/landing";
 import { fetchLocalSessions } from "@/lib/sessions-client";
 import {
   displayedArchitecture,
@@ -60,6 +65,7 @@ export function VisualizerWorkspace() {
   const [setupView, setSetupView] = useState<"overview" | "telemetry">("overview");
   const [capabilities, setCapabilities] = useState<CapabilityReport>();
   const [streamTarget, setStreamTarget] = useState<StreamTarget>();
+  const [liveSessions, setLiveSessions] = useState<PublicSessionSummary[]>([]);
   const initialRepositoryRequested = useRef(false);
   // The store starts on the built-in demo. Cover it until the first real view is ready, so a
   // launch from the CLI never flashes the demo before landing on the user's repository.
@@ -172,6 +178,41 @@ export function VisualizerWorkspace() {
     },
     [setSourceError, setSourceLoading, streamTarget],
   );
+
+  // The Live view with nothing to show keeps looking for agent sessions, so starting `claude` or
+  // `codex` in this repository is enough: a session that starts running here opens by itself.
+  const liveEmpty = mode === "live" && dataset.run.events.length === 0;
+  const liveRepositoryRoot = dataset.repository?.repository.rootPath;
+  useEffect(() => {
+    if (!liveEmpty) return;
+    let active = true;
+    const look = async () => {
+      const found = await fetchLocalSessions().catch(() => []);
+      if (!active) return;
+      setLiveSessions(sortSessionsNewestFirst(found));
+      const running = sortSessionsNewestFirst(found).find(
+        (session) =>
+          session.eventCount !== 0 &&
+          isLiveSession(session) &&
+          sessionRelationToRepository(session, liveRepositoryRoot) !== "other",
+      );
+      if (running) selectSession(running);
+    };
+    void look();
+    const interval = window.setInterval(() => void look(), 3_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [liveEmpty, liveRepositoryRoot, selectSession]);
+  const liveCandidate = useMemo(() => {
+    const usable = liveSessions.filter((session) => session.eventCount !== 0);
+    return (
+      usable.find(
+        (session) => sessionRelationToRepository(session, liveRepositoryRoot) !== "other",
+      ) ?? usable[0]
+    );
+  }, [liveSessions, liveRepositoryRoot]);
 
   const selectRepository = useCallback(
     async (
@@ -398,18 +439,54 @@ export function VisualizerWorkspace() {
           {...(capabilities ? { capabilities } : {})}
           onConnectTelemetry={connectTelemetry}
         />
-        {mode === "live" && dataset.run.events.length === 0 ? (
+        {liveEmpty ? (
           <div className="absolute inset-0 z-20 grid place-items-center bg-[#080b10]/45 p-6">
-            <div className="max-w-sm rounded-xl border border-white/[0.08] bg-[#10151d]/95 p-5 text-center shadow-2xl">
-              <RadioTower className="mx-auto size-5 text-cyan-300" />
-              <h2 className="mt-3 text-sm font-semibold text-slate-100">Nothing live yet</h2>
+            <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#10151d]/95 p-5 shadow-2xl">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex size-2.5">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-cyan-300 opacity-50" />
+                  <span className="relative inline-flex size-2.5 rounded-full bg-cyan-300" />
+                </span>
+                <h2 className="text-sm font-semibold text-slate-100">Waiting for an agent</h2>
+              </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Pick a local agent session to watch, or start one in another terminal and it will
-                appear here. Everything stays on this machine.
+                Live follows a Claude Code or Codex session as it works. Start{" "}
+                <code className="rounded bg-white/[0.06] px-1 text-slate-300">claude</code> or{" "}
+                <code className="rounded bg-white/[0.06] px-1 text-slate-300">codex</code> in your
+                project and it opens here by itself. Nothing to install or configure; everything
+                stays on this machine.
               </p>
-              <div className="mt-4 flex justify-center gap-2">
-                <Button size="sm" onClick={openSources}>
-                  Choose a session
+              {liveCandidate ? (
+                <button
+                  type="button"
+                  onClick={() => selectSession(liveCandidate)}
+                  className="mt-4 flex w-full items-center justify-between gap-3 rounded-lg border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-2.5 text-left transition-colors hover:bg-cyan-300/[0.1]"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-mono text-[0.5625rem] uppercase tracking-wider text-cyan-300/80">
+                      Watch the latest session
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs font-medium text-slate-100">
+                      {liveCandidate.preview ?? sessionLabel(liveCandidate)} ·{" "}
+                      {(liveCandidate.source ?? "codex") === "claude"
+                        ? "Claude Code"
+                        : (liveCandidate.source ?? "codex") === "telemetry"
+                          ? "OpenTelemetry"
+                          : "Codex"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-mono text-[0.625rem] text-slate-500">
+                    {relativeTime(liveCandidate.modifiedAt)}
+                  </span>
+                </button>
+              ) : null}
+              <div className="mt-3 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={liveCandidate ? "ghost" : "default"}
+                  onClick={openSources}
+                >
+                  {liveCandidate ? "Choose another session" : "Browse sessions"}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={selectDemo}>
                   Explore the demo

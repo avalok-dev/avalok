@@ -19,6 +19,7 @@
   "dependencies": {
     "@visual-system/analyzer": "workspace:*",
     "@visual-system/capabilities": "workspace:*",
+    "@visual-system/claude-adapter": "workspace:*",
     "@visual-system/codex-adapter": "workspace:*",
     "@visual-system/collector": "workspace:*",
     "@visual-system/export": "workspace:*",

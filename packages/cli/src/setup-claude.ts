@@ -240,8 +240,11 @@ export async function runSetupClaude(options: SetupClaudeOptions): Promise<numbe
     if (!options.apply) {
       output.write(
         [
-          "Avalok can observe Claude Code sessions through HTTP hooks. They are observational:",
-          "Avalok responds successfully and never blocks or changes Claude Code.",
+          "You usually do not need this. Avalok already finds your Claude Code sessions on its own by",
+          "reading Claude Code's local session files (read-only), and follows them live.",
+          "",
+          "Hooks are an optional extra that push events to Avalok the moment they happen. They are",
+          "observational: Avalok responds successfully and never blocks or changes Claude Code.",
           "",
           `Project file: ${file}`,
           needsChange

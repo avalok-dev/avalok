@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./transcript": "./src/transcript.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
@@ -14,7 +15,8 @@
   },
   "dependencies": {
     "@visual-system/runtime-adapter": "workspace:*",
-    "@visual-system/schema": "workspace:*"
+    "@visual-system/schema": "workspace:*",
+    "@visual-system/telemetry-adapter": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",

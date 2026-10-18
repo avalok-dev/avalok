@@ -201,3 +201,17 @@ describe("with the real layout engine", () => {
     expect((svg.match(/marker-end=/g) ?? []).length).toBe(graph.edges.length);
   });
 });
+
+describe("session relation to a repository", () => {
+  const root = "/Users/dev/workspace/shop";
+  it("tells inside, parent-folder and unrelated sessions apart", async () => {
+    const { sessionRelationToRepository } = await import("../src/sessions");
+    expect(sessionRelationToRepository({ cwd: root }, root)).toBe("inside");
+    expect(sessionRelationToRepository({ cwd: `${root}/api` }, root)).toBe("inside");
+    expect(sessionRelationToRepository({ cwd: "/Users/dev/workspace" }, root)).toBe("parent");
+    expect(sessionRelationToRepository({ cwd: "/Users/dev/work" }, root)).toBe("other");
+    expect(sessionRelationToRepository({ cwd: `${root}-old` }, root)).toBe("other");
+    expect(sessionRelationToRepository({ cwd: "/" }, root)).toBe("other");
+    expect(sessionRelationToRepository({ cwd: null }, root)).toBe("other");
+  });
+});

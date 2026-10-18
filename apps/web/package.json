@@ -13,6 +13,7 @@
     "@cdktf/hcl2json": "0.21.0",
     "@visual-system/analyzer": "workspace:*",
     "@visual-system/capabilities": "workspace:*",
+    "@visual-system/claude-adapter": "workspace:*",
     "@visual-system/codex-adapter": "workspace:*",
     "@visual-system/export": "workspace:*",
     "@visual-system/graph": "workspace:*",

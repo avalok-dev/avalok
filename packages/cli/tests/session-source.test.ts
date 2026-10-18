@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -186,6 +186,48 @@ describe("stored run source", () => {
   it("an empty or missing store is just no sessions", async () => {
     const missing = storedRunSessionSource(new LocalRuntimeStore(join(directory, "nothing")));
     expect(await missing.list()).toEqual([]);
+  });
+});
+
+describe("Claude Code transcripts as a source", () => {
+  it("lists and loads Claude Code's own session files when given their directory", async () => {
+    const projects = join(directory, "claude-projects");
+    await mkdir(join(projects, "-work-shop"), { recursive: true });
+    const records = [
+      {
+        type: "user",
+        sessionId: "from-file",
+        cwd: ROOT,
+        timestamp: "2026-10-07T11:00:00.000Z",
+        promptId: "p",
+        message: { role: "user", content: "add a cart" },
+      },
+      {
+        type: "assistant",
+        sessionId: "from-file",
+        timestamp: "2026-10-07T11:00:03.000Z",
+        message: {
+          role: "assistant",
+          stop_reason: "end_turn",
+          content: [{ type: "text", text: "Done" }],
+        },
+      },
+    ];
+    await writeFile(
+      join(projects, "-work-shop", "from-file.jsonl"),
+      records.map((record) => `${JSON.stringify(record)}\n`).join(""),
+    );
+    const store = await fillStore();
+    const without = await storedRunSessionSource(store).list();
+    expect(without.some((session) => session.id === "from-file")).toBe(false);
+    const source = storedRunSessionSource(store, projects);
+    const found = (await source.list()).find((session) => session.id === "from-file");
+    expect(found).toMatchObject({ source: "claude", cwd: ROOT });
+    const loaded = await source.load(found!);
+    expect(loaded.run.events.map((event) => event.action)).toEqual([
+      "prompt.received",
+      "response.completed",
+    ]);
   });
 });
 

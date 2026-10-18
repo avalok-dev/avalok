@@ -17,6 +17,8 @@ export interface PublicSessionSummary {
   id: string;
   source?: "codex" | "claude" | "telemetry";
   title?: string;
+  /** What the session started with, when the source can tell. */
+  preview?: string;
   fileName?: string;
   startedAt: string | null;
   modifiedAt: string;

@@ -31,6 +31,7 @@ export {
 export {
   pickSessionForRepository,
   sessionBelongsToRepository,
+  sessionRelationToRepository,
   sortSessionsNewestFirst,
   type SessionLike,
 } from "./sessions";

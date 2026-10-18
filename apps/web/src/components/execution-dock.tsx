@@ -69,7 +69,7 @@ export function ExecutionDock() {
                     : "Live updates paused at selected time"
                   : `Historical ${dataset.session.source ?? "codex"} data · reconnecting`
                 : dataset.source === "repository"
-                  ? "Static local analysis · no target code executed"
+                  ? "Static analysis only · nothing to replay until you open an agent session"
                   : "Simulated observable events · no chain-of-thought"}
             </span>
           </div>
