@@ -55,10 +55,11 @@ afterEach(() => rm(root, { recursive: true, force: true }));
 
 describe("Claude Code transcripts", () => {
   it("honours CLAUDE_CONFIG_DIR", () => {
-    expect(defaultClaudeProjectsDirectory({ CLAUDE_CONFIG_DIR: "/c" }, "/home/x")).toBe(
-      "/c/projects",
+    // Compared through `join` so the expectation uses the platform's own separator.
+    expect(defaultClaudeProjectsDirectory({ CLAUDE_CONFIG_DIR: join("c", "claude") }, "home")).toBe(
+      join("c", "claude", "projects"),
     );
-    expect(defaultClaudeProjectsDirectory({}, "/home/x")).toBe("/home/x/.claude/projects");
+    expect(defaultClaudeProjectsDirectory({}, "home")).toBe(join("home", ".claude", "projects"));
   });
 
   it("discovers sessions without any setup, newest first, with their folder", async () => {
