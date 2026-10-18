@@ -370,10 +370,7 @@ export async function buildCapabilityReport(options: {
   const telemetryRuns = runtimeRuns.filter((run) => run.source === "telemetry");
   // Claude Code's own session files need no setup; hook-observed runs are the same sessions when
   // the ids match, so the count is by unique session.
-  const claudeRuns = [
-    ...runtimeRuns.filter((run) => run.source === "claude"),
-    ...claudeTranscripts,
-  ]
+  const claudeRuns = [...runtimeRuns.filter((run) => run.source === "claude"), ...claudeTranscripts]
     .filter((run, index, all) => all.findIndex((other) => other.id === run.id) === index)
     .sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt));
   let health: CollectorHealth | undefined;

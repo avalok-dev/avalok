@@ -110,15 +110,13 @@ export function storedRunSessionSource(
       ...stored,
       ...transcripts
         .filter((session) => !known.has(`claude:${session.id}`))
-        .map(
-          (session): AgentSession => ({
-            source: "claude",
-            id: session.id,
-            cwd: session.cwd ?? null,
-            modifiedAt: session.modifiedAt,
-            eventCount: null,
-          }),
-        ),
+        .map((session): AgentSession => ({
+          source: "claude",
+          id: session.id,
+          cwd: session.cwd ?? null,
+          modifiedAt: session.modifiedAt,
+          eventCount: null,
+        })),
     ];
   };
   return {
