@@ -6,7 +6,7 @@ Avalok is a local-first dashboard. It maps your repository's architecture (servi
 
 ![Avalok showing the architecture of a sample platform: services, datastores, and AWS/Kubernetes deployment configuration on one canvas](docs/assets/avalok-overview.png)
 
-> **Developer preview (`0.1.0-alpha.1`).** Avalok is not published to npm yet, so `npx avalok` does not work today. [Try the release candidate](#try-it-today) from a clone.
+> **Developer preview (`0.1.0-alpha.2`).** Run `npx avalok` in a repository. Interfaces and data formats may change between alpha releases. To build from a clone instead, see [Try it today](#try-it-today).
 
 ## The loop
 
@@ -39,8 +39,8 @@ Avalok is not on npm yet. Build the release candidate from a clone (needs Node 2
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm release:build --skip-smoke          # -> artifacts/release/avalok-0.1.0-alpha.1.tgz
-npm install -g ./artifacts/release/avalok-0.1.0-alpha.1.tgz
+pnpm release:build --skip-smoke          # -> artifacts/release/avalok-0.1.0-alpha.2.tgz
+npm install -g ./artifacts/release/avalok-0.1.0-alpha.2.tgz
 cd /path/to/your/repository
 avalok
 ```
