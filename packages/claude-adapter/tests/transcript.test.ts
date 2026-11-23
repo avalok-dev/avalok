@@ -217,4 +217,64 @@ describe("token usage", () => {
     expect(result.outputTokens).toBeNull();
     expect(result.modelCallCount).toBe(0);
   });
+
+  it("gives a model event the span from the record it answered to its last record", async () => {
+    const usage = { input_tokens: 1, output_tokens: 2 };
+    const result = await run([
+      prompt, // second 0
+      // Out-of-order bookkeeping records must not become the span start.
+      { type: "attachment", timestamp: at(2) },
+      {
+        ...withUsage(3, "m1", usage, [{ type: "thinking", thinking: "x" }]),
+        thinkingDurationMs: 700,
+      },
+      withUsage(3, "m1", usage, [{ type: "text", text: "a" }]), // duplicate record, same instant
+      withUsage(4, "m1", usage, [
+        { type: "tool_use", id: "t1", name: "Bash", input: { command: "ls" } },
+      ]),
+      toolResult, // second 5
+      withUsage(9, "m2", usage, [{ type: "text", text: "b" }]),
+    ]);
+    const m1 = result.events.find((event) => event.id.endsWith(":model:m1"))!;
+    const m2 = result.events.find((event) => event.id.endsWith(":model:m2"))!;
+    expect(m1.durationMs).toBe(4_000);
+    expect(m1.timestamp).toBe(0); // starts where the prompt was, ends at second 4
+    expect(m1.metadata).toMatchObject({ thinkingMs: 700 });
+    expect(m2.durationMs).toBe(4_000); // measured from the tool result at second 5
+    expect(m2.timestamp).toBe(5_000);
+    expect(JSON.stringify(result)).not.toContain('"thinking"');
+  });
+
+  it("measures from the api-request record, so a resumed session is not hours long", async () => {
+    const usage = { input_tokens: 1, output_tokens: 2 };
+    const result = await run([
+      prompt, // second 0; the session then sits idle and is resumed (a 50 s stand-in for hours)
+      { type: "attachment", timestamp: at(50) },
+      { type: "api-request", timestamp: at(51) },
+      withUsage(54, "m1", usage, [{ type: "text", text: "a" }]),
+      { ...toolResult, timestamp: at(55) },
+      withUsage(58, "m2", usage, [{ type: "text", text: "b" }]), // no api-request: falls back
+    ]);
+    const m1 = result.events.find((event) => event.id.endsWith(":model:m1"))!;
+    expect(m1.durationMs).toBe(3_000);
+    expect(m1.timestamp).toBe(51_000);
+    // The api-request marker is used once, not carried into the next response.
+    expect(result.events.find((event) => event.id.endsWith(":model:m2"))?.durationMs).toBe(3_000);
+  });
+
+  it("gives no duration when a timestamp is missing or goes backwards", async () => {
+    const usage = { input_tokens: 1, output_tokens: 2 };
+    const untimed = { ...withUsage(0, "m1", usage, []), timestamp: undefined };
+    const result = await run([
+      prompt,
+      untimed,
+      { ...toolResult, timestamp: undefined },
+      withUsage(6, "m2", usage, []),
+      withUsage(1, "m3", usage, []), // earlier than the record before it
+    ]);
+    for (const id of ["m1", "m2", "m3"])
+      expect(result.events.find((event) => event.id.endsWith(`:model:${id}`))?.durationMs).toBe(
+        undefined,
+      );
+  });
 });

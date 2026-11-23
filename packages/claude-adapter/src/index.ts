@@ -227,6 +227,9 @@ export function normalizeClaudeHook(input: unknown, receivedAt = Date.now()): Ru
       ...metadata,
       responseId: messageId,
       model,
+      ...(numberValue(record.thinking_ms) === undefined
+        ? {}
+        : { thinkingMs: numberValue(record.thinking_ms) }),
       ...(inputTokens === null ? {} : { inputTokens }),
       ...(outputTokens === null ? {} : { outputTokens }),
       uncachedInputTokens: fresh,
