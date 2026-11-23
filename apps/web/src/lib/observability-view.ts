@@ -54,11 +54,12 @@ export function selectConnectionObservation(
   return { status: "observed", statistics };
 }
 
-/** Select only the currently loaded telemetry run, including one reconciled with a repository. */
+/** Statistics for a loaded observed session (telemetry, Claude Code or Codex), including one reconciled with a repository. Never the demo fixture. */
 export function selectTelemetryObservability(
   dataset: VisualizationDataset,
 ): ObservabilityView | undefined {
-  if (dataset.source !== "telemetry" && dataset.session?.source !== "telemetry") return undefined;
+  const source = dataset.session?.source ?? dataset.source;
+  if (source === "demo" || source === "repository") return undefined;
   if (!dataset.run.events.length) return undefined;
   const statistics = aggregateRunObservability(dataset.run);
   const graph = dataset.reconciliation?.graph ?? dataset.architecture;

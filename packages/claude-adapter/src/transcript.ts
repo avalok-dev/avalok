@@ -187,6 +187,24 @@ export class ClaudeTranscriptTail {
 
     if (record.type === "assistant") {
       const out: Json[] = [];
+      // One API response is split over several records sharing message.id, each repeating the same
+      // usage. The normalizer keys the event on message.id, so the merge keeps it once.
+      const usage = objectValue(message?.usage);
+      const messageId = stringValue(message?.id);
+      // "<synthetic>" marks a message Claude Code wrote locally (no API call was made).
+      if (usage && messageId && message?.model !== "<synthetic>")
+        out.push({
+          ...base,
+          hook_event_name: "ModelResponse",
+          message_id: messageId,
+          model: stringValue(message?.model),
+          usage: {
+            input_tokens: usage.input_tokens,
+            output_tokens: usage.output_tokens,
+            cache_read_input_tokens: usage.cache_read_input_tokens,
+            cache_creation_input_tokens: usage.cache_creation_input_tokens,
+          },
+        });
       for (const block of blocks) {
         if (block?.type !== "tool_use") continue;
         const id = stringValue(block.id);

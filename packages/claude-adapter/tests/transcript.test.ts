@@ -156,3 +156,65 @@ describe("session preview", () => {
     expect(summary!.preview!.length).toBeLessThanOrEqual(90);
   });
 });
+
+describe("token usage", () => {
+  const withUsage = (
+    second: number,
+    id: string,
+    usage: Record<string, number>,
+    content: unknown,
+  ) => ({
+    type: "assistant",
+    sessionId: "sess-1",
+    timestamp: at(second),
+    message: { id, model: "claude-test-1", role: "assistant", usage, content },
+  });
+  const run = async (records: unknown[]) => {
+    await writeFile(join(root, "-work-app", "sess-1.jsonl"), records.map(line).join(""));
+    const [summary] = await discoverClaudeTranscripts(root);
+    return (await new ClaudeTranscriptTail(summary!).poll())!.run;
+  };
+
+  it("sums tokens across turns and counts a repeated message.id once", async () => {
+    const first = {
+      input_tokens: 10,
+      output_tokens: 5,
+      cache_read_input_tokens: 100,
+      cache_creation_input_tokens: 20,
+    };
+    const second = { input_tokens: 1, output_tokens: 7, cache_read_input_tokens: 200 };
+    const result = await run([
+      prompt,
+      // Two content blocks of one response repeat the same usage.
+      withUsage(1, "m1", first, [{ type: "thinking", thinking: "secret thoughts" }]),
+      withUsage(2, "m1", first, [
+        { type: "tool_use", id: "t1", name: "Bash", input: { command: "ls" } },
+      ]),
+      toolResult,
+      withUsage(6, "m2", second, [{ type: "text", text: "private answer" }]),
+      // Written locally by Claude Code, not a model call.
+      {
+        ...withUsage(7, "m3", { input_tokens: 0, output_tokens: 0 }, []),
+        message: { id: "m3", model: "<synthetic>", usage: { input_tokens: 0, output_tokens: 0 } },
+      },
+    ]);
+    expect(result.inputTokens).toBe(10 + 100 + 20 + 1 + 200);
+    expect(result.outputTokens).toBe(12);
+    expect(result.modelCallCount).toBe(2);
+    const model = result.events.find((event) => event.id.endsWith(":model:m1"));
+    expect(model?.metadata).toMatchObject({
+      cacheReadInputTokens: 100,
+      cacheCreationInputTokens: 20,
+      model: "claude-test-1",
+    });
+    expect(JSON.stringify(result)).not.toContain("secret thoughts");
+    expect(JSON.stringify(result)).not.toContain("private answer");
+  });
+
+  it("keeps tokens null when the transcript has no usage", async () => {
+    const result = await run([prompt, toolUse, toolResult, answer]);
+    expect(result.inputTokens).toBeNull();
+    expect(result.outputTokens).toBeNull();
+    expect(result.modelCallCount).toBe(0);
+  });
+});
