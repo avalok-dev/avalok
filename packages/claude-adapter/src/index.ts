@@ -134,6 +134,9 @@ export function normalizeClaudeHook(input: unknown, receivedAt = Date.now()): Ru
   let targetEntityId = "claude";
   let status: "running" | "completed" | "error" = "running";
   let prompt = "Claude Code session";
+  let inputTokens: number | null = null;
+  let outputTokens: number | null = null;
+  let modelCallCount = 0;
   const durationMs = numberValue(record.duration_ms);
   let metadata: Record<string, unknown> = { hookEvent, absoluteStartMs: observedAt };
 
@@ -186,6 +189,52 @@ export function normalizeClaudeHook(input: unknown, receivedAt = Date.now()): Ru
       ...(hookEvent === "PostToolUseFailure"
         ? { error: record.error, errorDetails: record.error_details }
         : {}),
+    };
+  } else if (hookEvent === "ModelResponse") {
+    const messageId = stringValue(record.message_id) ?? String(observedAt);
+    const usage = objectValue(record.usage);
+    const model = stringValue(record.model);
+    const modelEntity: Entity = {
+      id: `model:${slug(model ?? "unknown")}`,
+      kind: "model",
+      name: model ?? "Model",
+      provider: "Anthropic",
+    };
+    entities.set(modelEntity.id, modelEntity);
+    edges.set(`edge:claude:${modelEntity.id}`, {
+      id: `edge:claude:${modelEntity.id}`,
+      source: "claude",
+      target: modelEntity.id,
+      label: "inference",
+    });
+    // inputTokens = fresh + cache-read + cache-creation; the three parts stay separate below.
+    const fresh = numberValue(usage?.input_tokens);
+    const cacheRead = numberValue(usage?.cache_read_input_tokens);
+    const cacheCreation = numberValue(usage?.cache_creation_input_tokens);
+    inputTokens =
+      fresh === undefined && cacheRead === undefined && cacheCreation === undefined
+        ? null
+        : (fresh ?? 0) + (cacheRead ?? 0) + (cacheCreation ?? 0);
+    outputTokens = numberValue(usage?.output_tokens) ?? null;
+    modelCallCount = 1;
+    id = `claude:${sessionId}:model:${messageId}`;
+    category = "model";
+    action = "model.response";
+    targetEntityId = modelEntity.id;
+    sourceEntityId = "claude";
+    status = "completed";
+    metadata = {
+      ...metadata,
+      responseId: messageId,
+      model,
+      ...(numberValue(record.thinking_ms) === undefined
+        ? {}
+        : { thinkingMs: numberValue(record.thinking_ms) }),
+      ...(inputTokens === null ? {} : { inputTokens }),
+      ...(outputTokens === null ? {} : { outputTokens }),
+      uncachedInputTokens: fresh,
+      cacheReadInputTokens: cacheRead,
+      cacheCreationInputTokens: cacheCreation,
     };
   } else if (hookEvent === "Stop") {
     id = `claude:${sessionId}:stop:${stringValue(record.prompt_id) ?? observedAt}`;
@@ -270,11 +319,11 @@ export function normalizeClaudeHook(input: unknown, receivedAt = Date.now()): Ru
     startedAt: new Date(Number(metadata.absoluteStartMs)).toISOString(),
     ...(status === "running" ? {} : { endedAt: new Date(observedAt).toISOString() }),
     totalDurationMs: durationMs ?? 0,
-    inputTokens: null,
-    outputTokens: null,
+    inputTokens,
+    outputTokens,
     estimatedCostUsd: null,
     toolCallCount: ["tool", "mcp", "file", "web"].includes(category) ? 1 : 0,
-    modelCallCount: 0,
+    modelCallCount,
     status,
     events: [event],
   });

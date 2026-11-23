@@ -35,7 +35,14 @@ Avalok starts a dashboard at `http://127.0.0.1:4737` and a local receiver at `ht
 
 ### Try it today
 
-Avalok is not on npm yet. Build the release candidate from a clone (needs Node 24.19 and pnpm 11.19, see [CONTRIBUTING](CONTRIBUTING.md)):
+Avalok is on npm (`0.1.0-alpha.2`). Run it from your repository, no install needed (Node 22.12 or newer):
+
+```sh
+cd /path/to/your/repository
+npx avalok
+```
+
+To build it from a clone instead, for example to contribute (needs Node 24.19 and pnpm 11.19, see [CONTRIBUTING](CONTRIBUTING.md)):
 
 ```sh
 pnpm install --frozen-lockfile

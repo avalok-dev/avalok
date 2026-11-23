@@ -132,9 +132,26 @@ describe("telemetry observability selection", () => {
     expect(selectTelemetryObservability(dataset([ordinary], "repository"))?.run.outputTokens).toBe(
       2,
     );
-    const other = dataset([ordinary], "codex");
-    other.session = { ...other.session!, source: "codex" };
-    expect(selectTelemetryObservability(other)).toBeUndefined();
+    const demo = dataset([ordinary], "demo");
+    delete demo.session;
+    expect(selectTelemetryObservability(demo)).toBeUndefined();
+    expect(selectTelemetryObservability(dataset([ordinary], "repository"))).toBeDefined();
+    const staticRepository = dataset([ordinary], "repository");
+    delete staticRepository.session;
+    expect(selectTelemetryObservability(staticRepository)).toBeUndefined();
+  });
+
+  it.each(["claude", "codex"] as const)("shows statistics for a %s session", (source) => {
+    const other = dataset([sub, model, tool], source);
+    other.session = { ...other.session!, source };
+    const { durationMs: _unused, ...noDuration } = model;
+    expect(_unused).toBe(100);
+    other.run.events = [sub, noDuration, tool];
+    const selected = selectTelemetryObservability(other)!;
+    expect(selected.run.callCount).toBe(3);
+    expect(selected.nodeById.tool?.failures).toBe(1);
+    expect(selected.nodes.find((row) => row.id === "tool")?.label).toBe("Search");
+    expect(selected.nodeById.model?.latencySampleCount).toBe(0);
   });
 
   it("renders missing usage and latency as unavailable while retaining observed zero", () => {

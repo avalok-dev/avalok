@@ -165,6 +165,12 @@ export class ClaudeTranscriptTail {
   private remainder = Buffer.alloc(0);
   private readonly tools = new Map<string, PendingTool>();
   private promptId: string | undefined;
+  /** Timestamp of the previous user/assistant record: the prompt or tool result being answered. */
+  private lastMs: number | undefined;
+  /** Timestamp of an "api-request" record written since then, when Claude Code writes one. */
+  private requestMs: number | undefined;
+  /** Where each model response started: the record before its first assistant record. */
+  private readonly modelStarts = new Map<string, number | undefined>();
   private snapshot: RuntimeSnapshot | undefined;
 
   constructor(
@@ -181,12 +187,50 @@ export class ClaudeTranscriptTail {
     };
     const timestamp = Date.parse(stringValue(record.timestamp) ?? "") || Date.now();
     if (record.isSidechain === true) return [];
+    // Only conversation records count as "previous": attachment/api-request records are written
+    // out of order and would give negative spans. Missing or invalid timestamps give no duration.
+    const recordMs = Date.parse(stringValue(record.timestamp) ?? "");
+    // Newer Claude Code writes an "api-request" record when the request is sent: the exact start.
+    // Without it, a resumed session would measure from the last message hours earlier.
+    const previousMs = this.requestMs ?? this.lastMs;
+    if (record.type === "api-request" && Number.isFinite(recordMs)) this.requestMs = recordMs;
+    if (record.type === "user" || record.type === "assistant") {
+      this.lastMs = Number.isFinite(recordMs) ? recordMs : undefined;
+      this.requestMs = undefined;
+    }
     const message = objectValue(record.message);
     const content = message?.content;
     const blocks = Array.isArray(content) ? content.map(objectValue) : [];
 
     if (record.type === "assistant") {
       const out: Json[] = [];
+      // One API response is split over several records sharing message.id, each repeating the same
+      // usage. The normalizer keys the event on message.id, so the merge keeps it once.
+      const usage = objectValue(message?.usage);
+      const messageId = stringValue(message?.id);
+      // "<synthetic>" marks a message Claude Code wrote locally (no API call was made).
+      if (usage && messageId && message?.model !== "<synthetic>") {
+        if (!this.modelStarts.has(messageId)) this.modelStarts.set(messageId, previousMs);
+        // receivedAt is the END of the span (like a tool's PostToolUse), so each record of the
+        // message reports start..itself and the merge keeps the one that ends last: the full span.
+        const startMs = this.modelStarts.get(messageId);
+        const spanMs = startMs === undefined ? NaN : recordMs - startMs;
+        const thinkingMs = record.thinkingDurationMs;
+        out.push({
+          ...base,
+          hook_event_name: "ModelResponse",
+          message_id: messageId,
+          model: stringValue(message?.model),
+          usage: {
+            input_tokens: usage.input_tokens,
+            output_tokens: usage.output_tokens,
+            cache_read_input_tokens: usage.cache_read_input_tokens,
+            cache_creation_input_tokens: usage.cache_creation_input_tokens,
+          },
+          ...(Number.isFinite(spanMs) && spanMs >= 0 ? { duration_ms: spanMs } : {}),
+          ...(typeof thinkingMs === "number" ? { thinking_ms: thinkingMs } : {}),
+        });
+      }
       for (const block of blocks) {
         if (block?.type !== "tool_use") continue;
         const id = stringValue(block.id);
@@ -251,6 +295,9 @@ export class ClaudeTranscriptTail {
         this.offset = 0;
         this.remainder = Buffer.alloc(0);
         this.tools.clear();
+        this.modelStarts.clear();
+        this.lastMs = undefined;
+        this.requestMs = undefined;
         this.snapshot = undefined;
       }
       if (size > this.offset) {

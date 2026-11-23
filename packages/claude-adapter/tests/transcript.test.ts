@@ -156,3 +156,125 @@ describe("session preview", () => {
     expect(summary!.preview!.length).toBeLessThanOrEqual(90);
   });
 });
+
+describe("token usage", () => {
+  const withUsage = (
+    second: number,
+    id: string,
+    usage: Record<string, number>,
+    content: unknown,
+  ) => ({
+    type: "assistant",
+    sessionId: "sess-1",
+    timestamp: at(second),
+    message: { id, model: "claude-test-1", role: "assistant", usage, content },
+  });
+  const run = async (records: unknown[]) => {
+    await writeFile(join(root, "-work-app", "sess-1.jsonl"), records.map(line).join(""));
+    const [summary] = await discoverClaudeTranscripts(root);
+    return (await new ClaudeTranscriptTail(summary!).poll())!.run;
+  };
+
+  it("sums tokens across turns and counts a repeated message.id once", async () => {
+    const first = {
+      input_tokens: 10,
+      output_tokens: 5,
+      cache_read_input_tokens: 100,
+      cache_creation_input_tokens: 20,
+    };
+    const second = { input_tokens: 1, output_tokens: 7, cache_read_input_tokens: 200 };
+    const result = await run([
+      prompt,
+      // Two content blocks of one response repeat the same usage.
+      withUsage(1, "m1", first, [{ type: "thinking", thinking: "secret thoughts" }]),
+      withUsage(2, "m1", first, [
+        { type: "tool_use", id: "t1", name: "Bash", input: { command: "ls" } },
+      ]),
+      toolResult,
+      withUsage(6, "m2", second, [{ type: "text", text: "private answer" }]),
+      // Written locally by Claude Code, not a model call.
+      {
+        ...withUsage(7, "m3", { input_tokens: 0, output_tokens: 0 }, []),
+        message: { id: "m3", model: "<synthetic>", usage: { input_tokens: 0, output_tokens: 0 } },
+      },
+    ]);
+    expect(result.inputTokens).toBe(10 + 100 + 20 + 1 + 200);
+    expect(result.outputTokens).toBe(12);
+    expect(result.modelCallCount).toBe(2);
+    const model = result.events.find((event) => event.id.endsWith(":model:m1"));
+    expect(model?.metadata).toMatchObject({
+      cacheReadInputTokens: 100,
+      cacheCreationInputTokens: 20,
+      model: "claude-test-1",
+    });
+    expect(JSON.stringify(result)).not.toContain("secret thoughts");
+    expect(JSON.stringify(result)).not.toContain("private answer");
+  });
+
+  it("keeps tokens null when the transcript has no usage", async () => {
+    const result = await run([prompt, toolUse, toolResult, answer]);
+    expect(result.inputTokens).toBeNull();
+    expect(result.outputTokens).toBeNull();
+    expect(result.modelCallCount).toBe(0);
+  });
+
+  it("gives a model event the span from the record it answered to its last record", async () => {
+    const usage = { input_tokens: 1, output_tokens: 2 };
+    const result = await run([
+      prompt, // second 0
+      // Out-of-order bookkeeping records must not become the span start.
+      { type: "attachment", timestamp: at(2) },
+      {
+        ...withUsage(3, "m1", usage, [{ type: "thinking", thinking: "x" }]),
+        thinkingDurationMs: 700,
+      },
+      withUsage(3, "m1", usage, [{ type: "text", text: "a" }]), // duplicate record, same instant
+      withUsage(4, "m1", usage, [
+        { type: "tool_use", id: "t1", name: "Bash", input: { command: "ls" } },
+      ]),
+      toolResult, // second 5
+      withUsage(9, "m2", usage, [{ type: "text", text: "b" }]),
+    ]);
+    const m1 = result.events.find((event) => event.id.endsWith(":model:m1"))!;
+    const m2 = result.events.find((event) => event.id.endsWith(":model:m2"))!;
+    expect(m1.durationMs).toBe(4_000);
+    expect(m1.timestamp).toBe(0); // starts where the prompt was, ends at second 4
+    expect(m1.metadata).toMatchObject({ thinkingMs: 700 });
+    expect(m2.durationMs).toBe(4_000); // measured from the tool result at second 5
+    expect(m2.timestamp).toBe(5_000);
+    expect(JSON.stringify(result)).not.toContain('"thinking"');
+  });
+
+  it("measures from the api-request record, so a resumed session is not hours long", async () => {
+    const usage = { input_tokens: 1, output_tokens: 2 };
+    const result = await run([
+      prompt, // second 0; the session then sits idle and is resumed (a 50 s stand-in for hours)
+      { type: "attachment", timestamp: at(50) },
+      { type: "api-request", timestamp: at(51) },
+      withUsage(54, "m1", usage, [{ type: "text", text: "a" }]),
+      { ...toolResult, timestamp: at(55) },
+      withUsage(58, "m2", usage, [{ type: "text", text: "b" }]), // no api-request: falls back
+    ]);
+    const m1 = result.events.find((event) => event.id.endsWith(":model:m1"))!;
+    expect(m1.durationMs).toBe(3_000);
+    expect(m1.timestamp).toBe(51_000);
+    // The api-request marker is used once, not carried into the next response.
+    expect(result.events.find((event) => event.id.endsWith(":model:m2"))?.durationMs).toBe(3_000);
+  });
+
+  it("gives no duration when a timestamp is missing or goes backwards", async () => {
+    const usage = { input_tokens: 1, output_tokens: 2 };
+    const untimed = { ...withUsage(0, "m1", usage, []), timestamp: undefined };
+    const result = await run([
+      prompt,
+      untimed,
+      { ...toolResult, timestamp: undefined },
+      withUsage(6, "m2", usage, []),
+      withUsage(1, "m3", usage, []), // earlier than the record before it
+    ]);
+    for (const id of ["m1", "m2", "m3"])
+      expect(result.events.find((event) => event.id.endsWith(`:model:${id}`))?.durationMs).toBe(
+        undefined,
+      );
+  });
+});
